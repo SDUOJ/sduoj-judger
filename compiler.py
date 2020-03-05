@@ -1,10 +1,16 @@
 import subprocess
-
+from config import  compile_config
 
 class Compiler:
-    # Return the executable file
-    def Compile(self, path):
-        exec_path = "test/test"
-        command = "g++ " + path + " -o " + exec_path
-        subprocess.getstatusoutput(command)
-        return exec_path
+
+    def __init__(self, path):
+        self._path = path
+        self.exec_path, self._lang = path.split('.')
+
+    # Return the compile infomation
+    def compile(self):
+        command = compile_config[self._lang]
+        if self._lang == "py":
+            return subprocess.getstatusoutput(command.format(self._path))
+        return subprocess.getstatusoutput(command.format(self._path, self.exec_path))
+

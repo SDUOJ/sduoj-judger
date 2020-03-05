@@ -2,20 +2,24 @@ import json
 
 
 class Fetcher:
-    def FetchStr(self):
-        str = open("File/E.cpp", "r+").read()
-        js = {"Language": "cpp", "Code": str}
+
+    @staticmethod
+    def FetchStr():
+        # API -> SQL
+        str = open("file/E.cpp", "r+").read()
+        js = {"Language": "cc", "Code": str, "pid": 1001, "max_memory": "16777216", "max_cpu_time": "1000", "max_real_time": "1000"}
         return json.dumps(js)
 
     # Return the code file
+    @classmethod
     def GenerateFile(self):
-        str = self.FetchStr()
-
         # Acquire arguments
-        js = json.loads(str)
+        js = json.loads(Fetcher.FetchStr())
         language = js["Language"]
         code = js["Code"]
-        path = "test/test." + language
+        pid = js["pid"]
+
+        path = "test/main.{}".format(language)
 
         # Write file
         fo = open(path, "w")
@@ -24,4 +28,8 @@ class Fetcher:
         # Close File
         fo.close()
 
-        return path
+        # delete Code
+        del js["Code"]
+        # add source file path
+        js["src_path"] = path
+        return js
