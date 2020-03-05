@@ -8,12 +8,14 @@ class Fetcher:
         return json.dumps(js)
 
     # Return the code file
-    def GenerateFile(str):
+    def GenerateFile(self):
+        str = self.FetchStr()
+
         # Acquire arguments
         js = json.loads(str)
         language = js["Language"]
         code = js["Code"]
-        path = "Test/test." + language
+        path = "test/test." + language
 
         # Write file
         fo = open(path, "w")

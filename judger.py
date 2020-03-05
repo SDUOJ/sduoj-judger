@@ -1,7 +1,6 @@
 import subprocess
-import json
-import compiler
-import fetcher
+from compiler import Compiler
+from fetcher import Fetcher
 
 
 class Judger:
@@ -13,7 +12,13 @@ class Judger:
         return
 
     def Judge(self):
-        # Generate the executable file path
+        # Fetch the code file
+        fetcher = Fetcher()
+        path = fetcher.GenerateFile()
+
+        # Compile the code
+        compiler = Compiler()
+
         # path = GenerateFile(SendFile())
         # path = Compile(path)
         # path = "../sduoj-judger/"+path
@@ -24,3 +29,7 @@ class Judger:
         # ./sandbox --exe_path=path --
         #
         # {time: space: }
+
+
+A = Judger()
+A.Judge()
