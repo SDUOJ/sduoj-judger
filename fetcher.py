@@ -34,3 +34,6 @@ class Fetcher:
         # add source file path
         js["src_path"] = path
         return js
+
+# 题目表：时间限制、空间限制、题号
+# 提交表：submision_id、代码、题号、提交形式（OI-给出分数、ACM）、语言
