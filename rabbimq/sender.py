@@ -1,7 +1,7 @@
 import pika
 import json
 
-fo = open("../file/E.cpp", "r+")
+fo = open("../file/E.cc", "r+")
 
 str = fo.read()
 

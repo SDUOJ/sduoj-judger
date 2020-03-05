@@ -6,8 +6,9 @@ class Fetcher:
     @staticmethod
     def FetchStr():
         # API -> SQL
-        str = open("file/E.cpp", "r+").read()
-        js = {"Language": "cc", "Code": str, "pid": 1001, "max_memory": "16777216", "max_cpu_time": "1000", "max_real_time": "1000"}
+        str = open("file/E.cc", "r+").read()
+        js = {"Language": "cc", "Code": str, "pid": 1001, "max_memory": "16777216", "max_cpu_time": "1000",
+              "max_real_time": "1000"}
         return json.dumps(js)
 
     # Return the code file
@@ -19,7 +20,7 @@ class Fetcher:
         code = js["Code"]
         pid = js["pid"]
 
-        path = "test/main.{}".format(language)
+        path = "test/{}/main.{}".format(pid, language)
 
         # Write file
         fo = open(path, "w")
