@@ -18,17 +18,11 @@ class Judger:
 
         # Compile the code
         compiler = Compiler()
-
-        # path = GenerateFile(SendFile())
-        # path = Compile(path)
-        # path = "../sduoj-judger/"+path
+        path = compiler.Compile(path)
+        path = "../sduoj-judger/"+path
 
         # Use sandbox to run
         command = "../"
-
-        # ./sandbox --exe_path=path --
-        #
-        # {time: space: }
 
 
 A = Judger()
