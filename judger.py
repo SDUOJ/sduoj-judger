@@ -8,6 +8,17 @@ from config import sandbox_path
 
 class Judger:
 
+    def __compare(self,tid):
+        path1 = "data/{}/output/output{}.txt".format(self._compile_config["pid"], tid)
+        path2 = "test/{}/output/output{}.txt".format(self._compile_config["pid"], tid)
+        std_output = open(path1, 'U').readlines()
+        user_output = open(path2, 'U').readlines()
+        if set(std_output)-set(user_output) == set():
+            return True
+        else:
+            return False
+
+    # Return the result of one test
     def __one_judge(self, tid):
         # Use sandbox to run
         command = "sudo {} \
@@ -24,7 +35,7 @@ class Judger:
                             self._compile_config["max_memory"],
                             self._compile_config["max_cpu_time"],
                         )
-        return subprocess.getstatusoutput(command)
+        subprocess.getstatusoutput(command)
 
     def __spj(self):
         return
@@ -40,19 +51,15 @@ class Judger:
         self._compiler = Compiler(self._src_path)
         ret = self._compiler.compile()
         if ret[0] != 0:
-            pass # CE
-            return
+            return "CE"
 
         for i in range(1, 3):
             self.__one_judge(i)
-            path1 = "data/{}/output/output{}.txt".format(self._compile_config["pid"], i)
-            path2 = "test/{}/output/output{}.txt".format(self._compile_config["pid"], i)
-            std_output = open(path1, 'U').readlines()
-            user_output = open(path2, 'U').readlines()
-            if set(std_output)-set(user_output) == set():
-                print('AC')
-            else:
-                print('Wa')
+            # Handle the types of error
+            if __compare(tid) == False:
+                return "Wrong Answer"
+        
+        return "Accepted"
         
 
 
