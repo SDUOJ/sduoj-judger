@@ -6,10 +6,10 @@ class Fetcher:
     @staticmethod
     def FetchStr():
         # API -> SQL
-        str = open("file/test_spj.cc", "r+").read()
+        str = open("file/test_common.cc", "r+").read()
         js = {"Language": "cc", 
               "Code": str, 
-              "pid": 1002, 
+              "pid": 1001, 
               "max_memory": "16777216", 
               "max_cpu_time": "1000",
               "max_real_time": "1000",
