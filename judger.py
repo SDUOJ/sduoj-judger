@@ -28,9 +28,10 @@ class Judger:
 
         for arg in str_list_args:
             value = kwargs.get(arg, None)
-            if isinstance(value, str):
-                command += " --{}={}".format(arg, str(value))
-        print(command)
+            if isinstance(value, list):
+                for item in value:
+                    command += " --{}={}".format(arg, str(item))
+
         return subprocess.getstatusoutput(command)     
 
     def __compare(self, tid, error = "WA"):
@@ -60,6 +61,8 @@ class Judger:
             seccomp_rules = "c_cpp"
         )
         js = json.loads(self.judge_result)
+
+        # Check the running condition of user code
         if judge_status != 0:
             js["result"] = 5
         elif js["result"] == 0:
@@ -67,15 +70,11 @@ class Judger:
                 js["result"] = 7
                 if self.__compare(tid, "PE") == 0:
                     js["result"] = 8
-            
+        
         self.judge_result = json.dumps(js)
 
 
     def __spj(self, tid):
-        # A 测
-        # spj 测
-        # compare spj.out output.txt
-
         # Use sandbox to run the user code
         judge_status, self.judge_result = Judger.__run(
             exe_path = "test/{}/main".format(self._compile_config["pid"]),
@@ -84,24 +83,27 @@ class Judger:
             seccomp_rules = "c_cpp"
         )
         js = json.loads(self.judge_result)
-        
-        # 
+
+        # Check the running condition of user code
         if judge_status != 0:
             js["result"] = 5
-        else:
+        else:        
+            # Use sandbox to run the spj code
             spj_status, spj_result = Judger.__run(
-                exe_path = "test/{}/spj/main".format(self._compile_config["pid"]),
+                exe_path = "data/{}/spj/spj".format(self._compile_config["pid"]),
                 output = "test/{}/output/output{}.txt".format(self._compile_config["pid"], tid),
-                exe_args = "data/{}/input/input{}.txt".format(self._compile_config["pid"], tid) \
-                            + " test/{}/output/output{}.txt".format(self._compile_config["pid"], tid),
+                exe_args = ["data/{}/input/input{}.txt".format(self._compile_config["pid"], tid), \
+                            "test/{}/spj/output{}.txt".format(self._compile_config["pid"], tid)],
                 seccomp_rules = "c_cpp"
             )
+
+            # Check the running condition of spj code
             if spj_status != 0:
                 js["result"] = 5
             elif self.__compare(tid, "PE") == 0:
                 js["result"] = 0
             else:
-                js["result"] = 7        
+                js["result"] = 7
         
         self.judge_result = json.dumps(js)
 

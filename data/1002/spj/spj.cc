@@ -5,61 +5,76 @@
 #define WA 1
 #define ERROR -1
 
-int spj(FILE *input, FILE *user_output);
+int spj(FILE *std_input, FILE *user_output);
 
 void close_file(FILE *f){
-    if(f != NULL){
-        fclose(f);
-    }
+    if(f != NULL) fclose(f);
 }
 
 int main(int argc, char *args[]){
-    FILE *input = NULL, *user_output = NULL;
+    // Variable declaration
     int result;
+    FILE *std_input = NULL, *user_output = NULL;
+    
+    // Check the number of arguments
     if(argc != 3){
-        printf("Usage: spj x.in x.out\n");
+        printf("Wrong format! Usage: spj std.in user.out\n");
         return ERROR;
     }
-    input = fopen(args[1], "r");
+
+    // Acquire the file of std input and user output
+    std_input = fopen(args[1], "r");
     user_output = fopen(args[2], "r");
-    if(input == NULL || user_output == NULL){
-        printf("Failed to open output file\n");
-        close_file(input);
+
+    // Check the std input and user output
+    if(std_input == NULL || user_output == NULL){
+        if(std_input == NULL)
+            printf("Failed to open std input file\n");
+        if(std_input == NULL)
+            printf("Failed to open user output file\n");
+
+        close_file(std_input);
         close_file(user_output);
         return ERROR;
     }
 
-    result = spj(input, user_output);
+    // Acquire the result
+    result = spj(std_input, user_output);
     printf("%d\n", result);
 
-    close_file(input);
+    // Close file and return
+    close_file(std_input);
     close_file(user_output);
     return result;
 }
 
-int spj(FILE *input, FILE *user_output){
+int spj(FILE *std_input, FILE *user_output){
     /*
-      parameter: 
-        - input，标程输入的文件指针
-        - user_output，用户输出文件的指针
+      arguments: 
+        - std_input, file pointer of std input
+        - user_output, file pointer of user output
+
       return: 
-        - 如果用户答案正确，返回AC
-        - 如果用户答案错误返回WA
-        - 如果主动捕获到自己的错误，如内存分配失败，返回ERROR
-      请用户完成此函数.
+        - if user ans is correct, return AC
+        - if user ans is wrong, return WA
+        - if catch error when run spj code, return ERROR
+      
       demo:
-      int a, b;
-      while(fscanf(f, "%d %d", &a, &b) != EOF){
-          if(a -b != 3){
-              return WA;
-          }
-      }
-      return AC;
+        double a, b, std_ans, user_ans;
+        
+        fscanf(std_input, "%lf %lf", &a, &b);
+        fscanf(user_output, "%lf", &user_ans);
+        
+        std_ans = a * b;
+        if(abs(std_ans-user_ans) < 1e-6)
+            return AC;
+        else
+            return WA;
      */
-    double a, b, ans, user;
-    fscanf(input, "%lf %lf", &a, &b);
-    fscanf(user_output, "%lf", &user);
-    ans = a * b;
-    if(abs(ans-user)/abs(ans) < 1e-6) return AC;
+    double a, b, std_ans, user_ans;
+    fscanf(std_input, "%lf %lf", &a, &b);
+    fscanf(user_output, "%lf", &user_ans);
+    std_ans = a * b;
+    if(abs(std_ans-user_ans) < 1e-6) return AC;
     else return WA;
 }
