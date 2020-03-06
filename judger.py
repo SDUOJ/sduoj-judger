@@ -1,5 +1,6 @@
-import subprocess
+import json
 import difflib
+import subprocess
 from compiler import Compiler
 from fetcher import Fetcher
 from config import sandbox_path, JUDGE_RESULT
@@ -9,7 +10,7 @@ class Judger:
     @staticmethod    
     def __run(**kwargs):
         int_args = ["max_cpu_time", "max_real_time", "max_memory", "max_stack", "max_process_number", "max_output_size", "uid", "gid"]
-        str_args = ["exe_path", "input_path", "output_path", "log_path", "seccomp_rules"]
+        str_args = ["exe_path", "input_path", "output", "log_path", "seccomp_rules"]
         str_list_args = ["exe_args", "exe_envs"]
 
         command = "sudo " + sandbox_path
@@ -53,13 +54,15 @@ class Judger:
             output_path = "test/{}/output/output{}.txt".format(self._compile_config["pid"], tid),
             seccomp_rules = "c_cpp"
         )
+        js = json.loads(self.judge_result)
         if judge_status != 0:
-            self.judge_result["result"] = "System Error"
-        if self.judge_result["result"] == 0:
+            js["result"] = "System Error"
+        if js["result"] == 0:
             if self.__compare(tid):
-                self.judge_result["result"] = "Wrong Answer"    
+                js["result"] = "Wrong Answer"    
             if self.__compare(tid, "PE"):
-                self.judge_result["result"] = "Presentation Error"
+                js["result"] = "Presentation Error"
+        self.judge_result = json.dumps(js)
         return self.judge_result
 
 
@@ -80,7 +83,7 @@ class Judger:
             return "CE"
 
         for i in range(1, 3):
-            print(type(self.__one_judge(i)))
+            print(self.__one_judge(i))
             # Handle the types of error
             if self.__compare(i):
                 print("WA on test", i)
