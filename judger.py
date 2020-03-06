@@ -28,9 +28,9 @@ class Judger:
 
         for arg in str_list_args:
             value = kwargs.get(arg, None)
-            if isinstance(value, list):
+            if isinstance(value, str):
                 command += " --{}={}".format(arg, str(value))
-
+        print(command)
         return subprocess.getstatusoutput(command)     
 
     def __compare(self, tid, error = "WA"):
@@ -62,7 +62,7 @@ class Judger:
         js = json.loads(self.judge_result)
         if judge_status != 0:
             js["result"] = 5
-        if js["result"] == 0:
+        elif js["result"] == 0:
             if self.__compare(tid):
                 js["result"] = 7
                 if self.__compare(tid, "PE") == 0:
@@ -71,8 +71,39 @@ class Judger:
         self.judge_result = json.dumps(js)
 
 
-    def __spj(self):
-        return
+    def __spj(self, tid):
+        # A 测
+        # spj 测
+        # compare spj.out output.txt
+
+        # Use sandbox to run the user code
+        judge_status, self.judge_result = Judger.__run(
+            exe_path = "test/{}/main".format(self._compile_config["pid"]),
+            input_path = "data/{}/input/input{}.txt".format(self._compile_config["pid"], tid),
+            output = "test/{}/spj/output{}.txt".format(self._compile_config["pid"], tid),
+            seccomp_rules = "c_cpp"
+        )
+        js = json.loads(self.judge_result)
+        
+        # 
+        if judge_status != 0:
+            js["result"] = 5
+        else:
+            spj_status, spj_result = Judger.__run(
+                exe_path = "test/{}/spj/main".format(self._compile_config["pid"]),
+                output = "test/{}/output/output{}.txt".format(self._compile_config["pid"], tid),
+                exe_args = "data/{}/input/input{}.txt".format(self._compile_config["pid"], tid) \
+                            + " test/{}/output/output{}.txt".format(self._compile_config["pid"], tid),
+                seccomp_rules = "c_cpp"
+            )
+            if spj_status != 0:
+                js["result"] = 5
+            elif self.__compare(tid, "PE") == 0:
+                js["result"] = 0
+            else:
+                js["result"] = 7        
+        
+        self.judge_result = json.dumps(js)
 
     def judge(self):
         # Fetch the code file
@@ -90,9 +121,15 @@ class Judger:
         # Acquire the number of the input data
         num = len(os.listdir("data/{}/input".format(self._compile_config["pid"])))
 
+        # Acquire the flag of spj
+        spj_flag = (len(os.listdir("data/{}".format(self._compile_config["pid"]))) == 3)
+
         # Test the input data one by one
         for i in range(1, num+1):
-            self.__one_judge(i)
+            if(spj_flag):
+                self.__spj(i)
+            else:
+                self.__one_judge(i)
             self.__handle_error(i)
         
 

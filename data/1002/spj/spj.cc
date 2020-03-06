@@ -1,4 +1,5 @@
-#include <stdio.h>
+#include <cstdio>
+#include <cmath>
 
 #define AC 0
 #define WA 1
@@ -29,7 +30,7 @@ int main(int argc, char *args[]){
     }
 
     result = spj(input, user_output);
-    printf("result: %d\n", result);
+    printf("%d\n", result);
 
     close_file(input);
     close_file(user_output);
@@ -55,4 +56,10 @@ int spj(FILE *input, FILE *user_output){
       }
       return AC;
      */
+    double a, b, ans, user;
+    fscanf(input, "%lf %lf", &a, &b);
+    fscanf(user_output, "%lf", &user);
+    ans = a * b;
+    if(abs(ans-user)/abs(ans) < 1e-6) return AC;
+    else return WA;
 }
