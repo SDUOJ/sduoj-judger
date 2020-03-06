@@ -1,3 +1,4 @@
+import os
 import json
 import difflib
 import subprocess
@@ -62,10 +63,11 @@ class Judger:
         if judge_status != 0:
             js["result"] = 5
         if js["result"] == 0:
-            if self.__compare(tid, "PE") == 0:
-                js["result"] = 8
-            elif self.__compare(tid):
+            if self.__compare(tid):
                 js["result"] = 7
+                if self.__compare(tid, "PE") == 0:
+                    js["result"] = 8
+            
         self.judge_result = json.dumps(js)
 
 
@@ -85,7 +87,11 @@ class Judger:
         if ret[0] != 0:
             return "CE"
 
-        for i in range(1, 3):
+        # Acquire the number of the input data
+        num = len(os.listdir("data/{}/input".format(self._compile_config["pid"])))
+
+        # Test the input data one by one
+        for i in range(1, num+1):
             self.__one_judge(i)
             self.__handle_error(i)
         
