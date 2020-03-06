@@ -45,10 +45,8 @@ class Judger:
     def __handle_error(self, tid):
         # Handle the types of error
         js = json.loads(self.judge_result)
-        if js["result"] == 0:
-            print("AC on test", tid)
-        else:
-            print("WA on test", tid)
+        info = JUDGE_RESULT[js["result"]] + " on test {}".format(tid)
+        print(info)
         return
 
     # Return the result of one test
@@ -64,11 +62,10 @@ class Judger:
         if judge_status != 0:
             js["result"] = 5
         if js["result"] == 0:
-            print("txt")
-            if self.__compare(tid):
-                js["result"] = 7
-            elif self.__compare(tid, "PE"):
+            if self.__compare(tid, "PE") == 0:
                 js["result"] = 8
+            elif self.__compare(tid):
+                js["result"] = 7
         self.judge_result = json.dumps(js)
 
 
