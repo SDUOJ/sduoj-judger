@@ -1,6 +1,9 @@
 # MacOS
 .DS_Store
+
+# IDE setting dir
 .idea
+.vscode/
 
 # Byte-compiled / optimized / DLL files
 __pycache__/

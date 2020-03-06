@@ -1,18 +1,18 @@
-sandbox_path = "../sduoj-sandbox/sandbox"
+import os
+import pwd
+import grp
 
-compile_config = {
-    "cc": "g++ {} -o {} --static -O2",
-    "py": "/usr/bin/python3 {}",
-}
 
-JUDGE_RESULT = [
-    "Accepted",
-    "CPU Time Limit Exceeded",
-    "Real Time Limit Exceeded",
-    "Memry Limit Exceeded",
-    "Runtime Error",
-    "System Error",
-    "Output Limit Exceeded",
-    "Wrong Answer",
-    "Presentation Error",
-]
+SANDBOX_PATH = "../sduoj-sandbox/sandbox"
+
+BASE_WORKSPACE_PATH = "test/"
+BASE_LOG_PATH = "log/"
+BASE_DATA_PATH = "data/"
+
+SANDBOX_LOG_PATH = os.path.join(BASE_LOG_PATH, "sandbox.log")
+
+
+# NOBODY_UID = pwd.getpwnam("nobody").pw_uid
+# NOBODY_GID = grp.getgrnam("nobody").gr_gid
+NOBODY_UID = 65534
+NOBODY_GID = 65534

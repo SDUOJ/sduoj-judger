@@ -1,16 +1,26 @@
 import subprocess
-from config import  compile_config
+import os
+from lang import LANG_CONFIG
+
 
 class Compiler:
-
-    def __init__(self, path):
-        self._path = path
-        self.exec_path, self._lang = path.split('.')
-
     # Return the compile infomation
-    def compile(self):
-        command = compile_config[self._lang]
-        if self._lang == "py":
-            return subprocess.getstatusoutput(command.format(self._path))
-        return subprocess.getstatusoutput(command.format(self._path, self.exec_path))
+    def compile(self, compile_config, src_path, output_dir):
+        exe_path = os.path.join(output_dir, compile_config["exe_name"])
+        command = compile_config["compile_command"].format(
+            src_path=src_path, exe_path=exe_path)
+        compile_status, compile_info = subprocess.getstatusoutput(command)
+        if compile_status:
+            # TODO: raise CompileError here
+            pass
+        return compile_info, exe_path
 
+    def compile_spj(self, compile_config, src_path, output_dir, spj_name):
+        exe_path = os.path.join(output_dir, spj_name)
+        command = compile_config["compile_command"].format(
+            src_path=src_path, exe_path=exe_path)
+        compile_status, compile_info = subprocess.getstatusoutput(command)
+        if compile_status:
+            # TODO: raise CompileError here
+            pass
+        return compile_info, exe_path
