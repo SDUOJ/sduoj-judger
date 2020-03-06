@@ -42,28 +42,34 @@ class Judger:
 
         return subprocess.getstatusoutput(command)[0]
 
-    def __handle_error(self, error):
+    def __handle_error(self, tid):
+        # Handle the types of error
+        js = json.loads(self.judge_result)
+        if js["result"] == 0:
+            print("AC on test", tid)
+        else:
+            print("WA on test", tid)
         return
 
     # Return the result of one test
     def __one_judge(self, tid):
         # Use sandbox to run
         judge_status, self.judge_result = Judger.__run(
-            exe_path = "test/{}/main.cc".format(self._compile_config["pid"]),
+            exe_path = "test/{}/main".format(self._compile_config["pid"]),
             input_path = "data/{}/input/input{}.txt".format(self._compile_config["pid"], tid),
-            output_path = "test/{}/output/output{}.txt".format(self._compile_config["pid"], tid),
+            output = "test/{}/output/output{}.txt".format(self._compile_config["pid"], tid),
             seccomp_rules = "c_cpp"
         )
         js = json.loads(self.judge_result)
         if judge_status != 0:
-            js["result"] = "System Error"
+            js["result"] = 5
         if js["result"] == 0:
+            print("txt")
             if self.__compare(tid):
-                js["result"] = "Wrong Answer"    
-            if self.__compare(tid, "PE"):
-                js["result"] = "Presentation Error"
+                js["result"] = 7
+            elif self.__compare(tid, "PE"):
+                js["result"] = 8
         self.judge_result = json.dumps(js)
-        return self.judge_result
 
 
     def __spj(self):
@@ -83,14 +89,8 @@ class Judger:
             return "CE"
 
         for i in range(1, 3):
-            print(self.__one_judge(i))
-            # Handle the types of error
-            if self.__compare(i):
-                print("WA on test", i)
-            else:
-                print("AC on test", i)
-        
-        print("AC")
+            self.__one_judge(i)
+            self.__handle_error(i)
         
 
 
