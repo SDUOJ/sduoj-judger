@@ -55,7 +55,7 @@ class Judger(object):
                                                               src_path=src_path,
                                                               output_dir=workspace_dir)
             os.chown(self._exe_path, NOBODY_UID, NOBODY_GID)
-            os.chmod(self._exe_path, 0o500)
+            os.chmod(self._exe_path, 0o400)
             # print(compile_info)
 
             if self._spj:
@@ -93,7 +93,7 @@ class Judger(object):
                 if case_result["result"] and not self._oimode:
                     break
 
-            print(judge_result)
+            return judge_result
 
     # Return the result of one test
     def __one_judge(self, run_config, lang_config, exe_path, test_input, test_output, std_output):

@@ -52,11 +52,12 @@ if __name__ == "__main__":
                     run_config=js["run_config"],
                     input_path="data/{}/input".format(js["pid"]),
                     input_cases=["input1.txt", "input2.txt", "input3.txt"],
-                    answer_path="data/{}/input".format(js["pid"]),
+                    answer_path="data/{}/output".format(js["pid"]),
                     output_answers=["output1.txt",
                                     "output2.txt", "output3.txt"],
                     # checker=__checker,
                     spj=js["spj"],
                     oimode=True,
                     )
-    client.judge()
+    result = client.judge()
+    print(result)
