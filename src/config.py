@@ -3,9 +3,9 @@ import pwd
 import grp
 
 
-SANDBOX_PATH = "../sduoj-sandbox/sandbox"
+SANDBOX_PATH = "../../sduoj-sandbox/sandbox"
 
-BASE_WORKSPACE_PATH = "test/"
+BASE_WORKSPACE_PATH = "workspace/"
 BASE_LOG_PATH = "log/"
 BASE_DATA_PATH = "data/"
 

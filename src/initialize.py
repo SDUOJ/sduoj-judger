@@ -22,12 +22,12 @@ class InitJudgeEnv(object):
         except Exception as e:
             # TODO: cannot create judge dir, raise Exception here
             pass
-
         return self._workspace_dir, self._test_output_dir
 
     def __exit__(self, exception_type, exception_value, exception_traceback):
         try:
             shutil.rmtree(self._workspace_dir)
+            pass
         except Exception as e:
             # TODO: cannot remove judge dir, raise Exception here
             pass

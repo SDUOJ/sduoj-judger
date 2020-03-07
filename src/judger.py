@@ -1,19 +1,10 @@
 import os
 import json
-import difflib
 import subprocess
 from initialize import InitJudgeEnv
 from compiler import Compiler
 from config import *
 from lang import *
-
-
-def __checker(test_output, std_output):
-    command = "diff {} {}".format(std_output, test_output)
-    if subprocess.getstatusoutput(command)[0]:
-        command += " --ignore-space-change --ignore-blank-lines"
-        return Judger.WRONG_ANSWER if subprocess.getstatusoutput(command)[0] else Judger.SUCCESS
-    return Judger.SUCCESS
 
 
 class Judger(object):
@@ -30,18 +21,19 @@ class Judger(object):
     SPJ_WA = 1
     SPJ_SUCCESS = 0
 
-    def __init__(self, submission_id, pid, code, lang, run_config, test_path, input_cases: list, output_answers: list, checker=None, spj=None, oimode=False, **kwargs):
+    def __init__(self, submission_id, pid, code, lang, run_config, input_path, input_cases: list, answer_path, output_answers: list, checker=None, spj=None, oimode=False, **kwargs):
         self._submission_id = submission_id
         self._pid = pid
         self._code = code
         self._lang = lang
         self._run_config = run_config          # resource limit
-        self._test_path = test_path
+        self._input_path = input_path
         # input test data, should be a list containing the path of all test datas
         self._input = input_cases
+        self._answer_path = answer_path
         # standard output answer, should be a list containing the path of all answers
         self._output = output_answers
-        self._checker = checker
+        self._checker = checker     # TODO: checker can be customed
         self._spj = spj
         self._oimode = oimode
 
@@ -62,20 +54,23 @@ class Judger(object):
             compile_info, self._exe_path = Compiler().compile(compile_config=self._lang_config,
                                                               src_path=src_path,
                                                               output_dir=workspace_dir)
-            os.chown(self._exe_path, NOBODY_UID, 0)
+            os.chown(self._exe_path, NOBODY_UID, NOBODY_GID)
             os.chmod(self._exe_path, 0o500)
             # print(compile_info)
 
             if self._spj:
-                # compile the spj code
+                self._spj_exe_path = self._spj.get("exe_path", None)
                 self._spj_config = LANG_CONFIG[self._spj["lang"]]
-                compile_info, self._spj_exe_path = Compiler().compile_spj(compile_config=self._spj_config,
-                                                                          src_path=self._spj["src_path"],
-                                                                          output_dir=workspace_dir,
-                                                                          spj_name="spj")
-                os.chown(self._spj_exe_path, NOBODY_UID, 0)
-                os.chmod(self._spj_exe_path, 0o500)
-                # print(compile_info)
+                # if spj_exe_path is not realiable, recompile it!
+                if not self._spj_exe_path or not os.path.isfile(self._spj_exe_path):
+                    # compile the spj code
+                    compile_info, self._spj_exe_path = Compiler().compile_spj(compile_config=self._spj_config,
+                                                                              src_path=self._spj["src_path"],
+                                                                              output_dir=workspace_dir,
+                                                                              spj_name="spj")
+                    os.chown(self._spj_exe_path, NOBODY_UID, NOBODY_GID)
+                    os.chmod(self._spj_exe_path, 0o500)
+                    # print(compile_info)
 
             judge_result = {
                 "submission_id": self._submission_id,
@@ -83,10 +78,9 @@ class Judger(object):
                 "result": {}
             }
             for input_case, output_case in zip(self._input, self._output):
-                input_path = os.path.join(self._test_path, "input", input_case)
-                answer_path = os.path.join(
-                    self._test_path, "output", output_case)
-                output_path = os.path.join(test_output_path, input_case)
+                input_path = os.path.join(self._input_path, input_case)
+                answer_path = os.path.join(self._answer_path, output_case)
+                output_path = os.path.join(test_output_path, output_case)
 
                 case_result = self.__one_judge(run_config=self._run_config,
                                                lang_config=self._lang_config,
@@ -127,8 +121,8 @@ class Judger(object):
             judge_result["result"] = Judger.SYSTEM_ERROR
 
         if judge_result["result"] == Judger.SUCCESS:
-            judge_result["result"] = self.__spj_check(self._spj_config, test_input, test_output) if self._spj else self._checker(
-                test_output=test_output, std_output=std_output)
+            judge_result["result"] = self.__spj_check(self._spj_config, test_input, test_output) if self._spj \
+                else self._checker(test_output=test_output, std_output=std_output)
 
         return judge_result
 
@@ -138,6 +132,7 @@ class Judger(object):
             exe_path=self._spj_exe_path,
             exe_args=[test_input, test_output],
             seccomp_rules=spj_config["seccomp_rules"],
+            log_path=SANDBOX_LOG_PATH,
         )
 
         if spj_status or spj_result["error"] or \
@@ -147,8 +142,7 @@ class Judger(object):
 
         if spj_result["exit_code"] == Judger.SPJ_SUCCESS:
             return Judger.SUCCESS
-
-        if spj_result["exit_code"] == Judger.SPJ_WA:
+        else:
             return Judger.WRONG_ANSWER
 
     @staticmethod
@@ -179,23 +173,3 @@ class Judger(object):
 
         judge_status, judge_result = subprocess.getstatusoutput(command)
         return judge_status, json.loads(judge_result)
-
-
-if __name__ == "__main__":
-    from fetcher import Fetcher
-    js = json.loads(Fetcher.FetchStr())
-
-    print(js)
-
-    client = Judger(submission_id=js["submission_id"],
-                    pid=js["pid"],
-                    code=js["code"],
-                    lang=js["lang"],
-                    run_config=js["run_config"],
-                    test_path="data/1001",
-                    input_cases=["input1.txt", "input2.txt"],
-                    output_answers=["output1.txt", "output2.txt"],
-                    # checker=checker,
-                    spj=js["spj"],
-                    )
-    client.judge()

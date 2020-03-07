@@ -5,6 +5,9 @@
 .idea
 .vscode/
 
+test/log
+test/workspace
+
 # Byte-compiled / optimized / DLL files
 __pycache__/
 *.py[cod]
