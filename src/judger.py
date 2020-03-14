@@ -46,6 +46,7 @@ class Judger(object):
                 workspace_dir, self._lang_config["src_name"])
 
             # compile the code here
+            print(src_path)
             with open(src_path, "w", encoding="utf8") as f:
                 f.write(self._code)
             os.chown(src_path, NOBODY_UID, NOBODY_GID)
@@ -55,7 +56,8 @@ class Judger(object):
                                                               src_path=src_path,
                                                               output_dir=workspace_dir)
             os.chown(self._exe_path, NOBODY_UID, NOBODY_GID)
-            os.chmod(self._exe_path, 0o500)
+            # os.chmod(self._exe_path, 0o500)
+            os.chmod(self._exe_path, 0o004)
             # print(compile_info)
 
             if self._spj:
@@ -69,7 +71,8 @@ class Judger(object):
                                                                               output_dir=workspace_dir,
                                                                               spj_name="spj")
                     os.chown(self._spj_exe_path, NOBODY_UID, NOBODY_GID)
-                    os.chmod(self._spj_exe_path, 0o500)
+                    # os.chmod(self._spj_exe_path, 0o500)
+                    os.chmod(self._spj_exe_path, 0o004)
                     # print(compile_info)
 
             judge_result = {
@@ -170,6 +173,6 @@ class Judger(object):
             if isinstance(value, list):
                 for item in value:
                     command += " --{}={}".format(arg, str(item))
-
+        # print(command)
         judge_status, judge_result = subprocess.getstatusoutput(command)
         return judge_status, json.loads(judge_result)

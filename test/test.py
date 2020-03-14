@@ -23,7 +23,7 @@ if __name__ == "__main__":
     # API -> SQL
     code = open("file/test_spj.cc", "r+").read()
     js = {
-        "submission_id": 998244353,
+        "submission_id": 998244354,
         "code": code,
         "pid": 1001,
         "lang": "cc",
@@ -42,8 +42,12 @@ if __name__ == "__main__":
 
     if not os.path.exists(BASE_WORKSPACE_PATH):
         os.mkdir(BASE_WORKSPACE_PATH)
+        os.chown(BASE_WORKSPACE_PATH, 0, 0)
+        os.chmod(BASE_WORKSPACE_PATH, 0o755)
     if not os.path.exists(BASE_LOG_PATH):
         os.mkdir(BASE_LOG_PATH)
+        os.chown(BASE_LOG_PATH, 0, 0)
+        os.chmod(BASE_LOG_PATH, 0o755)
 
     client = Judger(submission_id=js["submission_id"],
                     pid=js["pid"],
