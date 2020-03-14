@@ -1,6 +1,7 @@
 import json
 import sys
 import os
+import shutil
 
 sys.path.append('../src')
 from judger import *
@@ -45,19 +46,26 @@ if __name__ == "__main__":
     if not os.path.exists(BASE_LOG_PATH):
         os.mkdir(BASE_LOG_PATH)
 
-    client = Judger(submission_id=js["submission_id"],
-                    pid=js["pid"],
-                    code=js["code"],
-                    lang=js["lang"],
-                    run_config=js["run_config"],
-                    input_path="data/{}/input".format(js["pid"]),
-                    input_cases=["input1.txt", "input2.txt", "input3.txt"],
-                    answer_path="data/{}/output".format(js["pid"]),
-                    output_answers=["output1.txt",
-                                    "output2.txt", "output3.txt"],
-                    # checker=__checker,
-                    spj=js["spj"],
-                    oimode=True,
-                    )
-    result = client.judge()
-    print(result)
+    try:
+        client = Judger(submission_id=js["submission_id"],
+                        pid=js["pid"],
+                        code=js["code"],
+                        lang=js["lang"],
+                        run_config=js["run_config"],
+                        input_path="data/{}/input".format(js["pid"]),
+                        input_cases=["input1.txt", "input2.txt", "input3.txt"],
+                        answer_path="data/{}/output".format(js["pid"]),
+                        output_answers=["output1.txt",
+                                        "output2.txt", "output3.txt"],
+                        # checker=__checker,
+                        spj=js["spj"],
+                        oimode=True,
+                        )
+        result = client.judge()
+    except Exception as e:
+        print(type(e))
+        print(e)
+    else:
+        print(result)
+
+    shutil.rmtree(BASE_WORKSPACE_PATH)
