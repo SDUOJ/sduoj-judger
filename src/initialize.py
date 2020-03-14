@@ -1,6 +1,7 @@
 import json
 import shutil
 from config import *
+from exception import *
 
 
 class InitJudgeEnv(object):
@@ -16,14 +17,20 @@ class InitJudgeEnv(object):
             if not os.path.exists(self._test_output_dir):
                 os.mkdir(self._test_output_dir)
         except Exception as e:
-            # TODO: cannot create judge dir, raise Exception here
+            # cannot create judge dir, raise Exception here
+            raise SystemInternalError("cannot create judge workspace")
             pass
         return self._workspace_dir, self._test_output_dir
 
     def __exit__(self, exception_type, exception_value, exception_traceback):
         try:
-            # shutil.rmtree(self._workspace_dir)
-            pass
+            shutil.rmtree(self._workspace_dir)
         except Exception as e:
-            # TODO: cannot remove judge dir, raise Exception here
-            pass
+            # cannot remove judge dir, raise Exception here
+            raise SystemInternalError("cannot remove judge workspace")
+            return True
+        else:
+            if exception_value: # caught other error exception, raise here
+                raise exception_value
+                return True
+            return False

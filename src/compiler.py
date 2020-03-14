@@ -1,6 +1,7 @@
 import subprocess
 import os
 from lang import LANG_CONFIG
+from exception import *
 
 
 class Compiler:
@@ -12,6 +13,7 @@ class Compiler:
         compile_status, compile_info = subprocess.getstatusoutput(command)
         if compile_status:
             # TODO: raise CompileError here
+            raise UserCompileError(compile_info)
             pass
         return compile_info, exe_path
 
@@ -22,5 +24,6 @@ class Compiler:
         compile_status, compile_info = subprocess.getstatusoutput(command)
         if compile_status:
             # TODO: raise CompileError here
+            raise SpjCompileError(compile_info)
             pass
         return compile_info, exe_path

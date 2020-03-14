@@ -5,6 +5,7 @@ from initialize import InitJudgeEnv
 from compiler import Compiler
 from config import *
 from lang import *
+from exception import *
 
 
 class Judger(object):
@@ -90,7 +91,7 @@ class Judger(object):
     # Return the result of one test
     def __one_judge(self, run_config, lang_config, exe_path, test_input, test_output, std_output):
         # Use sandbox to run
-        judge_status, judge_result = Judger.__run(
+        judge_result = Judger.__run(
             exe_path=exe_path,
             exe_args=lang_config["run_args"],
             exe_envs=lang_config["run_envs"],
@@ -109,9 +110,6 @@ class Judger(object):
             gid=NOBODY_GID,
         )
 
-        if judge_status or judge_result["error"]:
-            judge_result["result"] = Judger.SYSTEM_ERROR
-
         if judge_result["result"] == Judger.SUCCESS:
             judge_result["result"] = self.__spj_check(self._spj_config, test_input, test_output) if self._spj \
                 else self._checker(test_output=test_output, std_output=std_output)
@@ -120,17 +118,15 @@ class Judger(object):
 
     def __spj_check(self, spj_config, test_input, test_output):
         # Use sandbox to run the user code
-        spj_status, spj_result = Judger.__run(
+        spj_result = Judger.__run(
             exe_path=self._spj_exe_path,
             exe_args=[test_input, test_output],
             seccomp_rules=spj_config["seccomp_rules"],
             log_path=SANDBOX_LOG_PATH,
         )
 
-        if spj_status or spj_result["error"] or \
-            (spj_result["exit_code"] != Judger.SPJ_SUCCESS and spj_result["exit_code"] != Judger.SPJ_WA) or \
-                spj_result["result"] == Judger.SYSTEM_ERROR:
-            return Judger.SYSTEM_ERROR
+        if spj_result["exit_code"] != Judger.SPJ_SUCCESS and spj_result["exit_code"] != Judger.SPJ_WA:  # exit code should be 0 or 1
+            raise SpjError("Unexcepted spj exit code %s" % str(spj_result["exit_code"]))
 
         if spj_result["exit_code"] == Judger.SPJ_SUCCESS:
             return Judger.SUCCESS
@@ -164,4 +160,10 @@ class Judger(object):
                     command += " --{}={}".format(arg, str(item))
         # print(command)
         judge_status, judge_result = subprocess.getstatusoutput(command)
-        return judge_status, json.loads(judge_result)
+        if judge_status:    # system cannot launch sandbox sucessfully
+            raise SystemInternalError(judge_result)
+        
+        judge_result = json.loads(judge_result)
+        if judge_result["result"] == Judger.SYSTEM_ERROR:   # give error number
+            raise SystemInternalError("sandbox internal error, errorno %s" % str(judge_result["error"]))
+        return judge_result
