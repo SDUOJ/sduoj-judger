@@ -46,16 +46,12 @@ class Judger(object):
                 workspace_dir, self._lang_config["src_name"])
 
             # compile the code here
-            print(src_path)
             with open(src_path, "w", encoding="utf8") as f:
                 f.write(self._code)
-            os.chown(src_path, NOBODY_UID, NOBODY_GID)
-            os.chmod(src_path, 0o400)
 
             compile_info, self._exe_path = Compiler().compile(compile_config=self._lang_config,
                                                               src_path=src_path,
                                                               output_dir=workspace_dir)
-            os.chown(self._exe_path, NOBODY_UID, NOBODY_GID)
 
             if self._spj:
                 self._spj_exe_path = self._spj.get("exe_path", None)
@@ -67,10 +63,6 @@ class Judger(object):
                                                                               src_path=self._spj["src_path"],
                                                                               output_dir=workspace_dir,
                                                                               spj_name="spj")
-                    os.chown(self._spj_exe_path, NOBODY_UID, NOBODY_GID)
-                    # os.chmod(self._spj_exe_path, 0o500)
-                    os.chmod(self._spj_exe_path, 0o004)
-                    # print(compile_info)
 
             judge_result = {
                 "submission_id": self._submission_id,

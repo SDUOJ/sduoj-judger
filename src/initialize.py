@@ -13,10 +13,8 @@ class InitJudgeEnv(object):
             self._test_output_dir = os.path.join(self._workspace_dir, "output")
             if not os.path.exists(self._workspace_dir):
                 os.mkdir(self._workspace_dir)
-                os.chown(self._workspace_dir, NOBODY_UID, NOBODY_GID)
             if not os.path.exists(self._test_output_dir):
                 os.mkdir(self._test_output_dir)
-                os.chown(self._test_output_dir, NOBODY_UID, NOBODY_GID)
         except Exception as e:
             # TODO: cannot create judge dir, raise Exception here
             pass
