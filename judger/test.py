@@ -3,9 +3,9 @@ import sys
 import os
 import shutil
 
-sys.path.append('../src')
-from judger import *
-from config import BASE_LOG_PATH, BASE_WORKSPACE_PATH
+# sys.path.append('../src')
+from judger.model.client import Judger
+from judger.config import BASE_LOG_PATH, BASE_WORKSPACE_PATH
 
 
 # 题目表：时间限制、空间限制、题号
@@ -22,7 +22,7 @@ def __checker(test_output, std_output):
 
 if __name__ == "__main__":
     # API -> SQL
-    code = open("file/test_spj.cc", "r+").read()
+    code = open("test/file/test_spj.cc", "r+").read()
     js = {
         "submission_id": 998244354,
         "code": code,
@@ -34,8 +34,8 @@ if __name__ == "__main__":
                 "max_real_time": 1000,
         },
         "spj": {
-            "src_path": "data/1002/spj/spj.cc",
-            "exe_path": "data/1002/spj/spj",
+            "src_path": "test/data/1002/spj/spj.cc",
+            "exe_path": "test/data/1002/spj/spj",
             "lang": "cc",
         }
     }
@@ -52,9 +52,9 @@ if __name__ == "__main__":
                         code=js["code"],
                         lang=js["lang"],
                         run_config=js["run_config"],
-                        input_path="data/{}/input".format(js["pid"]),
+                        input_path="test/data/{}/input".format(js["pid"]),
                         input_cases=["input1.txt", "input2.txt", "input3.txt"],
-                        answer_path="data/{}/output".format(js["pid"]),
+                        answer_path="test/data/{}/output".format(js["pid"]),
                         output_answers=["output1.txt",
                                         "output2.txt", "output3.txt"],
                         # checker=__checker,
@@ -68,4 +68,4 @@ if __name__ == "__main__":
     else:
         print(result)
 
-    shutil.rmtree(BASE_WORKSPACE_PATH)
+    # shutil.rmtree(BASE_WORKSPACE_PATH)

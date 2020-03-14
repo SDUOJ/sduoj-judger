@@ -1,11 +1,45 @@
 import os
 import json
 import subprocess
-from initialize import InitJudgeEnv
-from compiler import Compiler
-from config import *
-from lang import *
-from exception import *
+import shutil
+
+from judger.model.compiler import Compiler
+from judger.lang import LANG_CONFIG
+from judger.config import *
+from judger.exception import *
+
+
+class WorkspaceInitializer(object):
+    def __init__(self, workspace_dir, pid, submission_id):
+        self._workspace_dir = os.path.join(
+            workspace_dir, "{}-{}".format(pid, submission_id))
+
+    def __enter__(self):
+        try:
+            self._test_output_dir = os.path.join(self._workspace_dir, "output")
+            if not os.path.exists(self._workspace_dir):
+                os.mkdir(self._workspace_dir)
+            if not os.path.exists(self._test_output_dir):
+                os.mkdir(self._test_output_dir)
+        except Exception as e:
+            # cannot create judge dir, raise Exception here
+            raise SystemInternalError("cannot create judge workspace")
+            pass
+        return self._workspace_dir, self._test_output_dir
+
+    def __exit__(self, exception_type, exception_value, exception_traceback):
+        try:
+            # shutil.rmtree(self._workspace_dir)
+            pass
+        except Exception as e:
+            # cannot remove judge dir, raise Exception here
+            raise SystemInternalError("cannot remove judge workspace")
+            return True
+        else:
+            if exception_value:  # caught other error exception, raise here
+                raise exception_value
+                return True
+            return False
 
 
 class Judger(object):
@@ -22,7 +56,21 @@ class Judger(object):
     SPJ_WA = 1
     SPJ_SUCCESS = 0
 
-    def __init__(self, submission_id, pid, code, lang, run_config, input_path, input_cases: list, answer_path, output_answers: list, checker=None, spj=None, oimode=False, **kwargs):
+    def __init__(self, 
+                submission_id, 
+                pid, 
+                code, 
+                lang, 
+                run_config, 
+                input_path, 
+                input_cases: list, 
+                answer_path, 
+                output_answers: list, 
+                checker=None, 
+                spj=None, 
+                oimode=False, 
+                **kwargs):
+
         self._submission_id = submission_id
         self._pid = pid
         self._code = code
@@ -41,7 +89,7 @@ class Judger(object):
     def judge(self):
         self._lang_config = LANG_CONFIG[self._lang]
 
-        with InitJudgeEnv(BASE_WORKSPACE_PATH, self._pid, self._submission_id) as paths:
+        with WorkspaceInitializer(BASE_WORKSPACE_PATH, self._pid, self._submission_id) as paths:
             workspace_dir, test_output_path = paths
             src_path = os.path.join(
                 workspace_dir, self._lang_config["src_name"])
@@ -125,8 +173,10 @@ class Judger(object):
             log_path=SANDBOX_LOG_PATH,
         )
 
-        if spj_result["exit_code"] != Judger.SPJ_SUCCESS and spj_result["exit_code"] != Judger.SPJ_WA:  # exit code should be 0 or 1
-            raise SpjError("Unexcepted spj exit code %s" % str(spj_result["exit_code"]))
+        # exit code should be 0 or 1
+        if spj_result["exit_code"] != Judger.SPJ_SUCCESS and spj_result["exit_code"] != Judger.SPJ_WA:
+            raise SpjError("Unexcepted spj exit code %s" %
+                           str(spj_result["exit_code"]))
 
         if spj_result["exit_code"] == Judger.SPJ_SUCCESS:
             return Judger.SUCCESS
@@ -165,5 +215,5 @@ class Judger(object):
         
         judge_result = json.loads(judge_result)
         if judge_result["result"] == Judger.SYSTEM_ERROR:   # give error number
-            raise SystemInternalError("sandbox internal error, errorno %s" % str(judge_result["error"]))
+            raise SandboxInternalError("sandbox internal error, signal=%d, errno=%d" % (judge_result["signal"], judge_result["error"]))
         return judge_result

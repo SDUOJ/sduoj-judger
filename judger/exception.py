@@ -16,3 +16,6 @@ class SpjError(JudgeCustomError):
 
 class SystemInternalError(JudgeCustomError):
     pass
+
+class SandboxInternalError(JudgeCustomError):
+    pass

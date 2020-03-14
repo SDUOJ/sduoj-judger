@@ -1,7 +1,6 @@
 import subprocess
 import os
-from lang import LANG_CONFIG
-from exception import *
+from judger.exception import *
 
 
 class Compiler:
