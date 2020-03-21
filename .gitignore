@@ -3,10 +3,10 @@
 
 # IDE setting dir
 .idea
-.vscode/
+.vscode
 
-log/
-workspace/
+log
+workspace
 
 # Byte-compiled / optimized / DLL files
 __pycache__/
