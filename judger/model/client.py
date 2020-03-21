@@ -43,6 +43,15 @@ class WorkspaceInitializer(object):
 
 
 class Judger(object):
+    RETURN_TYPE = ["Accepted",
+                   "Time Limit Exceeded",
+                   "Time Limit Exceeded",
+                   "Memory Limit Exceeded",
+                   "Runtime Error",
+                   "System Error",
+                   "Wrong Answer",
+                   "Presentation Error"]
+
     SUCCESS = 0
     CPU_TIME_LIMIT_EXCEEDED = 1
     REAL_TIME_LIMIT_EXCEEDED = 2

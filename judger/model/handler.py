@@ -34,12 +34,13 @@ class RequestHandler(object):
             "id": pid
         }
 
-        ret = requests.post("https://mockapi.eolinker.com/mS5uWHX6f6afa5576ac65e68c78c7e587f9a5c85de59a90/api/problem/querybyjudger", headers=headers, data=json.dumps(data)).text
+        response = requests.post("https://mockapi.eolinker.com/mS5uWHX6f6afa5576ac65e68c78c7e587f9a5c85de59a90/api/problem/querybyjudger", headers=headers, data=json.dumps(data))
+        ret = json.loads(response.text)
         if ret["code"]:
             pass
         return ret
 
-    def emit_judge_result(self, submission_id, judge_id, judge_result, judge_score, used_time, used_memory, judger_log):
+    def send_judge_result(self, submission_id, judge_id, judge_result, judge_score, used_time, used_memory, judger_log):
         headers = {
             "Origin": "http://oj.oops-sdu.cn",
         }
@@ -52,8 +53,9 @@ class RequestHandler(object):
             "usedMemory": used_memory,
             "judgeLog": judger_log
         }
-
         response = requests.post("https://mockapi.eolinker.com/mS5uWHX6f6afa5576ac65e68c78c7e587f9a5c85de59a90/api/submit/update", headers=headers, data=json.dumps(data))
+        print(data)
+        print(response)
         if response.status_code != 200:
             pass
         return json.loads(response.text)
@@ -65,4 +67,4 @@ if __name__ == "__main__":
     # ret = handler.query_submit(1000001)
     # print(str(ret["data"]["code"]))
     # print(handler.problem_query(1111))
-    print(handler.emit_judge_result(10001, 1, "Accepted", 10, 567, 282737, "gugudong"))
+    # print(handler.emit_judge_result(10001, 1, "Accepted", 10, 567, 282737, "gugudong"))

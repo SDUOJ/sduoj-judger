@@ -57,3 +57,5 @@ LANG_CONFIG = {
     "py3": py3_lang_config,
     "java": java_lang_config
 }
+
+LANG_TYPE = ["c","cc","py2","py3","java"]
