@@ -60,6 +60,10 @@ class RequestHandler(object):
             pass
         return json.loads(response.text)
 
+    @staticmethod
+    def __send_one_judge_result(submission_id, judge_id, judge_result, judge_score, used_time, used_memory, judger_log):
+        RequestHandler().send_judge_result(submission_id, judge_id, judge_result, judge_score, used_time, used_memory, judger_log)
+
         
 
 if __name__ == "__main__":

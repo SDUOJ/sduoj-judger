@@ -56,29 +56,30 @@ def callback(ch, method, properties, body):
                                         "output2.txt", "output3.txt"],
                         checker=__checker,
                         oimode=True,
+                        handler=handler
                         )
         result = client.judge()
     except UserCompileError as e:
         handler.send_judge_result(
-            submission_id, 0, "Compile Error", 0, 0, 0, str(e))
+            submission_id, e.where(), "Compile Error", 0, 0, 0, str(e))
     except SpjCompileError as e:
         handler.send_judge_result(
-            submission_id, 0, "Special Judge Compile Error", 0, 0, 0, str(e))
+            submission_id, e.where(), "Special Judge Compile Error", 0, 0, 0, str(e))
     except SpjError as e:
         handler.send_judge_result(
-            submission_id, 0, "Special Judge Error", 0, 0, 0, str(e))
+            submission_id, e.where(), "Special Judge Error", 0, 0, 0, str(e))
     except SystemInternalError as e:
         handler.send_judge_result(
-            submission_id, 0, "System Internal Error", 0, 0, 0, str(e))
+            submission_id, e.where(), "System Internal Error", 0, 0, 0, str(e))
     except SandboxInternalError as e:
         handler.send_judge_result(
-            submission_id, 0, "Sandbox Internal Error", 0, 0, 0, str(e))
-    else:
-        # 传送结果
-        result1 = result["result"]["input1.txt"]
-        handler.send_judge_result(
-            submission_id, 0, Judger.RETURN_TYPE[result1["result"]], 10, result1["cpu_time"], result1["memory"], "")
-        print(result)
+            submission_id, e.where(), "Sandbox Internal Error", 0, 0, 0, str(e))
+    # else:
+    #     # 传送结果
+    #     result1 = result["result"]["input1.txt"]
+    #     handler.send_judge_result(
+    #         submission_id, 0, Judger.RETURN_TYPE[result1["result"]], 10, result1["cpu_time"], result1["memory"], "")
+    #     print(result)
 
     ch.basic_ack(delivery_tag=method.delivery_tag)  # manual ack
 

@@ -94,6 +94,9 @@ class Judger(object):
         self._checker = checker     # TODO: checker can be customed
         self._spj = spj
         self._oimode = oimode
+        self._kwargs = kwargs
+
+        self._case_id = -1
 
     def judge(self):
         self._lang_config = LANG_CONFIG[self._lang]
@@ -127,6 +130,7 @@ class Judger(object):
                 "pid": self._pid,
                 "result": {}
             }
+            self._case_id = 0
             for input_case, output_case in zip(self._input, self._output):
                 input_path = os.path.join(self._input_path, input_case)
                 answer_path = os.path.join(self._answer_path, output_case)
@@ -138,10 +142,19 @@ class Judger(object):
                                                test_input=input_path,
                                                test_output=output_path,
                                                std_output=answer_path)
-
+                handler = self._kwargs.get("handler", None)
+                if handler:
+                    handler.send_judge_result(submission_id=self._submission_id, 
+                                              judge_id=case_id, 
+                                              judge_result=Judger.RETURN_TYPE[case_result["result"]], 
+                                              judge_score=0, 
+                                              used_time=case_result["cpu_time"],
+                                              used_memory=case_result["memory"],
+                                              judger_log="")
                 judge_result["result"][input_case] = case_result
                 if case_result["result"] and not self._oimode:
                     break
+                self._case_id += 1
 
             return judge_result
 
@@ -185,7 +198,7 @@ class Judger(object):
         # exit code should be 0 or 1
         if spj_result["exit_code"] != Judger.SPJ_SUCCESS and spj_result["exit_code"] != Judger.SPJ_WA:
             raise SpjError("Unexcepted spj exit code %s" %
-                           str(spj_result["exit_code"]))
+                           str(spj_result["exit_code"]), self._case_id)
 
         if spj_result["exit_code"] == Judger.SPJ_SUCCESS:
             return Judger.SUCCESS
@@ -220,9 +233,9 @@ class Judger(object):
         # print(command)
         judge_status, judge_result = subprocess.getstatusoutput(command)
         if judge_status:    # system cannot launch sandbox sucessfully
-            raise SystemInternalError(judge_result)
+            raise SystemInternalError(judge_result, kwargs.get("case_id", -1))
         
         judge_result = json.loads(judge_result)
         if judge_result["result"] == Judger.SYSTEM_ERROR:   # give error number
-            raise SandboxInternalError("sandbox internal error, signal=%d, errno=%d" % (judge_result["signal"], judge_result["error"]))
+            raise SandboxInternalError("sandbox internal error, signal=%d, errno=%d" % (judge_result["signal"], judge_result["error"]), kwargs.get("case_id", -1))
         return judge_result
