@@ -11,8 +11,7 @@ connection = pika.BlockingConnection(
 channel = connection.channel()
 
 # durable: to set the broker durable
-channel.queue_declare(queue='sudoj', durable=True)
-
+channel.queue_declare(queue='sduoj', durable=True)
 
 def __checker(test_output, std_output):
     import difflib
