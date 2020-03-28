@@ -145,7 +145,7 @@ class Judger(object):
                 handler = self._kwargs.get("handler", None)
                 if handler:
                     handler.send_judge_result(submission_id=self._submission_id, 
-                                              judge_id=case_id, 
+                                              judge_id=self._case_id, 
                                               judge_result=Judger.RETURN_TYPE[case_result["result"]], 
                                               judge_score=0, 
                                               used_time=case_result["cpu_time"],
