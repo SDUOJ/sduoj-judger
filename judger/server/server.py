@@ -7,7 +7,7 @@ from judger.model.handler import *
 from judger.model.client import Judger
 
 
-def __checker(test_output, std_output):
+def checker(test_output, std_output):
     import difflib
     import subprocess
     command = "diff {} {}".format(std_output, test_output)
@@ -18,7 +18,7 @@ def __checker(test_output, std_output):
 
 
 class ReceiverClient(object):
-    def __init__(self, host, port, handler, uname=None, pwd=None):
+    def __init__(self, host, port, queue, handler, uname=None, pwd=None):
         self._uname = uname
         self._pwd = pwd
         self._host = host
@@ -31,8 +31,7 @@ class ReceiverClient(object):
             self._credentials = pika.PlainCredentials(self._uname, self._pwd)
         else:
             self._credentials = pika.PlainCredentials("guest", "guest")
-        
-        self._parameters = pika.ConnectionParameters(host=self._host, port=self._port, credentials=self._credentials)
+        self._parameters = pika.ConnectionParameters(host=self._host, port=self._port, virtual_host="/sduoj", credentials=self._credentials)
         self._connection = pika.BlockingConnection(self._parameters)
         self.channel = self._connection.channel()
     
@@ -43,29 +42,34 @@ class ReceiverClient(object):
         self.channel.basic_qos(prefetch_count=1)  # limit the number
         self.channel.basic_consume(queue=self._queue, on_message_callback=self._callback)
         print("[*] Start consuming...")
+        self._handler.get_cookies()
         self.channel.start_consuming()
     
     def _callback(self, ch, method, properties, body):
-        submission_id = int(str(body, encoding="utf-8"))
+        tmp = json.loads(str(body, encoding="utf8"))
+        submission_id = int(tmp["submissionId"])
+        print(submission_id)
         # 查询提交
-        submission_config = handler.submission_query(submission_id)
+        submission_config = self._handler.submission_query(submission_id)
+        print(submission_config)
         # code 用 base64 加密传输
-        submission_code = str(base64.b64decode(
-            submission_config["data"]["code"]), encoding="utf-8")
+        submission_code = submission_config["data"]["code"]
+        # submission_code = str(base64.b64decode(submission_config["data"]["code"]), encoding="utf-8")
         # 查看题目时限、数据包地址
         problem_id = submission_config["data"]["problemId"]
-        problem_config = handler.problem_query(problem_id)
+        problem_config = self._handler.problem_query(problem_id)
+        print(problem_id, problem_config)
         # 检查url是否需要更新
         # TODO
+
         # 评测
         try:
             client = Judger(submission_id=submission_id,
                             pid=problem_id,
                             code=submission_code,
-                            lang=LANG_TYPE[submission_config["data"]
-                                        ["languageId"]],
+                            lang=LANG_TYPE[submission_config["data"]["languageId"]],
                             run_config={
-                                "max_memory": problem_config["data"]["memoryLimit"],
+                                "max_memory": problem_config["data"]["memoryLimit"] * 1024,
                                 "max_cpu_time": problem_config["data"]["timeLimit"],
                                 "max_real_time": problem_config["data"]["timeLimit"] * 2,
                             },
@@ -74,9 +78,9 @@ class ReceiverClient(object):
                             answer_path="test/data/{}/output".format(problem_id),
                             output_answers=["output1.txt",
                                             "output2.txt", "output3.txt"],
-                            checker=__checker,
-                            oimode=True,
-                            handler=self._handler
+                            checker=checker,
+                            oimode=False,
+                            # handler=self._handler
                             )
             result = client.judge()
         except UserCompileError as e:
@@ -94,12 +98,23 @@ class ReceiverClient(object):
         except SandboxInternalError as e:
             self._handler.send_judge_result(
                 submission_id, e.where(), "Sandbox Internal Error", 0, 0, 0, str(e))
-        # else:
-        #     # 传送结果
-        #     result1 = result["result"]["input1.txt"]
-        #     handler.send_judge_result(
-        #         submission_id, 0, Judger.RETURN_TYPE[result1["result"]], 10, result1["cpu_time"], result1["memory"], "")
-        #     print(result)
+        else:
+            # 传送结果
+            print(result)
+            max_result_cpu_time = 0
+            max_result_memory = 0
+            judge_result = Judger.SUCCESS
+            for ret in result["result"].values():
+                max_result_cpu_time = max(max_result_cpu_time, ret["cpu_time"])
+                max_result_memory = max(max_result_memory, ret["memory"])
+                judge_result = ret["result"]
+            self._handler.send_judge_result(submission_id=submission_id,
+                                            judger_id=1001,
+                                            judge_result=Judger.RETURN_TYPE[judge_result],
+                                            judge_score=0,
+                                            used_time=max_result_cpu_time,
+                                            used_memory=max_result_memory // 1024,
+                                            judger_log="2333")
 
         ch.basic_ack(delivery_tag=method.delivery_tag)  # manual ack
 

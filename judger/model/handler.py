@@ -8,7 +8,6 @@ class RequestHandler(object):
         self.host = host
         self.username = username
         self.password = password
-        self.cookies_expires = datetime.datetime.strptime("Sun, 29-Mar-1970 02:56:43 GMT", "%a, %d-%b-%Y %H:%M:%S %Z")
         self.headers = {
             "Content-Type": "application/json",
             "Origin": "http://oj.oops-sdu.cn"
@@ -16,13 +15,13 @@ class RequestHandler(object):
         self.cookies = requests.cookies.RequestsCookieJar()
 
     def check_cookies_expires(self):
-        while datetime.datetime.now() <= self.cookies_expires:
+        while datetime.datetime.now() > self.cookies_expires:
             self.get_cookies()
 
     def get_cookies(self):
         data = {
-            "username": self.username,
-            "password": self.password
+            "username": str(self.username),
+            "password": str(self.password),
         }
         response = requests.post(self.host + "/api/auth/login", headers=self.headers, data=json.dumps(data))
         
@@ -40,7 +39,14 @@ class RequestHandler(object):
             "id": submission_id
         }
         response = requests.post(self.host + "/api/submit/querybyjudger", headers=self.headers, data=json.dumps(data), cookies = self.cookies)
-        return response.status_code == 200 and json.loads(response.text)["code"] == 0
+        if response.status_code != 200:
+            # TODO: log here
+            return
+        ret = json.loads(response.text)
+        if ret["code"]:
+            # TODO: log here
+            return
+        return ret
 
     def problem_query(self, pid):
         self.check_cookies_expires()
@@ -48,25 +54,33 @@ class RequestHandler(object):
             "id": pid
         }
         response = requests.post(self.host + "/api/problem/querybyjudger", headers=self.headers, data=json.dumps(data), cookies = self.cookies)
-        return response.status_code == 200 and json.loads(response.text)["code"] == 0
+        if response.status_code != 200:
+            # TODO: log here
+            return
+        ret = json.loads(response.text)
+        if ret["code"]:
+            # TODO: log here
+            return
+        return ret
 
-    def send_judge_result(self, submission_id, judge_id, judge_result, judge_score, used_time, used_memory, judger_log):
+    def send_judge_result(self, submission_id, judger_id, judge_result, judge_score, used_time, used_memory, judger_log):
         self.check_cookies_expires()
         data = {
             "id": submission_id,
-            "judgeId": judge_id,
+            "judgeId": judger_id,
             "judgeResult": judge_result,
             "judgeScore": judge_score,
             "usedTime": used_time,
             "usedMemory": used_memory,
             "judgeLog": judger_log
         }
+        print(data)
         response = requests.post(self.host + "/api/submit/update", headers=self.headers, data=json.dumps(data), cookies = self.cookies)
         return response.status_code == 200 and json.loads(response.text)["code"] == 0
 
     @staticmethod
-    def __send_one_judge_result(submission_id, judge_id, judge_result, judge_score, used_time, used_memory, judger_log):
-        RequestHandler().send_judge_result(submission_id, judge_id, judge_result, judge_score, used_time, used_memory, judger_log)
+    def __send_one_judge_result(submission_id, judger_id, judge_result, judge_score, used_time, used_memory, judger_log):
+        RequestHandler().send_judge_result(submission_id, judger_id, judge_result, judge_score, used_time, used_memory, judger_log)
 
         
 def main():
