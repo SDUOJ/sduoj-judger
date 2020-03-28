@@ -7,8 +7,6 @@ import os
 import zipfile
 from judger.config import *
 
-BUFFER_SIZE = 4096
-
 class RequestHandler(object):
     
     def __init__(self, host, username, password):
@@ -123,7 +121,6 @@ class RequestHandler(object):
 
         with zipfile.ZipFile(full_data_path, "r") as f:
             f.extractall(os.path.join(BASE_DATA_PATH, data_path))
-        # shutil.unpack_archive(full_data_path)
         os.unlink(full_data_path)
         return data_path
 
@@ -131,13 +128,3 @@ class RequestHandler(object):
     @staticmethod
     def __send_one_judge_result(submission_id, judger_id, judge_result, judge_score, used_time, used_memory, judger_log):
         RequestHandler().send_judge_result(submission_id, judger_id, judge_result, judge_score, used_time, used_memory, judger_log)
-
-        
-def main():
-    tmp = RequestHandler("http://api.oj.xrvitd.com:8080","tttt","111")
-    print(tmp.get_cookies())
-
-
-if __name__ == "__main__":
-    # main()
-    RequestHandler(123,123,123).fetch_problem_data(1001, "https://sduoj.oss-cn-beijing.aliyuncs.com/a93513474432c7d71078f6e40498b733")
