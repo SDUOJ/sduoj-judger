@@ -1,11 +1,14 @@
 import json
 import pika
-import base64
-from judger.exception import *
-from judger.lang import LANG_TYPE
-from judger.model.handler import *
-from judger.model.client import Judger
+import os
+import time
 
+from judger.lang import LANG_TYPE
+from judger.model.client import Judger
+from judger.model.handler import RequestHandler
+from judger.config import CONFIG, BASE_WORKSPACE_PATH, BASE_LOG_PATH
+
+RETRY_DELAY_SEC = 30
 
 def checker(test_output, std_output):
     import difflib
@@ -44,8 +47,10 @@ class ReceiverClient(object):
         print("[*] Start consuming...")
         self._handler.get_cookies()
         self.channel.start_consuming()
+
     
     def _callback(self, ch, method, properties, body):
+        # ch.basic_ack(delivery_tag=method.delivery_tag)  # manual ack
         tmp = json.loads(str(body, encoding="utf8"))
         submission_id = int(tmp["submissionId"])
         print(submission_id)
@@ -61,7 +66,7 @@ class ReceiverClient(object):
         print(problem_id, problem_config)
         # 检查url是否需要更新
         # TODO
-
+        data_path = self._handler.fetch_problem_data(problem_id, problem_config["data"]["checkpointUrl"])
         # 评测
         try:
             client = Judger(submission_id=submission_id,
@@ -73,11 +78,9 @@ class ReceiverClient(object):
                                 "max_cpu_time": problem_config["data"]["timeLimit"],
                                 "max_real_time": problem_config["data"]["timeLimit"] * 2,
                             },
-                            input_path="test/data/{}/input".format(problem_id),
+                            data_path=data_path+"/1001",
                             input_cases=["input1.txt", "input2.txt", "input3.txt"],
-                            answer_path="test/data/{}/output".format(problem_id),
-                            output_answers=["output1.txt",
-                                            "output2.txt", "output3.txt"],
+                            output_answers=["output1.txt","output2.txt", "output3.txt"],
                             checker=checker,
                             oimode=False,
                             # handler=self._handler
@@ -118,3 +121,29 @@ class ReceiverClient(object):
 
         ch.basic_ack(delivery_tag=method.delivery_tag)  # manual ack
 
+def run():
+    try:
+        if not os.path.exists(BASE_WORKSPACE_PATH):
+            os.mkdir(BASE_WORKSPACE_PATH)
+        if not os.path.exists(BASE_LOG_PATH):
+            os.mkdir(BASE_LOG_PATH)
+    except Exception as e:
+        print(e)
+        # TODO: cannot create workspace, log here
+        exit(1)
+
+    handler = RequestHandler(host=CONFIG["server"], username=CONFIG["uname"], password=CONFIG["pwd"])
+    while True:
+        try:
+            ReceiverClient(uname=CONFIG["mq_uname"], pwd=CONFIG["mq_pwd"], host=CONFIG["mq_server"], port=CONFIG.get("mq_port", 5672), queue=CONFIG["mq_name"], handler=handler).run()
+        except Exception as e:
+            raise e
+            print(e)
+            pass
+        # TODO: retry, log here
+        print("Retry after %ds" % RETRY_DELAY_SEC)
+        time.sleep(RETRY_DELAY_SEC)
+
+
+if __name__ == "__main__":
+    run()

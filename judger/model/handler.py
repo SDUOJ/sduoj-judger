@@ -1,6 +1,13 @@
 import datetime, time
 import json
 import requests
+import hashlib
+import shutil
+import os
+import zipfile
+from judger.config import *
+
+BUFFER_SIZE = 4096
 
 class RequestHandler(object):
     
@@ -38,7 +45,8 @@ class RequestHandler(object):
         data = {
             "id": submission_id
         }
-        response = requests.post(self.host + "/api/submit/querybyjudger", headers=self.headers, data=json.dumps(data), cookies = self.cookies)
+        response = requests.post(self.host + "/api/submit/querybyjudger", headers=self.headers, data=json.dumps(data), cookies=self.cookies)
+
         if response.status_code != 200:
             # TODO: log here
             return
@@ -53,7 +61,7 @@ class RequestHandler(object):
         data = {
             "id": pid
         }
-        response = requests.post(self.host + "/api/problem/querybyjudger", headers=self.headers, data=json.dumps(data), cookies = self.cookies)
+        response = requests.post(self.host + "/api/problem/querybyjudger", headers=self.headers, data=json.dumps(data), cookies=self.cookies)
         if response.status_code != 200:
             # TODO: log here
             return
@@ -75,8 +83,50 @@ class RequestHandler(object):
             "judgeLog": judger_log
         }
         print(data)
-        response = requests.post(self.host + "/api/submit/update", headers=self.headers, data=json.dumps(data), cookies = self.cookies)
+        response = requests.post(self.host + "/api/submit/update", headers=self.headers, data=json.dumps(data), cookies=self.cookies)
         return response.status_code == 200 and json.loads(response.text)["code"] == 0
+
+    def fetch_problem_data(self, problem_id, url):
+        problem_md5 = url.strip("/").split("/")[-1]
+        data_path = "{}-{}".format(problem_id, problem_md5)
+        full_data_path = os.path.join(BASE_DATA_PATH, data_path + ".zip")
+
+        if os.path.exists(full_data_path):
+            return data_path
+        
+        for _dir in os.listdir(BASE_DATA_PATH):
+            if _dir.startswith("%s-" % problem_id):
+                shutil.rmtree(os.path.join(BASE_DATA_PATH, _dir)) 
+        
+        print("Fetch problem data: %s %s" % (problem_id, url))
+        with requests.get(url, cookies=self.cookies) as response:
+            # if hasattr(response, content_type) and response.content_type == "application/json":
+            #     response_dict = response.json()
+            #     # TODO: expect file but get json here, log it
+            #     raise Exception()
+
+            if response.status_code != 200:
+                # TODO: non 200 ret code, log it
+                raise Exception()
+            
+            with open(full_data_path, "wb") as f:
+                f.write(response.content)
+            
+        with open(full_data_path, "rb") as f:
+            md5obj = hashlib.md5()
+            md5obj.update(f.read())
+            _hash = md5obj.hexdigest()
+
+            if str(_hash) != problem_md5:
+                # TODO: unmatch md5, log here
+                raise Exception()
+
+        with zipfile.ZipFile(full_data_path, "r") as f:
+            f.extractall(os.path.join(BASE_DATA_PATH, data_path))
+        # shutil.unpack_archive(full_data_path)
+        os.unlink(full_data_path)
+        return data_path
+
 
     @staticmethod
     def __send_one_judge_result(submission_id, judger_id, judge_result, judge_score, used_time, used_memory, judger_log):
@@ -89,4 +139,5 @@ def main():
 
 
 if __name__ == "__main__":
-    main()
+    # main()
+    RequestHandler(123,123,123).fetch_problem_data(1001, "https://sduoj.oss-cn-beijing.aliyuncs.com/a93513474432c7d71078f6e40498b733")

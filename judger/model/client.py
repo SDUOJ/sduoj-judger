@@ -29,7 +29,7 @@ class WorkspaceInitializer(object):
 
     def __exit__(self, exception_type, exception_value, exception_traceback):
         try:
-            # shutil.rmtree(self._workspace_dir)
+            shutil.rmtree(self._workspace_dir)
             pass
         except Exception as e:
             # cannot remove judge dir, raise Exception here
@@ -64,9 +64,10 @@ class Judger(object):
                 code, 
                 lang, 
                 run_config, 
-                input_path, 
+                data_path,
+                # input_path, 
                 input_cases: list, 
-                answer_path, 
+                # answer_path, 
                 output_answers: list, 
                 checker=None, 
                 spj=None, 
@@ -78,10 +79,10 @@ class Judger(object):
         self._code = code
         self._lang = lang
         self._run_config = run_config          # resource limit
-        self._input_path = input_path
+        self._input_path = os.path.join(BASE_DATA_PATH, data_path, "input")
         # input test data, should be a list containing the path of all test datas
         self._input = input_cases
-        self._answer_path = answer_path
+        self._answer_path = os.path.join(BASE_DATA_PATH, data_path, "output")
         # standard output answer, should be a list containing the path of all answers
         self._output = output_answers
         self._checker = checker     # TODO: checker can be customed

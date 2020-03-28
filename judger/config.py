@@ -8,7 +8,7 @@ SANDBOX_PATH = "/usr/bin/sandbox"
 
 BASE_WORKSPACE_PATH = "workspace/"
 BASE_LOG_PATH = "log/"
-BASE_DATA_PATH = "data/"
+BASE_DATA_PATH = "test/data/"
 
 CONFIG_FILE_PATH = "config.yaml"
 SANDBOX_LOG_PATH = os.path.join(BASE_LOG_PATH, "sandbox.log")
