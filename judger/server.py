@@ -6,10 +6,12 @@ import time
 from judger.exception import *
 from judger.lang import LANG_TYPE
 from judger.model.client import Judger
-from judger.model.handler import RequestHandler
+from judger.model.handler import Session
 from judger.config import CONFIG, BASE_WORKSPACE_PATH, BASE_LOG_PATH
 
-RETRY_DELAY_SEC = 30
+import logging, coloredlogs
+logger = logging.getLogger(__name__)
+coloredlogs.install(level="DEBUG")
 
 def checker(test_output, std_output):
     import difflib
@@ -45,8 +47,8 @@ class ReceiverClient(object):
         self.channel.queue_declare(queue=self._queue, durable=True)
         self.channel.basic_qos(prefetch_count=1)  # limit the number
         self.channel.basic_consume(queue=self._queue, on_message_callback=self._callback)
-        print("[*] Start consuming...")
         self._handler.get_cookies()
+        logger.info("Start consuming...")
         self.channel.start_consuming()
 
     
@@ -63,11 +65,11 @@ class ReceiverClient(object):
         # submission_code = str(base64.b64decode(submission_config["data"]["code"]), encoding="utf-8")
         # 查看题目时限、数据包地址
         problem_id = submission_config["data"]["problemId"]
+        logger.info("Get submission request: {}-{}".format(problem_id, submission_id))
+
         problem_config = self._handler.problem_query(problem_id)
-        print(problem_id, problem_config)
         try:
         # 检查url是否需要更新
-        # TODO
             data_path = self._handler.fetch_problem_data(problem_id, problem_config["data"]["checkpointUrl"])
         # 评测
             client = Judger(submission_id=submission_id,
@@ -79,7 +81,7 @@ class ReceiverClient(object):
                                 "max_cpu_time": problem_config["data"]["timeLimit"],
                                 "max_real_time": problem_config["data"]["timeLimit"] * 2,
                             },
-                            data_path=data_path+"/1001",
+                            data_path=os.path.join(data_path, problem_id),
                             input_cases=["input1.txt", "input2.txt", "input3.txt"],
                             output_answers=["output1.txt","output2.txt", "output3.txt"],
                             checker=checker,
@@ -104,7 +106,6 @@ class ReceiverClient(object):
                 submission_id, 1001, "SbIE", 0, 0, 0, str(e))
         else:
             # 传送结果
-            print(result)
             max_result_cpu_time = 0
             max_result_memory = 0
             judge_result = Judger.SUCCESS
@@ -128,12 +129,14 @@ def run():
             os.mkdir(BASE_WORKSPACE_PATH)
         if not os.path.exists(BASE_LOG_PATH):
             os.mkdir(BASE_LOG_PATH)
+        os.chmod(BASE_WORKSPACE_PATH, 0o711)
     except Exception as e:
-        print(e)
+        # print(e)
         # TODO: cannot create workspace, log here
+        logger.critical("Crashed while creating WORKSPACE")
         exit(1)
 
-    handler = RequestHandler(host=CONFIG["server"], username=CONFIG["uname"], password=CONFIG["pwd"])
+    handler = Session(host=CONFIG["server"], username=CONFIG["uname"], password=CONFIG["pwd"], origin="http://oj.oops.sdu.cn")
     while True:
         try:
             ReceiverClient(uname=CONFIG["mq_uname"], pwd=CONFIG["mq_pwd"], host=CONFIG["mq_server"], port=CONFIG.get("mq_port", 5672), queue=CONFIG["mq_name"], handler=handler).run()
@@ -142,7 +145,9 @@ def run():
             print(e)
             pass
         # TODO: retry, log here
-        print("Retry after %ds" % RETRY_DELAY_SEC)
+        logger()
+        # print("Retry after %ds" % RETRY_DELAY_SEC)
+        logger.warn("offline from message qeue, retry after {}s".format(RETRY_DELAY_SEC))
         time.sleep(RETRY_DELAY_SEC)
 
 

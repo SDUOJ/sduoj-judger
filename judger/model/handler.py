@@ -6,29 +6,44 @@ import shutil
 import os
 import zipfile
 from judger.config import *
+from urllib.parse import urljoin
 
-class RequestHandler(object):
-    
-    def __init__(self, host, username, password):
+import logging, coloredlogs
+logger = logging.getLogger(__name__)
+coloredlogs.install(level="DEBUG")
+
+DELAY = 30
+
+class Session(object):
+    def __init__(self, host, username, password, origin):
         self.host = host
         self.username = username
         self.password = password
         self.headers = {
             "Content-Type": "application/json",
-            "Origin": "http://oj.oops-sdu.cn"
+            "accept": "application/json",
+            "Origin": origin,
         }
         self.cookies = requests.cookies.RequestsCookieJar()
 
+    def full_url(self, *parts):
+        return urljoin(self.host, os.path.join(*parts))
+
     def check_cookies_expires(self):
         while datetime.datetime.now() > self.cookies_expires:
-            self.get_cookies()
+            logger.error("session out of date")
+            if not self.get_cookies():
+                logger.warn("retry after {}s".format(DELAY))
+                time.sleep(DELAY)
+            else:
+                logger.info("Connected")
 
     def get_cookies(self):
         data = {
             "username": str(self.username),
             "password": str(self.password),
         }
-        response = requests.post(self.host + "/api/auth/login", headers=self.headers, data=json.dumps(data))
+        response = requests.post(self.full_url("/api/auth/judger/login"), headers=self.headers, data=json.dumps(data))
         
         self.cookies.update(response.cookies)
         for item in response.headers["Set-Cookie"].split("; "):
@@ -41,9 +56,9 @@ class RequestHandler(object):
     def submission_query(self, submission_id):
         self.check_cookies_expires()
         data = {
-            "id": submission_id
+            "submissionId": int(submission_id, base=10)
         }
-        response = requests.post(self.host + "/api/submit/querybyjudger", headers=self.headers, data=json.dumps(data), cookies=self.cookies)
+        response = requests.post(self.full_url("/api/submit/judger/query"), headers=self.headers, data=json.dumps(data), cookies=self.cookies)
 
         if response.status_code != 200:
             # TODO: log here
@@ -57,9 +72,9 @@ class RequestHandler(object):
     def problem_query(self, pid):
         self.check_cookies_expires()
         data = {
-            "id": pid
+            "problemId": int(pid, base=10)
         }
-        response = requests.post(self.host + "/api/problem/querybyjudger", headers=self.headers, data=json.dumps(data), cookies=self.cookies)
+        response = requests.post(self.full_url("/api/problem/judger/query"), headers=self.headers, data=json.dumps(data), cookies=self.cookies)
         if response.status_code != 200:
             # TODO: log here
             return
@@ -72,17 +87,17 @@ class RequestHandler(object):
     def send_judge_result(self, submission_id, judger_id, judge_result, judge_score, used_time, used_memory, judger_log):
         self.check_cookies_expires()
         data = {
-            "id": submission_id,
-            "judgerId": judger_id,
-            "judgeResult": judge_result,
-            "judgeScore": judge_score,
-            "usedTime": used_time,
-            "usedMemory": used_memory,
-            "judgeLog": judger_log
+            "submissionId": int(submission_id, base=10),
+            "judgerId": int(judger_id, base=10),
+            "judgeResult": str(judge_result),
+            "judgeScore": int(judge_score, base=10),
+            "usedTime": int(used_time, base=10),
+            "usedMemory": int(used_memory, base=10),
+            "judgeLog": str(judger_log),
         }
-        print(data)
-        response = requests.post(self.host + "/api/submit/update", headers=self.headers, data=json.dumps(data), cookies=self.cookies)
-        print(response.status_code)
+        logger.info(data)
+        response = requests.post(self.full_url("/api/submit/judger/update"), headers=self.headers, data=json.dumps(data), cookies=self.cookies)
+        logger.info(response.status_code)
         return response.status_code == 200 and json.loads(response.text)["code"] == 0
 
     def fetch_problem_data(self, problem_id, url):
@@ -93,11 +108,11 @@ class RequestHandler(object):
         if os.path.exists(full_data_path):
             return data_path
         
+        logger.info("Fetching problem data: \"{}\"".format(full_data_path))
         for _dir in os.listdir(BASE_DATA_PATH):
             if _dir.startswith("%s-" % problem_id):
                 shutil.rmtree(os.path.join(BASE_DATA_PATH, _dir)) 
         
-        print("Fetch problem data: %s %s" % (problem_id, url))
         with requests.get(url, cookies=self.cookies) as response:
             # if hasattr(response, content_type) and response.content_type == "application/json":
             #     response_dict = response.json()
@@ -106,7 +121,7 @@ class RequestHandler(object):
 
             if response.status_code != 200:
                 # TODO: non 200 ret code, log it
-                raise Exception()
+                raise ValueError("http code: {}".format(response.status_code))
             
             with open(full_data_path, "wb") as f:
                 f.write(response.content)
@@ -118,7 +133,8 @@ class RequestHandler(object):
 
             if str(_hash) != problem_md5:
                 # TODO: unmatch md5, log here
-                raise Exception()
+                logger.error("Unmatched MD5: \"{}\"".format(full_data_path))
+                raise ValueError("Unmatched MD5")
 
         with zipfile.ZipFile(full_data_path, "r") as f:
             f.extractall(os.path.join(BASE_DATA_PATH, data_path))
@@ -126,6 +142,5 @@ class RequestHandler(object):
         return data_path
 
 
-    @staticmethod
-    def __send_one_judge_result(submission_id, judger_id, judge_result, judge_score, used_time, used_memory, judger_log):
-        RequestHandler().send_judge_result(submission_id, judger_id, judge_result, judge_score, used_time, used_memory, judger_log)
+    def send_one_judge_result(self, submission_id, judger_id, judge_result, judge_score, used_time, used_memory, judger_log):
+        self.send_judge_result(submission_id, judger_id, judge_result, judge_score, used_time, used_memory, judger_log)

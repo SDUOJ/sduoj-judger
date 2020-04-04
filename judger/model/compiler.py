@@ -10,6 +10,9 @@ class Compiler:
         exe_path = os.path.join(output_dir, compile_config["exe_name"])
         command = compile_config["compile_command"].format(
             src_path=src_path, exe_path=exe_path)
+        exe_envs = compile_config["run_envs"]
+        try:
+            compile_result = Judger.__run()
         compile_status, compile_info = subprocess.getstatusoutput(command)
         if compile_status:
             # TODO: raise CompileError here

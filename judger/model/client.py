@@ -3,11 +3,15 @@ import json
 import subprocess
 import shutil
 
-# from judger.model.compiler import Compiler
 from judger.lang import LANG_CONFIG
 from judger.config import *
 from judger.exception import *
 
+import logging
+import coloredlogs
+
+logger = logging.getLogger(__name__)
+coloredlogs.install(level="DEBUG")
 
 def run(**kwargs):
     int_args = ["max_cpu_time", "max_real_time", "max_memory",
@@ -67,6 +71,7 @@ class WorkspaceInitializer(object):
             os.chmod(self._workspace_dir, 0o711)
         except Exception as e:
             # cannot create judge dir, raise Exception here
+            logger.error("Cannot create judge workspace \"{}\"".format(self._workspace_dir))
             raise SystemInternalError("cannot create judge workspace")
             pass
         return self._workspace_dir, self._test_output_dir
@@ -77,7 +82,8 @@ class WorkspaceInitializer(object):
             pass
         except Exception as e:
             # cannot remove judge dir, raise Exception here
-            raise SystemInternalError("cannot remove judge workspace")
+            logger.warn("Cannot remove judge workspace \"{}\"".format(self._workspace_dir))
+            # raise SystemInternalError("cannot remove judge workspace")
             return True
         else:
             if exception_value:  # caught other error exception, raise here
@@ -149,10 +155,12 @@ class Judger(object):
 
             os.chown(src_path, NOBODY_UID, 0)
             os.chmod(src_path, 0o400)
+            logger.info("Compiling \"{}\"".format(src_path))
             self._exe_path, self._compile_info = self.compile(compile_config=self._lang_config,
                                                             src_path=src_path,
                                                             output_dir=workspace_dir)
             # TODO: compile down!
+            logger.info("Compile down \"{}\"".format(self._exe_path))
             os.chown(self._exe_path, NOBODY_UID, 0)
             os.chmod(self._exe_path, 0o500)
 
@@ -162,11 +170,13 @@ class Judger(object):
                 # if spj_exe_path is not realiable, recompile it!
                 if not self._spj_exe_path or not os.path.isfile(self._spj_exe_path):
                     # compile the spj code
+                    logger.info("SPJ Compiling \"{}\"".format(self._spj["src_path"]))
                     self._spj_exe_path, self._spj_compiler_info = self.compile(compile_config=self._spj_config, 
                                                                 src_path=self._spj["src_path"],
                                                                 output_dir=workspace_dir,
                                                                 spj_name="spj")
                     # TODO: spj compile down!
+                    logger.info("SPJ Compile down \"{}\"".format(self._spj_exe_path))
 
             judge_result = {
                 "submission_id": self._submission_id,
@@ -174,6 +184,7 @@ class Judger(object):
                 "result": {}
             }
             self._case_id = 0
+            logger.info("{}-{} Judging...".format(self._pid, self._submission_id))
             for input_case, output_case in zip(self._input, self._output):
                 input_path = os.path.join(self._input_path, input_case)
                 answer_path = os.path.join(self._answer_path, output_case)
@@ -227,7 +238,9 @@ class Judger(object):
         if judge_result["result"] == Judger.SUCCESS:
             judge_result["result"] = self.__spj_check(self._spj_config, test_input, test_output) if self._spj \
                 else self._checker(test_output=test_output, std_output=std_output)
-
+        elif judge_result["result"] == Judger.SYSTEM_ERROR:
+            logger.error("Sandbox Internal Error #{}, signal {}".format(judge_result["error"], judge_result["signal"]))
+            raise SandboxInternalError("Sandbox Internal Error #{}, signal {}".format(judge_result["error"], judge_result["signal"]))
         return judge_result
 
     def spj_check(self, spj_config, test_input, test_output):
