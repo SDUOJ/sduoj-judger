@@ -73,7 +73,7 @@ class RequestHandler(object):
         self.check_cookies_expires()
         data = {
             "id": submission_id,
-            "judgeId": judger_id,
+            "judgerId": judger_id,
             "judgeResult": judge_result,
             "judgeScore": judge_score,
             "usedTime": used_time,
@@ -82,6 +82,7 @@ class RequestHandler(object):
         }
         print(data)
         response = requests.post(self.host + "/api/submit/update", headers=self.headers, data=json.dumps(data), cookies=self.cookies)
+        print(response.status_code)
         return response.status_code == 200 and json.loads(response.text)["code"] == 0
 
     def fetch_problem_data(self, problem_id, url):

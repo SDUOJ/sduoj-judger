@@ -1,6 +1,7 @@
 import subprocess
 import os
 from judger.exception import *
+from judger.model.client import Judger
 
 
 class Compiler:

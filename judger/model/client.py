@@ -3,10 +3,52 @@ import json
 import subprocess
 import shutil
 
-from judger.model.compiler import Compiler
+# from judger.model.compiler import Compiler
 from judger.lang import LANG_CONFIG
 from judger.config import *
 from judger.exception import *
+
+
+def run(**kwargs):
+    int_args = ["max_cpu_time", "max_real_time", "max_memory",
+                "max_stack", "max_process_number", "max_output_size", "uid", "gid"]
+    str_args = ["exe_path", "input_path",
+                "output_path", "log_path", "seccomp_rules"]
+    str_list_args = ["exe_args", "exe_envs"]
+
+    command = SANDBOX_PATH
+
+    for arg in int_args:
+        value = kwargs.get(arg, None)
+        if value is None:
+            continue
+        if not isinstance(value, int):
+            raise ValueError("'{}' must be an int".format(arg))
+        command += " --{}={}".format(arg, value)
+
+    for arg in str_args:
+        value = kwargs.get(arg, None)
+        if value is None:
+            continue
+        if not isinstance(value, str):
+            raise ValueError("'{}' must be a string".format(arg))
+        command += " --{}=\"{}\"".format(arg, str(value))
+
+    for arg in str_list_args:
+        value = kwargs.get(arg, None)
+        if value is None:
+            continue
+        if not isinstance(value, list):
+            raise ValueError("'{}' must be a list".format(arg))
+        for item in value:
+            command += " --{}=\"{}\"".format(arg, str(item))
+    
+    err, out = subprocess.getstatusoutput(command)
+    if err:    # system cannot launch sandbox sucessfully
+        raise SystemInternalError(out, kwargs.get("case_id", -1))
+    result = json.loads(out)
+    return result
+
 
 
 class WorkspaceInitializer(object):
@@ -21,6 +63,8 @@ class WorkspaceInitializer(object):
                 os.mkdir(self._workspace_dir)
             if not os.path.exists(self._test_output_dir):
                 os.mkdir(self._test_output_dir)
+            os.chown(self._workspace_dir, NOBODY_UID, 0)
+            os.chmod(self._workspace_dir, 0o711)
         except Exception as e:
             # cannot create judge dir, raise Exception here
             raise SystemInternalError("cannot create judge workspace")
@@ -97,16 +141,20 @@ class Judger(object):
 
         with WorkspaceInitializer(BASE_WORKSPACE_PATH, self._pid, self._submission_id) as paths:
             workspace_dir, test_output_path = paths
-            src_path = os.path.join(
-                workspace_dir, self._lang_config["src_name"])
+            src_path = os.path.join(workspace_dir, self._lang_config["src_name"])
 
             # compile the code here
             with open(src_path, "w", encoding="utf8") as f:
                 f.write(self._code)
 
-            compile_info, self._exe_path = Compiler().compile(compile_config=self._lang_config,
-                                                              src_path=src_path,
-                                                              output_dir=workspace_dir)
+            os.chown(src_path, NOBODY_UID, 0)
+            os.chmod(src_path, 0o400)
+            self._exe_path, self._compile_info = self.compile(compile_config=self._lang_config,
+                                                            src_path=src_path,
+                                                            output_dir=workspace_dir)
+            # TODO: compile down!
+            os.chown(self._exe_path, NOBODY_UID, 0)
+            os.chmod(self._exe_path, 0o500)
 
             if self._spj:
                 self._spj_exe_path = self._spj.get("exe_path", None)
@@ -114,10 +162,11 @@ class Judger(object):
                 # if spj_exe_path is not realiable, recompile it!
                 if not self._spj_exe_path or not os.path.isfile(self._spj_exe_path):
                     # compile the spj code
-                    compile_info, self._spj_exe_path = Compiler().compile_spj(compile_config=self._spj_config,
-                                                                              src_path=self._spj["src_path"],
-                                                                              output_dir=workspace_dir,
-                                                                              spj_name="spj")
+                    self._spj_exe_path, self._spj_compiler_info = self.compile(compile_config=self._spj_config, 
+                                                                src_path=self._spj["src_path"],
+                                                                output_dir=workspace_dir,
+                                                                spj_name="spj")
+                    # TODO: spj compile down!
 
             judge_result = {
                 "submission_id": self._submission_id,
@@ -130,21 +179,23 @@ class Judger(object):
                 answer_path = os.path.join(self._answer_path, output_case)
                 output_path = os.path.join(test_output_path, output_case)
 
-                case_result = self.__one_judge(run_config=self._run_config,
+                case_result = self.one_judge(run_config=self._run_config,
                                                lang_config=self._lang_config,
                                                exe_path=self._exe_path,
                                                test_input=input_path,
                                                test_output=output_path,
                                                std_output=answer_path)
-                handler = self._kwargs.get("handler", None)
-                if handler:
-                    handler.send_judge_result(submission_id=self._submission_id, 
-                                              judger_id=CONFIG["uname"], 
-                                              judge_result=Judger.RETURN_TYPE[case_result["result"]], 
-                                              judge_score=0, 
-                                              used_time=case_result["cpu_time"],
-                                              used_memory=case_result["memory"],
-                                              judger_log="")
+                
+                # TODO: one judge down!
+                # handler = self._kwargs.get("handler", None)
+                # if handler:
+                #     handler.send_judge_result(submission_id=self._submission_id, 
+                #                               judger_id=CONFIG["uname"], 
+                #                               judge_result=Judger.RETURN_TYPE[case_result["result"]], 
+                #                               judge_score=0, 
+                #                               used_time=case_result["cpu_time"],
+                #                               used_memory=case_result["memory"],
+                #                               judger_log="")
                 judge_result["result"][input_case] = case_result
                 if case_result["result"] and not self._oimode:
                     break
@@ -153,26 +204,25 @@ class Judger(object):
             return judge_result
 
     # Return the result of one test
-    def __one_judge(self, run_config, lang_config, exe_path, test_input, test_output, std_output):
+    def one_judge(self, run_config, lang_config, exe_path, test_input, test_output, std_output):
         # Use sandbox to run
-        judge_result = Judger.__run(
-            exe_path=exe_path,
-            exe_args=lang_config["run_args"],
-            exe_envs=lang_config["run_envs"],
-            seccomp_rules=lang_config["seccomp_rules"],
+        judge_result = run(exe_path=exe_path,
+                            exe_args=lang_config["run_args"],
+                            exe_envs=lang_config["run_envs"],
+                            seccomp_rules=lang_config["seccomp_rules"],
 
-            input_path=test_input,
-            output_path=test_output,
-            log_path=SANDBOX_LOG_PATH,
+                            input_path=test_input,
+                            output_path=test_output,
+                            log_path=SANDBOX_LOG_PATH,
 
-            max_cpu_time=run_config.get("max_cpu_time", None),
-            max_real_time=run_config.get("max_real_time", None),
-            max_memory=lang_config.get("max_memory", None),
-            max_stack=run_config.get("max_stack", None),
+                            max_cpu_time=run_config.get("max_cpu_time", None),
+                            max_real_time=run_config.get("max_real_time", None),
+                            max_memory=lang_config.get("max_memory", None),
+                            max_stack=run_config.get("max_stack", None),
 
-            uid=NOBODY_UID,
-            gid=NOBODY_GID,
-        )
+                            uid=NOBODY_UID,
+                            gid=NOBODY_GID,
+                        )
 
         if judge_result["result"] == Judger.SUCCESS:
             judge_result["result"] = self.__spj_check(self._spj_config, test_input, test_output) if self._spj \
@@ -180,7 +230,7 @@ class Judger(object):
 
         return judge_result
 
-    def __spj_check(self, spj_config, test_input, test_output):
+    def spj_check(self, spj_config, test_input, test_output):
         # Use sandbox to run the user code
         spj_result = Judger.__run(
             exe_path=self._spj_exe_path,
@@ -191,45 +241,67 @@ class Judger(object):
 
         # exit code should be 0 or 1
         if spj_result["exit_code"] != Judger.SPJ_SUCCESS and spj_result["exit_code"] != Judger.SPJ_WA:
-            raise SpjError("Unexcepted spj exit code %s" %
-                           str(spj_result["exit_code"]), self._case_id)
+            raise SpjError("Unexcepted spj exit code %s" % str(spj_result["exit_code"]), self._case_id)
 
         if spj_result["exit_code"] == Judger.SPJ_SUCCESS:
             return Judger.SUCCESS
         else:
             return Judger.WRONG_ANSWER
 
-    @staticmethod
-    def __run(**kwargs):
-        int_args = ["max_cpu_time", "max_real_time", "max_memory",
-                    "max_stack", "max_process_number", "max_output_size", "uid", "gid"]
-        str_args = ["exe_path", "input_path",
-                    "output_path", "log_path", "seccomp_rules"]
-        str_list_args = ["exe_args", "exe_envs"]
+    def compile(self, compile_config, src_path, output_dir):
+        exe_path = os.path.join(output_dir, compile_config["exe_name"])
+        command = compile_config["compile_command"].format(src_path=src_path, exe_path=exe_path)
+        _command = command.split(" ")
+        compiler_out = os.path.join(output_dir, "compiler.out")
+        try:
+            compile_result = run(
+                max_cpu_time=compile_config["compile_cpu_time"],
+                max_real_time=compile_config["compile_real_time"],
+                max_memory=compile_config["compile_memory"],
+                max_stack=128 * 1024 * 1024,
+                max_output_size=1024 * 1024,
+                exe_path=_command[0],
+                exe_args=_command[1::],
+                exe_envs=["PATH="+os.getenv("PATH")],
+                input_path="/dev/null",
+                output_path=compiler_out,
+            )
+        except SystemInternalError as e:
+            raise UserCompileError(e.err_msg)
+        else:
+            if not os.path.exists(compiler_out):
+                raise UserCompileError("cannot get compiler output")
+            with open(compiler_out, "r") as f:
+                compiler_info = f.read()
+            if compile_result["result"]:
+                raise UserCompileError(compiler_info)
+            return exe_path, compiler_info
 
-        command = SANDBOX_PATH
-
-        for arg in int_args:
-            value = kwargs.get(arg, None)
-            if isinstance(value, int):
-                command += " --{}={}".format(arg, value)
-
-        for arg in str_args:
-            value = kwargs.get(arg, None)
-            if isinstance(value, str):
-                command += " --{}={}".format(arg, str(value))
-
-        for arg in str_list_args:
-            value = kwargs.get(arg, None)
-            if isinstance(value, list):
-                for item in value:
-                    command += " --{}={}".format(arg, str(item))
-        # print(command)
-        judge_status, judge_result = subprocess.getstatusoutput(command)
-        if judge_status:    # system cannot launch sandbox sucessfully
-            raise SystemInternalError(judge_result, kwargs.get("case_id", -1))
-        
-        judge_result = json.loads(judge_result)
-        if judge_result["result"] == Judger.SYSTEM_ERROR:   # give error number
-            raise SandboxInternalError("sandbox internal error, signal=%d, errno=%d" % (judge_result["signal"], judge_result["error"]), kwargs.get("case_id", -1))
-        return judge_result
+    def compile_spj(self, compile_config, src_path, output_dir, spj_name):
+        exe_path = os.path.join(output_dir, spj_name)
+        command = compile_config["compile_command"].format(src_path=src_path, exe_path=exe_path)
+        _command = command.split(" ")
+        compiler_out = os.path.join(output_dir, "compiler_spj.out")
+        try:
+            compile_result = run(
+                max_cpu_time=compile_config["compile_cpu_time"],
+                max_real_time=compile_config["compile_real_time"],
+                max_memory=compile_config["compile_memory"],
+                max_stack=128 * 1024 * 1024,
+                max_output_size=1024 * 1024,
+                exe_path=_command[0],
+                exe_args=_command[1::],
+                exe_envs=["PATH="+os.getenv("PATH")],
+                input_path="/dev/null",
+                output_path=compiler_out,
+            )
+        except SandboxInternalError as e:
+            raise SpjCompileError(e.err_msg)
+        else:
+            if not os.path.exists(compiler_out):
+                raise SpjCompileError("cannot get compiler output")
+            with open(compiler_out, "r") as f:
+                compiler_info = f.read()
+                if compile_result["result"]:
+                    raise SpjCompileError(compiler_info)
+            return exe_path, compiler_info

@@ -3,6 +3,7 @@ import pika
 import os
 import time
 
+from judger.exception import *
 from judger.lang import LANG_TYPE
 from judger.model.client import Judger
 from judger.model.handler import RequestHandler
@@ -64,11 +65,11 @@ class ReceiverClient(object):
         problem_id = submission_config["data"]["problemId"]
         problem_config = self._handler.problem_query(problem_id)
         print(problem_id, problem_config)
+        try:
         # 检查url是否需要更新
         # TODO
-        data_path = self._handler.fetch_problem_data(problem_id, problem_config["data"]["checkpointUrl"])
+            data_path = self._handler.fetch_problem_data(problem_id, problem_config["data"]["checkpointUrl"])
         # 评测
-        try:
             client = Judger(submission_id=submission_id,
                             pid=problem_id,
                             code=submission_code,
@@ -88,19 +89,19 @@ class ReceiverClient(object):
             result = client.judge()
         except UserCompileError as e:
             self._handler.send_judge_result(
-                submission_id, e.where(), "Compile Error", 0, 0, 0, str(e))
+                submission_id, 1001, "CE", 0, 0, 0, str(e))
         except SpjCompileError as e:
             self._handler.send_judge_result(
-                submission_id, e.where(), "Special Judge Compile Error", 0, 0, 0, str(e))
+                submission_id, 1001, "SJCE", 0, 0, 0, str(e))
         except SpjError as e:
             self._handler.send_judge_result(
-                submission_id, e.where(), "Special Judge Error", 0, 0, 0, str(e))
+                submission_id, 1001, "SJE", 0, 0, 0, str(e))
         except SystemInternalError as e:
             self._handler.send_judge_result(
-                submission_id, e.where(), "System Internal Error", 0, 0, 0, str(e))
+                submission_id, 1001, "SIE", 0, 0, 0, str(e))
         except SandboxInternalError as e:
             self._handler.send_judge_result(
-                submission_id, e.where(), "Sandbox Internal Error", 0, 0, 0, str(e))
+                submission_id, 1001, "SbIE", 0, 0, 0, str(e))
         else:
             # 传送结果
             print(result)
@@ -118,8 +119,8 @@ class ReceiverClient(object):
                                             used_time=max_result_cpu_time,
                                             used_memory=max_result_memory // 1024,
                                             judger_log="2333")
-
-        ch.basic_ack(delivery_tag=method.delivery_tag)  # manual ack
+        finally:
+            ch.basic_ack(delivery_tag=method.delivery_tag)  # manual ack
 
 def run():
     try:
