@@ -44,7 +44,7 @@ class JudgerSession(object):
             "username": str(self.username),
             "password": str(self.password),
         }
-        response = requests.post(self.full_url("/api/auth/judger/login"), headers=self.headers, data=json.dumps(data))
+        response = requests.post(self.full_url("/api/judger/auth/login"), headers=self.headers, data=json.dumps(data))
         
         self.cookies.update(response.cookies)
         for item in response.headers["Set-Cookie"].split("; "):
@@ -58,7 +58,7 @@ class JudgerSession(object):
         data = {
             "submissionId": int(submission_id, base=10)
         }
-        response = requests.post(self.full_url("/api/submit/judger/query"), headers=self.headers, data=json.dumps(data), cookies=self.cookies)
+        response = requests.post(self.full_url("/api/judger/submit/query"), headers=self.headers, data=json.dumps(data), cookies=self.cookies)
 
         if response.status_code != 200:
             # TODO: log here
@@ -74,7 +74,7 @@ class JudgerSession(object):
         data = {
             "problemId": int(pid, base=10)
         }
-        response = requests.post(self.full_url("/api/problem/judger/query"), headers=self.headers, data=json.dumps(data), cookies=self.cookies)
+        response = requests.post(self.full_url("/api/judger/problem/query"), headers=self.headers, data=json.dumps(data), cookies=self.cookies)
         if response.status_code != 200:
             # TODO: log here
             return
@@ -96,7 +96,7 @@ class JudgerSession(object):
             "judgeLog": str(judger_log),
         }
         logger.info(data)
-        response = requests.post(self.full_url("/api/submit/judger/update"), headers=self.headers, data=json.dumps(data), cookies=self.cookies)
+        response = requests.post(self.full_url("/api/judger/submit/update"), headers=self.headers, data=json.dumps(data), cookies=self.cookies)
         logger.info(response.status_code)
         return response.status_code == 200 and json.loads(response.text)["code"] == 0
 
