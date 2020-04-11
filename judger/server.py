@@ -17,18 +17,18 @@ coloredlogs.install(level="DEBUG")
 RETRY_DELAY_SEC = 30
 
 
-class MQSession(object):
-    def __init__(self, host, port, queue, session, uname="guest", pwd="guest"):
-        self._uname = uname
-        self._pwd = pwd
-        self._host = host
-        self._port = port
+class MQHandler(object):
+    def __init__(self, mq_host, mq_port, queue, session, mq_name="guest", mq_pwd="guest"):
+        self._mq_uname = mq_name
+        self._mq_pwd = mq_pwd
+        self._mq_host = mq_host
+        self._mq_port = mq_port
         self._queue = queue
-        self._session = session
+        self.session = session
 
     def get_receive_channel(self):
-        self._credentials = pika.PlainCredentials(self._uname, self._pwd)
-        self._parameters = pika.ConnectionParameters(host=self._host, port=self._port, virtual_host="/sduoj", credentials=self._credentials)
+        self._credentials = pika.PlainCredentials(self._mq_name, self._mq_pwd)
+        self._parameters = pika.ConnectionParameters(host=self._mq_host, port=self._mq_port, virtual_host="/sduoj", credentials=self._credentials)
         self._connection = pika.BlockingConnection(self._parameters)
         self.channel = self._connection.channel()
     
@@ -37,32 +37,27 @@ class MQSession(object):
             self.get_receive_channel()
         self.channel.queue_declare(queue=self._queue, durable=True)
         self.channel.basic_qos(prefetch_count=1)  # limit the number
-        self.channel.basic_consume(queue=self._queue, on_message_callback=self._callback)
+        self.channel.basic_consume(queue=self._queue, on_message_callback=self.__callback)
         self._session.get_cookies()
-        logger.info("Start consuming...")
+        logger.info("Start listening...")
         self.channel.start_consuming()
 
     
-    def _callback(self, ch, method, properties, body):
+    def __callback(self, ch, method, properties, body):
         # ch.basic_ack(delivery_tag=method.delivery_tag)  # manual ack
-        tmp = json.loads(str(body, encoding="utf8"))
-        submission_id = int(tmp["submissionId"])
-        print(submission_id)
+        request = json.loads(str(body, encoding="utf8"))
+        submission_id = int(request["submissionId"])
+        logger.info("Get submission request: %d" % submission_id)
         # 查询提交
-        submission_config = self._handler.submission_query(submission_id)
-        print(submission_config)
-        # code 用 base64 加密传输
-        submission_code = submission_config["data"]["code"]
-        # submission_code = str(base64.b64decode(submission_config["data"]["code"]), encoding="utf-8")
+        submission_config = self.session.submission_query(submission_id)
+        submission_code = submission_config["code"]
         # 查看题目时限、数据包地址
-        problem_id = submission_config["data"]["problemId"]
-        logger.info("Get submission request: {}-{}".format(problem_id, submission_id))
-
-        problem_config = self._handler.problem_query(problem_id)
+        problem_id = submission_config["problemId"]
+        problem_config = self.session.problem_query(problem_id)
         try:
-        # 检查url是否需要更新
-            data_path = self._handler.fetch_problem_data(problem_id, problem_config["data"]["checkpointUrl"])
-        # 评测
+            # 检查url是否需要更新
+            data_path = self.session.fetch_problem_data(problem_id, problem_config["checkpointIds"])
+            # 评测
             client = Judger(submission_id=submission_id,
                             pid=problem_id,
                             code=submission_code,
@@ -73,6 +68,7 @@ class MQSession(object):
                                 "max_real_time": problem_config["data"]["timeLimit"] * 2,
                             },
                             data_path=os.path.join(data_path, problem_id),
+                            # TODO: 改成 checkpointIds
                             input_cases=["input1.txt", "input2.txt", "input3.txt"],
                             output_answers=["output1.txt","output2.txt", "output3.txt"],
                             checker=checker,
@@ -80,14 +76,13 @@ class MQSession(object):
                             # handler=self._handler
                             )
             result = client.judge()
-        except (UserCompileError, SpjCompileError) as e:
-            self._handler.send_judge_result(
-                submission_id, 1001, Judger.RETURN_TYPE[Judger.COMPILE_ERROR], 0, 0, 0, "{}: {}".format(e.__class__.__name__, str(e)))
-        except (SpjError, SystemInternalError, SandboxInternalError) as e:
-            self._handler.send_judge_result(
-                submission_id, 1001, Judger.RETURN_TYPE[Judger.SYSTEM_ERROR], 0, 0, 0, "{}: {}".format(e.__class__.__name__, str(e)))
+        except (UserCompileError, SpjCompileError) as e:    # 编译错误
+            self.session.send_judge_result(submission_id, 1001, Judger.RETURN_TYPE[Judger.COMPILE_ERROR], 0, 0, 0, str(e))
+        except (SpjError, SystemInternalError, SandboxInternalError) as e:  # 系统错误
+            logger.error(str(e))
+            self.session.send_judge_result(submission_id, 1001, Judger.RETURN_TYPE[Judger.SYSTEM_ERROR], 0, 0, 0, str(e))
         else:
-            # 传送结果
+            # 评测结束 返回结果
             max_result_cpu_time = 0
             max_result_memory = 0
             judge_result = Judger.SUCCESS
@@ -95,7 +90,7 @@ class MQSession(object):
                 max_result_cpu_time = max(max_result_cpu_time, ret["cpu_time"])
                 max_result_memory = max(max_result_memory, ret["memory"])
                 judge_result = ret["result"]
-            self._handler.send_judge_result(submission_id=submission_id,
+            self.session.send_judge_result(submission_id=submission_id,
                                             judger_id=1001,
                                             judge_result=Judger.RETURN_TYPE[judge_result],
                                             judge_score=0,

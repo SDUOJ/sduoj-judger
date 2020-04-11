@@ -71,8 +71,9 @@ class WorkspaceInitializer(object):
             os.chmod(self._workspace_dir, 0o711)
         except Exception as e:
             # cannot create judge dir, raise Exception here
-            logger.error("Cannot create judge workspace \"{}\"".format(self._workspace_dir))
-            raise SystemInternalError("cannot create judge workspace")
+            err = SystemInternalError("Cannot create judge workspace \"{}\"".format(self._workspace_dir))
+            logger.error(str(err))
+            raise err
             pass
         return self._workspace_dir, self._test_output_dir
 
