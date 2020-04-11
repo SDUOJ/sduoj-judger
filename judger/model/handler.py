@@ -15,16 +15,15 @@ logging.basicConfig(level=logging.NOTSET)
 coloredlogs.install(level="DEBUG")
 
 
-RETRY_DELAY_SEC = 5
-
-
-def resolve_response(response):
-    if response.status_code != 200: raise HTTPError("unexpected http code " + response.status_code)
+def resolve_response_json(response):
+    if response.status_code != 200: 
+        raise HTTPError("unexpected http code " + response.status_code)
     response_dict = response.json()
     code = response_dict["code"]
     message = response_dict['message']
     logger.debug("code: {}\nmessage: {}".format(code, json.dumps(message, indent=4)))
-    if code != 0: raise HTTPError("code: {}\nmessage: {}".format(code, message))
+    if code != 0: 
+        raise HTTPError("code: {}\nmessage: {}".format(code, message))
     return response_dict["data"]
 
 class JudgerSession(object):
@@ -42,14 +41,18 @@ class JudgerSession(object):
     def full_url(self, *parts):
         return urljoin(self.host, os.path.join(*parts))
     
-    def post_json(self, url, data, update_cookies=False):
+    def post_json(self, url, data, update_cookies=False, expected_type="application/json"):
         response = requests.post(self.full_url(url), headers=self.__headers, data=data, cookies=self.__cookies, allow_redirect=False)
+        if response.content_type != expected_type:
+            raise HTTPError("unexpected content type " + response.content_type)
+        if expected_type != "application/json":
+            return response
         if update_cookies:
             self.cookies.update(response.cookies)
             for item in response.headers["Set-Cookie"].split("; "):
                 if item.split("=")[0] == "Expires":
                     self.cookies_expires = datetime.datetime.strptime(item.split("=")[1], "%a, %d-%b-%Y %H:%M:%S %Z")
-        return resolve_response(response)
+        return resolve_response_json(response)
 
     def check_cookies_expires(self):
         while datetime.datetime.now() > self.cookies_expires:
@@ -100,45 +103,14 @@ class JudgerSession(object):
         self.post_json("/api/judger/submit/update", data)
 
     # TODO: 获取数据点逻辑修改,该函数需要重构
-    def fetch_problem_data(self, problem_id, url):
-        problem_md5 = url.strip("/").split("/")[-1]
-        data_path = "{}-{}".format(problem_id, problem_md5)
-        full_data_path = os.path.join(BASE_DATA_PATH, data_path + ".zip")
-
-        if os.path.exists(full_data_path):
-            return data_path
-        
-        logger.info("Fetching problem data: \"{}\"".format(full_data_path))
-        for _dir in os.listdir(BASE_DATA_PATH):
-            if _dir.startswith("%s-" % problem_id):
-                shutil.rmtree(os.path.join(BASE_DATA_PATH, _dir))
-
-        
-        
-        with requests.get(url, cookies=self.cookies) as response:
-            # if hasattr(response, content_type) and response.content_type == "application/json":
-            #     response_dict = response.json()
-            #     # TODO: expect file but get json here, log it
-            #     raise Exception()
-
-            if response.status_code != 200:
-                # TODO: non 200 ret code, log it
-                raise ValueError("http code: {}".format(response.status_code))
-            
-            with open(full_data_path, "wb") as f:
-                f.write(response.content)
-            
-        with open(full_data_path, "rb") as f:
-            md5obj = hashlib.md5()
-            md5obj.update(f.read())
-            _hash = md5obj.hexdigest()
-
-            if str(_hash) != problem_md5:
-                # TODO: unmatch md5, log here
-                logger.error("Unmatched MD5: \"{}\"".format(full_data_path))
-                raise ValueError("Unmatched MD5")
-
-        with zipfile.ZipFile(full_data_path, "r") as f:
-            f.extractall(os.path.join(BASE_DATA_PATH, data_path))
-        os.unlink(full_data_path)
-        return data_path
+    def update_checkpoints(self, checkpointIds):
+        needed_checkpointids = [checkpointId for checkpointId in checkpointIds if checkpointId not in CHECKPOINTIDS]
+        zip_file = os.path.join(BASE_DATA_PATH, "tmp.zip")
+        with self.post_json("/api/judger/checkpoint/download", {"checkpointIds": needed_checkpointids}, "application/octet-stream") as data:
+            with open(zip_file, "wb") as f:
+                f.write(data)
+            with zipfile.ZipFile(zip_file, "r") as f:
+                f.extractall(BASE_DATA_PATH)
+        os.unlink(zip_file)
+        for checkpointId in needed_checkpointids:
+            CHECKPOINTIDS[checkpointId] = True

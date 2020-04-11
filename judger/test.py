@@ -3,9 +3,10 @@ import sys
 import os
 import shutil
 from judger.model.client import Judger
-from judger.config import BASE_LOG_PATH, BASE_WORKSPACE_PATH
 from judger.model.checker import checker
 from judger.exception import *
+from judger.server import MQHandler
+from judger.config import BASE_LOG_PATH, BASE_WORKSPACE_PATH, BASE_DATA_PATH
 
 
 if __name__ == "__main__":
@@ -21,7 +22,7 @@ if __name__ == "__main__":
                 "max_real_time": 24000,
         },
     }
-    
+    handler = MQHandler(None, None, None, None, None)
     if not os.path.exists(BASE_WORKSPACE_PATH):
         os.mkdir(BASE_WORKSPACE_PATH)
     if not os.path.exists(BASE_LOG_PATH):
@@ -33,17 +34,19 @@ if __name__ == "__main__":
                         code=config["code"],
                         lang=config["lang"],
                         run_config=config["run_config"],
-                        data_path="1003",
+                        data_path=BASE_DATA_PATH,
                         input_cases=["%d.in" % i for i in range(1, 11)],
                         output_answers=["%d.out" % i for i in range(1, 11)],
                         checker=checker,
-                        oimode=True,)
+                        oimode=True,
+                        handler=handler,
+                        )
         result = client.judge()
     except Exception as e:
         raise
         print(type(e))
         print(e)
     else:
-        print(json.dumps(result, indent=4))
+        print(json.dumps(result, indent=2))
 
     shutil.rmtree(BASE_WORKSPACE_PATH)

@@ -142,10 +142,11 @@ class Judger(object):
         self._code = code
         self._lang = lang
         self._run_config = run_config          # resource limit
-        self._input_path = os.path.join(BASE_DATA_PATH, data_path, "input")
+        # self._input_path = os.path.join(BASE_DATA_PATH, data_path, "input")
+        self._basic_path = data_path
         # input test data, should be a list containing the path of all test datas
         self._input = input_cases
-        self._answer_path = os.path.join(BASE_DATA_PATH, data_path, "output")
+        # self._answer_path = os.path.join(BASE_DATA_PATH, data_path, "output")
         # standard output answer, should be a list containing the path of all answers
         self._output = output_answers
         self._checker = checker     # TODO: checker can be customed
@@ -199,8 +200,8 @@ class Judger(object):
             self._case_id = 0
             logger.info("{}-{} Judging...".format(self._pid, self._submission_id))
             for input_case, output_case in zip(self._input, self._output):
-                input_path = os.path.join(self._input_path, input_case)
-                answer_path = os.path.join(self._answer_path, output_case)
+                input_path = os.path.join(self._basic_path, input_case)
+                answer_path = os.path.join(self._basic_path, output_case)
                 output_path = os.path.join(test_output_path, output_case)
 
                 case_result = self.one_judge(run_config=self._run_config,
@@ -209,18 +210,19 @@ class Judger(object):
                                                test_input=input_path,
                                                test_output=output_path,
                                                std_output=answer_path)
-                
-                # TODO: one judge down!
-                # handler = self._kwargs.get("handler", None)
-                # if handler:
-                #     handler.send_judge_result(submission_id=self._submission_id, 
-                #                               judger_id=CONFIG["uname"], 
-                #                               judge_result=Judger.RETURN_TYPE[case_result["result"]], 
-                #                               judge_score=0, 
-                #                               used_time=case_result["cpu_time"],
-                #                               used_memory=case_result["memory"],
-                #                               judger_log="")
+
                 judge_result["result"][input_case] = case_result
+    
+                handler = self._kwargs.get("handler", None)
+                if handler:
+                    handler.send_checkpoint_result([
+                        int(self._submission_id),
+                        int(input_case[:-3]),
+                        Judger.RETURN_TYPE[case_result["result"]],
+                        int(case_result["cpu_time"]),
+                        int(case_result["memory"]) // 1024,
+                    ])
+                
                 if case_result["result"] and not self._oimode:
                     break
                 self._case_id += 1
