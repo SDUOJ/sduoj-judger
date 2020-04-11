@@ -12,9 +12,10 @@ import logging, coloredlogs
 logger = logging.getLogger(__name__)
 coloredlogs.install(level="DEBUG")
 
-DELAY = 30
 
-class Session(object):
+RETRY_DELAY_SEC = 30
+
+class JudgerSession(object):
     def __init__(self, host, username, password, origin):
         self.host = host
         self.username = username
@@ -33,8 +34,8 @@ class Session(object):
         while datetime.datetime.now() > self.cookies_expires:
             logger.error("session out of date")
             if not self.get_cookies():
-                logger.warn("retry after {}s".format(DELAY))
-                time.sleep(DELAY)
+                logger.warn("retry after {}s".format(RETRY_DELAY_SEC))
+                time.sleep(RETRY_DELAY_SEC)
             else:
                 logger.info("Connected")
 
@@ -51,7 +52,6 @@ class Session(object):
                 self.cookies_expires = datetime.datetime.strptime(item.split("=")[1], "%a, %d-%b-%Y %H:%M:%S %Z")
         
         return response.status_code == 200 and json.loads(response.text)["code"] == 0
-        
 
     def submission_query(self, submission_id):
         self.check_cookies_expires()

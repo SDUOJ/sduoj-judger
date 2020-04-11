@@ -7,6 +7,7 @@ import shutil
 from judger.model.client import Judger
 from judger.config import BASE_LOG_PATH, BASE_WORKSPACE_PATH
 from judger.server import checker
+from judger.exception import *
 
 
 # 题目表：时间限制、空间限制、题号

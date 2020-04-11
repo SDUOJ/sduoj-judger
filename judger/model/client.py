@@ -103,11 +103,23 @@ class Judger(object):
     SYSTEM_ERROR = 5
     WRONG_ANSWER = 6
     PRESENTATION_ERROR = 7
+    COMPILE_ERROR = 8
 
     SPJ_ERROR = 255
     SPJ_WA = 1
     SPJ_SUCCESS = 0
 
+    RETURN_TYPE = {
+        SUCCESS: 1,
+        CPU_TIME_LIMIT_EXCEEDED: 2,
+        REAL_TIME_LIMIT_EXCEEDED: 2,
+        MEMORY_LIMIT_EXCEEDED: 3,
+        RUNTIME_ERROR: 4,
+        SYSTEM_ERROR: 5,
+        WRONG_ANSWER: 6,
+        PRESENTATION_ERROR: 7,
+        COMPILE_ERROR: 8,
+    }
     def __init__(self, 
                 submission_id, 
                 pid, 

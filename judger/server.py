@@ -5,49 +5,40 @@ import time
 
 from judger.exception import *
 from judger.lang import LANG_TYPE
+from judger.model.checker import checker
 from judger.model.client import Judger
-from judger.model.handler import Session
+from judger.model.handler import JudgerSession
 from judger.config import CONFIG, BASE_WORKSPACE_PATH, BASE_LOG_PATH
 
 import logging, coloredlogs
 logger = logging.getLogger(__name__)
 coloredlogs.install(level="DEBUG")
 
-def checker(test_output, std_output):
-    import difflib
-    import subprocess
-    command = "diff {} {}".format(std_output, test_output)
-    if subprocess.getstatusoutput(command)[0]:
-        command += " --ignore-space-change --ignore-blank-lines"
-        return Judger.WRONG_ANSWER if subprocess.getstatusoutput(command)[0] else Judger.PRESENTATION_ERROR
-    return Judger.SUCCESS
+RETRY_DELAY_SEC = 30
 
 
-class ReceiverClient(object):
-    def __init__(self, host, port, queue, handler, uname=None, pwd=None):
+class MQSession(object):
+    def __init__(self, host, port, queue, session, uname="guest", pwd="guest"):
         self._uname = uname
         self._pwd = pwd
         self._host = host
         self._port = port
         self._queue = queue
-        self._handler = handler
+        self._session = session
 
-    def get_channel(self):
-        if self._uname and self._pwd:
-            self._credentials = pika.PlainCredentials(self._uname, self._pwd)
-        else:
-            self._credentials = pika.PlainCredentials("guest", "guest")
+    def get_receive_channel(self):
+        self._credentials = pika.PlainCredentials(self._uname, self._pwd)
         self._parameters = pika.ConnectionParameters(host=self._host, port=self._port, virtual_host="/sduoj", credentials=self._credentials)
         self._connection = pika.BlockingConnection(self._parameters)
         self.channel = self._connection.channel()
     
     def run(self):
         if not hasattr(self, "channel") or self.channel.is_closed:
-            self.get_channel()
+            self.get_receive_channel()
         self.channel.queue_declare(queue=self._queue, durable=True)
         self.channel.basic_qos(prefetch_count=1)  # limit the number
         self.channel.basic_consume(queue=self._queue, on_message_callback=self._callback)
-        self._handler.get_cookies()
+        self._session.get_cookies()
         logger.info("Start consuming...")
         self.channel.start_consuming()
 
@@ -89,21 +80,12 @@ class ReceiverClient(object):
                             # handler=self._handler
                             )
             result = client.judge()
-        except UserCompileError as e:
+        except (UserCompileError, SpjCompileError) as e:
             self._handler.send_judge_result(
-                submission_id, 1001, "CE", 0, 0, 0, str(e))
-        except SpjCompileError as e:
+                submission_id, 1001, Judger.RETURN_TYPE[Judger.COMPILE_ERROR], 0, 0, 0, "{}: {}".format(e.__class__.__name__, str(e)))
+        except (SpjError, SystemInternalError, SandboxInternalError) as e:
             self._handler.send_judge_result(
-                submission_id, 1001, "SJCE", 0, 0, 0, str(e))
-        except SpjError as e:
-            self._handler.send_judge_result(
-                submission_id, 1001, "SJE", 0, 0, 0, str(e))
-        except SystemInternalError as e:
-            self._handler.send_judge_result(
-                submission_id, 1001, "SIE", 0, 0, 0, str(e))
-        except SandboxInternalError as e:
-            self._handler.send_judge_result(
-                submission_id, 1001, "SbIE", 0, 0, 0, str(e))
+                submission_id, 1001, Judger.RETURN_TYPE[Judger.SYSTEM_ERROR], 0, 0, 0, "{}: {}".format(e.__class__.__name__, str(e)))
         else:
             # 传送结果
             max_result_cpu_time = 0
@@ -131,22 +113,21 @@ def run():
             os.mkdir(BASE_LOG_PATH)
         os.chmod(BASE_WORKSPACE_PATH, 0o711)
     except Exception as e:
-        # print(e)
+        print(e)
         # TODO: cannot create workspace, log here
         logger.critical("Crashed while creating WORKSPACE")
         exit(1)
 
-    handler = Session(host=CONFIG["server"], username=CONFIG["uname"], password=CONFIG["pwd"], origin="http://oj.oops.sdu.cn")
+    session = JudgerSession(host=CONFIG["server"], username=CONFIG["uname"], password=CONFIG["pwd"], origin="http://oj.oops.sdu.cn")
     while True:
         try:
-            ReceiverClient(uname=CONFIG["mq_uname"], pwd=CONFIG["mq_pwd"], host=CONFIG["mq_server"], port=CONFIG.get("mq_port", 5672), queue=CONFIG["mq_name"], handler=handler).run()
+            MQSession(uname=CONFIG["mq_uname"], pwd=CONFIG["mq_pwd"], host=CONFIG["mq_server"], port=CONFIG.get("mq_port", 5672), queue=CONFIG["mq_name"], handler=session).run()
         except Exception as e:
-            raise e
+            # raise e
             print(e)
             pass
         # TODO: retry, log here
-        logger()
-        # print("Retry after %ds" % RETRY_DELAY_SEC)
+        # logger()
         logger.warn("offline from message qeue, retry after {}s".format(RETRY_DELAY_SEC))
         time.sleep(RETRY_DELAY_SEC)
 
