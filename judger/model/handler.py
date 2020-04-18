@@ -5,8 +5,9 @@ import hashlib
 import shutil
 import os
 import zipfile
-from judger.config import *
+from io import BytesIO
 from urllib.parse import urljoin
+from judger.config import *
 from judger.exception import HTTPError
 
 import logging, coloredlogs
@@ -102,15 +103,18 @@ class JudgerSession(object):
         }
         self.post_json("/api/judger/submit/update", data)
 
-    # TODO: 获取数据点逻辑修改,该函数需要重构
-    def update_checkpoints(self, checkpointIds):
+    def update_checkpoints(self, checkpointIds, retry=3):
         needed_checkpointids = [checkpointId for checkpointId in checkpointIds if checkpointId not in CHECKPOINTIDS]
-        zip_file = os.path.join(BASE_DATA_PATH, "tmp.zip")
-        with self.post_json("/api/judger/checkpoint/download", {"checkpointIds": needed_checkpointids}, "application/octet-stream") as data:
-            with open(zip_file, "wb") as f:
-                f.write(data)
-            with zipfile.ZipFile(zip_file, "r") as f:
-                f.extractall(BASE_DATA_PATH)
-        os.unlink(zip_file)
-        for checkpointId in needed_checkpointids:
-            CHECKPOINTIDS[checkpointId] = True
+        for _ in range(retry):
+            try:
+                data = self.post_json("/api/judger/checkpoint/download", {"checkpointIds": needed_checkpointids}, "application/octet-stream")
+            except Exception as e:
+                logging.warn(str(e))
+                continue
+            else:
+                with zipfile.ZipFile(file=BytesIO(data)) as f:
+                    f.extractall(BASE_DATA_PATH)
+                for checkpointId in needed_checkpointids:
+                    CHECKPOINTIDS[checkpointId] = True
+                break
+        raise HTTPError("update checkpoints failed, retried for %d times" % retry)
