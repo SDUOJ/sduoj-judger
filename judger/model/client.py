@@ -198,7 +198,7 @@ class Judger(object):
                 "result": {}
             }
             self._case_id = 0
-            logger.info("{}-{} Judging...".format(self._pid, self._submission_id))
+            logger.info("{}-{} Judging {} checkpoints...".format(self._pid, self._submission_id, len(self._input)))
             for input_case, output_case in zip(self._input, self._output):
                 input_path = os.path.join(self._basic_path, input_case)
                 answer_path = os.path.join(self._basic_path, output_case)
@@ -216,8 +216,8 @@ class Judger(object):
                 handler = self._kwargs.get("handler", None)
                 if handler:
                     handler.send_checkpoint_result([
-                        int(self._submission_id),
-                        int(input_case[:-3]),
+                        str(self._submission_id),
+                        str(input_case[:-3]),
                         Judger.RETURN_TYPE[case_result["result"]],
                         int(case_result["cpu_time"]),
                         int(case_result["memory"]) // 1024,

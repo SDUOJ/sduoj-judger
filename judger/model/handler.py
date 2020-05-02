@@ -18,7 +18,7 @@ coloredlogs.install(level="DEBUG")
 
 def resolve_response_json(response):
     if response.status_code != 200: 
-        raise HTTPError("unexpected http code " + response.status_code)
+        raise HTTPError("unexpected http code " + str(response.status_code))
     response_dict = response.json()
     code = response_dict["code"]
     message = response_dict['message']
@@ -34,7 +34,7 @@ class JudgerSession(object):
         self.__password = password
         self.__headers = {
             "Content-Type": "application/json",
-            "accept": "application/json",
+            # "accept": "application/json",
             "Origin": origin,
         }
         self.__cookies = requests.cookies.RequestsCookieJar()
@@ -43,20 +43,22 @@ class JudgerSession(object):
         return urljoin(self.host, os.path.join(*parts))
     
     def post_json(self, url, data, update_cookies=False, expected_type="application/json"):
-        response = requests.post(self.full_url(url), headers=self.__headers, data=data, cookies=self.__cookies, allow_redirect=False)
-        if response.content_type != expected_type:
-            raise HTTPError("unexpected content type " + response.content_type)
+        print(self.full_url(url), data)
+        response = requests.post(self.full_url(url), headers=self.__headers, data=json.dumps(data), cookies=self.__cookies)
+        print(response.content, response.status_code, response.headers)
+        if expected_type not in response.headers["content-type"]:
+            raise HTTPError("unexpected content type " + response.headers["content-type"])
         if expected_type != "application/json":
             return response
         if update_cookies:
-            self.cookies.update(response.cookies)
+            self.__cookies.update(response.cookies)
             for item in response.headers["Set-Cookie"].split("; "):
                 if item.split("=")[0] == "Expires":
                     self.cookies_expires = datetime.datetime.strptime(item.split("=")[1], "%a, %d-%b-%Y %H:%M:%S %Z")
         return resolve_response_json(response)
 
     def check_cookies_expires(self):
-        while datetime.datetime.now() > self.cookies_expires:
+        while not datetime.datetime.now() > self.cookies_expires:
             logger.error("Session is out of date")
             if not self.get_cookies():
                 logger.warn("retry after {}s".format(RETRY_DELAY_SEC))
@@ -66,12 +68,13 @@ class JudgerSession(object):
 
     def get_cookies(self):
         data = {
-            "username": str(self.username),
-            "password": str(self.password),
+            "username": str(self.__username),
+            "password": str(self.__password),
         }
         try:
-            self.post_json("/api/judger/auth/login", data, update_cookies=True)
-        except Exception:
+            self.post_json("/api/auth/login", data, update_cookies=True)
+        except Exception as e:
+            raise e
             return False
         else:
             return True
@@ -86,7 +89,7 @@ class JudgerSession(object):
     def problem_query(self, pid):
         self.check_cookies_expires()
         data = {
-            "problemId": int(pid, base=10)
+            "problemId": int(pid)
         }
         return self.post_json("/api/judger/problem/query", data)
 
@@ -104,17 +107,18 @@ class JudgerSession(object):
         self.post_json("/api/judger/submit/update", data)
 
     def update_checkpoints(self, checkpointIds, retry=3):
-        needed_checkpointids = [checkpointId for checkpointId in checkpointIds if checkpointId not in CHECKPOINTIDS]
+        needed_checkpointids = [str(checkpointId) for checkpointId in checkpointIds if checkpointId not in CHECKPOINTIDS]
         for _ in range(retry):
             try:
-                data = self.post_json("/api/judger/checkpoint/download", {"checkpointIds": needed_checkpointids}, "application/octet-stream")
+                data = self.post_json("/api/judger/checkpoint/download", needed_checkpointids, expected_type="application/zip")
             except Exception as e:
-                logging.warn(str(e))
+                # logging.warn(e)
+                print(e)
                 continue
             else:
-                with zipfile.ZipFile(file=BytesIO(data)) as f:
+                with zipfile.ZipFile(file=BytesIO(data.content)) as f:
                     f.extractall(BASE_DATA_PATH)
-                for checkpointId in needed_checkpointids:
-                    CHECKPOINTIDS[checkpointId] = True
-                break
+                    for checkpointId in needed_checkpointids:
+                        CHECKPOINTIDS[checkpointId] = True
+                return
         raise HTTPError("update checkpoints failed, retried for %d times" % retry)
