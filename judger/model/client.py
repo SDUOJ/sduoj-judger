@@ -94,8 +94,6 @@ class WorkspaceInitializer(object):
 
 
 class Judger(object):
-    # RETURN_TYPE = ["AC", "TLE", "TLE", "MLE", "RE", "SE", "WA", "PE"]
-
     SUCCESS = 0
     CPU_TIME_LIMIT_EXCEEDED = 1
     REAL_TIME_LIMIT_EXCEEDED = 2

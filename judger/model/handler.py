@@ -58,7 +58,6 @@ class JudgerSession(object):
         return resolve_response_json(response)
 
     def check_cookies_expires(self):
-        print(datetime.datetime.now(), self.cookies_expires)
         while datetime.datetime.now() > self.cookies_expires:
             logger.error("Session is out of date")
             if not self.get_cookies():
