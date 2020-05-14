@@ -22,7 +22,6 @@ class MQHandler(object):
         self._mq_host = mq_host
         self._mq_port = mq_port
         self._receive_queue = receive_queue
-        # self._checkpoint_push = checkpoint_push
         self.session = session
 
     def get_channel(self):
@@ -34,8 +33,6 @@ class MQHandler(object):
     def run(self):
         if not hasattr(self, "channel") or self.channel.is_closed:
             self.get_channel()
-        # send queue
-        # self.send_channel.queue_declare(queue=self._send_queue, durable=True)
 
         # regist receive queue callback
         self.channel.queue_declare(queue=self._receive_queue, durable=True)
@@ -48,11 +45,6 @@ class MQHandler(object):
         self.channel.start_consuming()
 
     def send_checkpoint_result(self, data):
-        # result_dict = {
-        #     "event": "checkpointOK",
-        #     "data": data,
-        # }
-        # print(json.dumps(result_dict, indent=2))
         print(data)
         self.channel.basic_publish(exchange="sduoj.submission.exchange", 
                                    routing_key="submission.checkpoint.push", 
@@ -75,7 +67,6 @@ class MQHandler(object):
             problem_id = submission_config["problemId"]
             problem_config = self.session.problem_query(problem_id)
 
-        # try:
             # 检查url是否需要更新
             self.session.update_checkpoints(problem_config["checkpointIds"])
             # 评测
@@ -89,36 +80,40 @@ class MQHandler(object):
                                 "max_real_time": problem_config["timeLimit"] * 2,
                             },
                             data_path=BASE_DATA_PATH,
-                            # TODO: 改成 checkpointIds
                             input_cases=["%d.in" % checkpointId for checkpointId in problem_config["checkpointIds"]],
                             output_answers=["%d.out" % checkpointId for checkpointId in problem_config["checkpointIds"]],
                             checker=checker,
-                            oimode=False,
+                            oimode=True,
                             handler=self,
                             )
             result = client.judge()
         except (UserCompileError, SpjCompileError) as e:    # 编译错误
             self.session.send_judge_result(submission_id, 1001, Judger.RETURN_TYPE[Judger.COMPILE_ERROR], 0, 0, 0, str(e))
         except (SpjError, SystemInternalError, SandboxInternalError, HTTPError) as e:  # 系统错误
-
             logger.error(str(e))
             self.session.send_judge_result(submission_id, 1001, Judger.RETURN_TYPE[Judger.SYSTEM_ERROR], 0, 0, 0, str(e))
+        except Exception as e:
+            logger.errorr(str(e))
         else:
             # 评测结束 返回结果
             max_result_cpu_time = 0
             max_result_memory = 0
             judge_result = Judger.SUCCESS
-            for ret in result["result"].values():
+            checkpointResults = []
+            for ret in result["result"]:
+                checkpointResults.append([int(ret['result']), int(ret['cpu_time']), int(ret['memory']) // 1024])
                 max_result_cpu_time = max(max_result_cpu_time, ret["cpu_time"])
                 max_result_memory = max(max_result_memory, ret["memory"])
-                judge_result = ret["result"]
+                if judge_result == 0: judge_result = ret["result"]
+
             self.session.send_judge_result(submission_id=submission_id,
                                             judger_id=1001,
                                             judge_result=Judger.RETURN_TYPE[judge_result],
                                             judge_score=0,
                                             used_time=max_result_cpu_time,
                                             used_memory=max_result_memory // 1024,
-                                            judger_log="2333")
+                                            judger_log="ok",
+                                            checkpointResults=checkpointResults)
         finally:
             ch.basic_ack(delivery_tag=method.delivery_tag)  # manual ack
 
@@ -131,9 +126,7 @@ def run():
             os.mkdir(BASE_LOG_PATH)
         os.chmod(BASE_WORKSPACE_PATH, 0o711)
     except Exception as e:
-        print(e)
-        # TODO: cannot create workspace, log here
-        logger.critical("Crashed while creating WORKSPACE")
+        logger.critical("Crashed while creating WORKSPACE\n" + str(e))
         exit(1)
 
     session = JudgerSession(host=CONFIG["server"], username=CONFIG["uname"], password=CONFIG["pwd"], origin="http://oj.xrvitd.com")
@@ -141,9 +134,7 @@ def run():
         try:
             MQHandler(mq_uname=CONFIG["mq_uname"], mq_pwd=CONFIG["mq_pwd"], mq_host=CONFIG["mq_server"], mq_port=CONFIG.get("mq_port", 5672), receive_queue=CONFIG["mq_receive_name"], session=session).run()
         except Exception as e:
-            raise e
-            # print(e)
-            pass
+            logger.error(str(e))
         logger.warn("offline from message qeue, retry after {}s".format(RETRY_DELAY_SEC))
         time.sleep(RETRY_DELAY_SEC)
 

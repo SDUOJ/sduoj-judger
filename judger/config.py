@@ -24,6 +24,7 @@ def _load_config():
             return yaml.load(f)
     except FileNotFoundError:
         # TODO: no config file
+        print("cannot find config file: ./config.yaml")
         exit(1)
 
 def _init_CHECKPOINTIDS():

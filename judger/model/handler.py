@@ -34,7 +34,6 @@ class JudgerSession(object):
         self.__password = password
         self.__headers = {
             "Content-Type": "application/json",
-            # "accept": "application/json",
             "Origin": origin,
         }
         self.__cookies = requests.cookies.RequestsCookieJar()
@@ -45,7 +44,7 @@ class JudgerSession(object):
     def post_json(self, url, data, update_cookies=False, expected_type="application/json"):
         print(self.full_url(url), data)
         response = requests.post(self.full_url(url), headers=self.__headers, data=json.dumps(data), cookies=self.__cookies)
-        print(response.content, response.status_code, response.headers)
+        print(response.status_code, response.headers)
         if expected_type not in response.headers["content-type"]:
             raise HTTPError("unexpected content type " + response.headers["content-type"])
         if expected_type != "application/json":
@@ -54,11 +53,13 @@ class JudgerSession(object):
             self.__cookies.update(response.cookies)
             for item in response.headers["Set-Cookie"].split("; "):
                 if item.split("=")[0] == "Expires":
-                    self.cookies_expires = datetime.datetime.strptime(item.split("=")[1], "%a, %d-%b-%Y %H:%M:%S %Z")
+                    self.cookies_expires = datetime.datetime.strptime(item.split("=")[1], "%a %d %b %Y %H:%M:%S %Z")
+                    print(self.cookies_expires)
         return resolve_response_json(response)
 
     def check_cookies_expires(self):
-        while not datetime.datetime.now() > self.cookies_expires:
+        print(datetime.datetime.now(), self.cookies_expires)
+        while datetime.datetime.now() > self.cookies_expires:
             logger.error("Session is out of date")
             if not self.get_cookies():
                 logger.warn("retry after {}s".format(RETRY_DELAY_SEC))
@@ -93,7 +94,7 @@ class JudgerSession(object):
         }
         return self.post_json("/api/judger/problem/query", data)
 
-    def send_judge_result(self, submission_id, judger_id, judge_result, judge_score, used_time, used_memory, judger_log):
+    def send_judge_result(self, submission_id, judger_id, judge_result, judge_score, used_time, used_memory, judger_log, checkpointResults):
         self.check_cookies_expires()
         data = {
             "submissionId": int(submission_id),
@@ -103,6 +104,7 @@ class JudgerSession(object):
             "usedTime": int(used_time),
             "usedMemory": int(used_memory),
             "judgeLog": str(judger_log),
+            "checkpointResults": checkpointResults
         }
         self.post_json("/api/judger/submit/update", data)
 
@@ -112,8 +114,7 @@ class JudgerSession(object):
             try:
                 data = self.post_json("/api/judger/checkpoint/download", needed_checkpointids, expected_type="application/zip")
             except Exception as e:
-                # logging.warn(e)
-                print(e)
+                logging.error(str(e))
                 continue
             else:
                 with zipfile.ZipFile(file=BytesIO(data.content)) as f:
@@ -121,4 +122,4 @@ class JudgerSession(object):
                     for checkpointId in needed_checkpointids:
                         CHECKPOINTIDS[checkpointId] = True
                 return
-        raise HTTPError("update checkpoints failed, retried for %d times" % retry)
+        raise HTTPError("update checkpoints failed")

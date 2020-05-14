@@ -94,7 +94,7 @@ class WorkspaceInitializer(object):
 
 
 class Judger(object):
-    RETURN_TYPE = ["AC", "TLE", "TLE", "MLE", "RE", "SE", "WA", "PE"]
+    # RETURN_TYPE = ["AC", "TLE", "TLE", "MLE", "RE", "SE", "WA", "PE"]
 
     SUCCESS = 0
     CPU_TIME_LIMIT_EXCEEDED = 1
@@ -104,6 +104,7 @@ class Judger(object):
     SYSTEM_ERROR = 5
     WRONG_ANSWER = 6
     PRESENTATION_ERROR = 7
+
     COMPILE_ERROR = 8
 
     SPJ_ERROR = 255
@@ -195,7 +196,7 @@ class Judger(object):
             judge_result = {
                 "submission_id": self._submission_id,
                 "pid": self._pid,
-                "result": {}
+                "result": []
             }
             self._case_id = 0
             logger.info("{}-{} Judging {} checkpoints...".format(self._pid, self._submission_id, len(self._input)))
@@ -210,14 +211,13 @@ class Judger(object):
                                                test_input=input_path,
                                                test_output=output_path,
                                                std_output=answer_path)
-
-                judge_result["result"][input_case] = case_result
+                judge_result["result"].append(case_result)
     
                 handler = self._kwargs.get("handler", None)
                 if handler:
                     handler.send_checkpoint_result([
                         str(self._submission_id),
-                        str(input_case[:-3]),
+                        str(self._case_id),
                         Judger.RETURN_TYPE[case_result["result"]],
                         int(case_result["cpu_time"]),
                         int(case_result["memory"]) // 1024,
