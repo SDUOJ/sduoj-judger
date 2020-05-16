@@ -14,15 +14,15 @@ if __name__ == "__main__":
     config = {
         "submission_id": 1,
         "code": code,
-        "pid": 1003,
+        "pid": 1000,
         "lang": "cc",
         "run_config": {
-                "max_memory": 500 * 1024 * 1024,
+                "max_memory": 256 * 1024,
                 "max_cpu_time": 24000,
                 "max_real_time": 24000,
         },
     }
-    handler = MQHandler(None, None, None, None, None)
+    # handler = MQHandler(None, None, None, None, None)
     if not os.path.exists(BASE_WORKSPACE_PATH):
         os.mkdir(BASE_WORKSPACE_PATH)
     if not os.path.exists(BASE_LOG_PATH):
@@ -39,7 +39,7 @@ if __name__ == "__main__":
                         output_answers=["%d.out" % i for i in range(1, 11)],
                         checker=checker,
                         oimode=True,
-                        handler=handler,
+                        # handler=handler,
                         )
         result = client.judge()
     except Exception as e:

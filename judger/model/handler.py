@@ -82,7 +82,7 @@ class JudgerSession(object):
     def submission_query(self, submission_id):
         self.check_cookies_expires()
         data = {
-            "submissionId": int(submission_id)
+            "submissionId": submission_id
         }
         return self.post_json("/api/judger/submit/query", data)
 
@@ -96,7 +96,7 @@ class JudgerSession(object):
     def send_judge_result(self, submission_id, judger_id, judge_result, judge_score, used_time, used_memory, judger_log, checkpointResults):
         self.check_cookies_expires()
         data = {
-            "submissionId": int(submission_id),
+            "submissionId": submission_id,
             "judgerId": int(judger_id),
             "judgeResult": int(judge_result),
             "judgeScore": int(judge_score),
@@ -109,6 +109,8 @@ class JudgerSession(object):
 
     def update_checkpoints(self, checkpointIds, retry=3):
         needed_checkpointids = [str(checkpointId) for checkpointId in checkpointIds if checkpointId not in CHECKPOINTIDS]
+        if not needed_checkpointids:
+            return
         for _ in range(retry):
             try:
                 data = self.post_json("/api/judger/checkpoint/download", needed_checkpointids, expected_type="application/zip")

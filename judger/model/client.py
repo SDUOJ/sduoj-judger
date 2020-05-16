@@ -13,6 +13,8 @@ import coloredlogs
 logger = logging.getLogger(__name__)
 coloredlogs.install(level="DEBUG")
 
+DEBUG_MODE = True
+
 def run(**kwargs):
     int_args = ["max_cpu_time", "max_real_time", "max_memory",
                 "max_stack", "max_process_number", "max_output_size", "uid", "gid"]
@@ -21,9 +23,10 @@ def run(**kwargs):
     str_list_args = ["exe_args", "exe_envs"]
 
     command = SANDBOX_PATH
-
+    
     for arg in int_args:
         value = kwargs.get(arg, None)
+        
         if value is None:
             continue
         if not isinstance(value, int):
@@ -79,7 +82,8 @@ class WorkspaceInitializer(object):
 
     def __exit__(self, exception_type, exception_value, exception_traceback):
         try:
-            shutil.rmtree(self._workspace_dir)
+            if not DEBUG_MODE:
+                shutil.rmtree(self._workspace_dir)
             pass
         except Exception as e:
             # cannot remove judge dir, raise Exception here
@@ -241,7 +245,7 @@ class Judger(object):
 
                             max_cpu_time=run_config.get("max_cpu_time", None),
                             max_real_time=run_config.get("max_real_time", None),
-                            max_memory=lang_config.get("max_memory", None),
+                            max_memory=run_config.get("max_memory", None),
                             max_stack=run_config.get("max_stack", None),
 
                             uid=NOBODY_UID,

@@ -58,18 +58,19 @@ class MQHandler(object):
         # ch.basic_ack(delivery_tag=method.delivery_tag)  # manual ack
         try:
             request = json.loads(str(body, encoding="utf8"))
-            submission_id = int(request["submissionId"])
-            logger.info("Get submission request: %d" % submission_id)
+            submission_id = request["submissionId"]
+            logger.info("Get submission request: %s" % str(submission_id))
             # 查询提交
             submission_config = self.session.submission_query(submission_id)
             submission_code = submission_config["code"]
             # 查看题目时限、数据包地址
             problem_id = submission_config["problemId"]
             problem_config = self.session.problem_query(problem_id)
-
+            print(problem_config)
             # 检查url是否需要更新
             self.session.update_checkpoints(problem_config["checkpointIds"])
             # 评测
+            time.sleep(1)
             client = Judger(submission_id=submission_id,
                             pid=problem_id,
                             code=submission_code,
@@ -80,20 +81,35 @@ class MQHandler(object):
                                 "max_real_time": problem_config["timeLimit"] * 2,
                             },
                             data_path=BASE_DATA_PATH,
-                            input_cases=["%d.in" % checkpointId for checkpointId in problem_config["checkpointIds"]],
-                            output_answers=["%d.out" % checkpointId for checkpointId in problem_config["checkpointIds"]],
+                            input_cases=["%s.in" % str(checkpointId) for checkpointId in problem_config["checkpointIds"]],
+                            output_answers=["%s.out" % str(checkpointId) for checkpointId in problem_config["checkpointIds"]],
                             checker=checker,
                             oimode=True,
                             handler=self,
                             )
             result = client.judge()
         except (UserCompileError, SpjCompileError) as e:    # 编译错误
-            self.session.send_judge_result(submission_id, 1001, Judger.RETURN_TYPE[Judger.COMPILE_ERROR], 0, 0, 0, str(e))
-        except (SpjError, SystemInternalError, SandboxInternalError, HTTPError) as e:  # 系统错误
+            logger.warn(str(e))
+            checkpointResults = [[int(Judger.RETURN_TYPE[Judger.COMPILE_ERROR]), 0, 0] for _ in problem_config["checkpointIds"]]
+            self.session.send_judge_result(submission_id=submission_id, 
+                                            judger_id=1001, 
+                                            judge_result=Judger.RETURN_TYPE[Judger.COMPILE_ERROR], 
+                                            judge_score=0, 
+                                            used_time=0, 
+                                            used_memory=0, 
+                                            judger_log=str(e), 
+                                            checkpointResults=checkpointResults)
+        except (SpjError, SystemInternalError, SandboxInternalError, HTTPError, Exception) as e:  # 系统错误
             logger.error(str(e))
-            self.session.send_judge_result(submission_id, 1001, Judger.RETURN_TYPE[Judger.SYSTEM_ERROR], 0, 0, 0, str(e))
-        except Exception as e:
-            logger.errorr(str(e))
+            checkpointResults = [[int(Judger.RETURN_TYPE[Judger.SYSTEM_ERROR]), 0, 0] for _ in problem_config["checkpointIds"]]
+            self.session.send_judge_result(submission_id=submission_id, 
+                                            judger_id=1001, 
+                                            judge_result=Judger.RETURN_TYPE[Judger.SYSTEM_ERROR], 
+                                            judge_score=0, 
+                                            used_time=0, 
+                                            used_memory=0, 
+                                            judger_log=str(e), 
+                                            checkpointResults=checkpointResults)
         else:
             # 评测结束 返回结果
             max_result_cpu_time = 0
@@ -135,8 +151,8 @@ def run():
             MQHandler(mq_uname=CONFIG["mq_uname"], mq_pwd=CONFIG["mq_pwd"], mq_host=CONFIG["mq_server"], mq_port=CONFIG.get("mq_port", 5672), receive_queue=CONFIG["mq_receive_name"], session=session).run()
         except Exception as e:
             logger.error(str(e))
-        logger.warn("offline from message qeue, retry after {}s".format(RETRY_DELAY_SEC))
-        time.sleep(RETRY_DELAY_SEC)
+        # logger.warn("offline from message qeue, retry after {}s".format(RETRY_DELAY_SEC))
+        # time.sleep(RETRY_DELAY_SEC)
 
 
 if __name__ == "__main__":

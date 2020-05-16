@@ -37,7 +37,7 @@ def _init_CHECKPOINTIDS():
                 tmp[checkpoint_id] = tmp.get(checkpoint_id, 0) + 1
         except Exception:
             continue
-    return dict((int(key), True) for key, value in tmp.items() if value == 2)
+    return dict((key, True) for key, value in tmp.items() if value == 2)
 
 CONFIG = _load_config()
 CHECKPOINTIDS = _init_CHECKPOINTIDS()
