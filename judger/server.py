@@ -117,7 +117,7 @@ class MQHandler(object):
             judge_result = Judger.SUCCESS
             checkpointResults = []
             for ret in result["result"]:
-                checkpointResults.append([int(ret['result']), int(ret['cpu_time']), int(ret['memory']) // 1024])
+                checkpointResults.append([Judger.RETURN_TYPE[ret['result']], int(ret['cpu_time']), int(ret['memory']) // 1024])
                 max_result_cpu_time = max(max_result_cpu_time, ret["cpu_time"])
                 max_result_memory = max(max_result_memory, ret["memory"])
                 if judge_result == 0: judge_result = ret["result"]
