@@ -49,7 +49,8 @@ def run(**kwargs):
             raise ValueError("'{}' must be a list".format(arg))
         for item in value:
             command += " --{}=\"{}\"".format(arg, str(item))
-    
+
+    print(command)
     err, out = subprocess.getstatusoutput(command)
     if err:    # system cannot launch sandbox sucessfully
         raise SystemInternalError(out, kwargs.get("case_id", -1))
@@ -281,6 +282,7 @@ class Judger(object):
     def compile(self, compile_config, src_path, output_dir):
         exe_path = os.path.join(output_dir, compile_config["exe_name"])
         command = compile_config["compile_command"].format(src_path=src_path, exe_path=exe_path)
+        print(command)
         _command = command.split(" ")
         compiler_out = os.path.join(output_dir, "compiler.out")
         try:

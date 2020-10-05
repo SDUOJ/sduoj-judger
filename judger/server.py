@@ -68,21 +68,21 @@ class MQHandler(object):
             problem_config = self.session.problem_query(problem_id)
             print(problem_config)
             # 检查url是否需要更新
-            self.session.update_checkpoints(problem_config["checkpointIds"])
+            self.session.update_checkpoints(problem_config["checkpoints"])
             # 评测
             time.sleep(1)
             client = Judger(submission_id=submission_id,
                             pid=problem_id,
                             code=submission_code,
-                            lang=LANG_TYPE[submission_config["languageId"]],
+                            lang=submission_config["language"],
                             run_config={
                                 "max_memory": problem_config["memoryLimit"] * 1024,
                                 "max_cpu_time": problem_config["timeLimit"],
                                 "max_real_time": problem_config["timeLimit"] * 2,
                             },
                             data_path=BASE_DATA_PATH,
-                            input_cases=["%s.in" % str(checkpointId) for checkpointId in problem_config["checkpointIds"]],
-                            output_answers=["%s.out" % str(checkpointId) for checkpointId in problem_config["checkpointIds"]],
+                            input_cases=["%s.in" % str(checkpointId) for checkpointId in problem_config["checkpoints"]],
+                            output_answers=["%s.out" % str(checkpointId) for checkpointId in problem_config["checkpoints"]],
                             checker=checker,
                             oimode=True,
                             handler=self,
@@ -90,10 +90,9 @@ class MQHandler(object):
             result = client.judge()
         except (UserCompileError, SpjCompileError) as e:    # 编译错误
             logger.warn(str(e))
-            checkpointResults = [[int(Judger.RETURN_TYPE[Judger.COMPILE_ERROR]), 0, 0] for _ in problem_config["checkpointIds"]]
+            checkpointResults = [[int(Judger.RETURN_TYPE[Judger.COMPILE_ERROR]), 0, 0] for _ in problem_config["checkpoints"]]
             self.session.send_judge_result(submission_id=submission_id, 
-                                            judger_id=1001, 
-                                            judge_result=Judger.RETURN_TYPE[Judger.COMPILE_ERROR], 
+                                            judge_result=Judger.RETURN_TYPE[Judger.COMPILE_ERROR],
                                             judge_score=0, 
                                             used_time=0, 
                                             used_memory=0, 
@@ -101,7 +100,7 @@ class MQHandler(object):
                                             checkpointResults=checkpointResults)
         except (SpjError, SystemInternalError, SandboxInternalError, HTTPError, Exception) as e:  # 系统错误
             logger.error(str(e))
-            checkpointResults = [[int(Judger.RETURN_TYPE[Judger.SYSTEM_ERROR]), 0, 0] for _ in problem_config["checkpointIds"]]
+            checkpointResults = [[int(Judger.RETURN_TYPE[Judger.SYSTEM_ERROR]), 0, 0] for _ in problem_config["checkpoints"]]
             self.session.send_judge_result(submission_id=submission_id, 
                                             judger_id=1001, 
                                             judge_result=Judger.RETURN_TYPE[Judger.SYSTEM_ERROR], 
@@ -140,12 +139,14 @@ def run():
             os.mkdir(BASE_WORKSPACE_PATH)
         if not os.path.exists(BASE_LOG_PATH):
             os.mkdir(BASE_LOG_PATH)
+        if not os.path.exists(BASE_DATA_PATH):
+            os.mkdir(BASE_DATA_PATH)
         os.chmod(BASE_WORKSPACE_PATH, 0o711)
     except Exception as e:
         logger.critical("Crashed while creating WORKSPACE\n" + str(e))
         exit(1)
 
-    session = JudgerSession(host=CONFIG["server"], username=CONFIG["uname"], password=CONFIG["pwd"], origin="http://oj.xrvitd.com")
+    session = JudgerSession(host=CONFIG["server"], username=CONFIG["uname"], password=CONFIG["pwd"], origin=CONFIG["origin"])
     while True:
         try:
             MQHandler(mq_uname=CONFIG["mq_uname"], mq_pwd=CONFIG["mq_pwd"], mq_host=CONFIG["mq_server"], mq_port=CONFIG.get("mq_port", 5672), receive_queue=CONFIG["mq_receive_name"], session=session).run()
