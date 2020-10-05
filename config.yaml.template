@@ -1,8 +1,9 @@
-server:   # 后端服务器地址
-uname:  # 评测机登录用户名
-pwd:   # 评测机登录密码
-mq_server:   # 消息队列服务器地址
+server:                  # 后端域名或地址
+orgin:                   # 前端域名
+uname:                   # 评测机登录用户名
+pwd:                     # 评测机登录密码
+mq_server:               # 消息队列服务器地址
 mq_port:                 # 消息队列端口号，默认5672
 mq_uname:                # 消息队列用户名
-mq_pwd:               # 消息队列密码
-mq_receive_name:   # 接受评测请求的队列
+mq_pwd:                  # 消息队列密码
+mq_receive_name:         # 接受评测请求的队列

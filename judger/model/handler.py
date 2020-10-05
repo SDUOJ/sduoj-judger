@@ -40,7 +40,17 @@ class JudgerSession(object):
 
     def full_url(self, *parts):
         return urljoin(self.host, os.path.join(*parts))
-    
+
+    def get_json(self, url, data, expected_type="application/json"):
+        print(self.full_url(url), data, self.__cookies.values)
+        response = requests.get(self.full_url(url), headers=self.__headers, params=data, cookies=self.__cookies)
+        print(response.status_code, response.headers, response.text)
+        if expected_type not in response.headers["content-type"]:
+            raise HTTPError("unexpected content type " + response.headers["content-type"])
+        if expected_type != "application/json":
+            return response
+        return resolve_response_json(response)
+
     def post_json(self, url, data, update_cookies=False, expected_type="application/json"):
         print(self.full_url(url), data)
         response = requests.post(self.full_url(url), headers=self.__headers, data=json.dumps(data), cookies=self.__cookies)
@@ -50,21 +60,8 @@ class JudgerSession(object):
         if expected_type != "application/json":
             return response
         if update_cookies:
-            self.__cookies.update(response.cookies)
-            for item in response.headers["Set-Cookie"].split("; "):
-                if item.split("=")[0] == "Expires":
-                    self.cookies_expires = datetime.datetime.strptime(item.split("=")[1], "%a %d %b %Y %H:%M:%S %Z")
-                    print(self.cookies_expires)
+            self.__cookies = response.cookies
         return resolve_response_json(response)
-
-    def check_cookies_expires(self):
-        while datetime.datetime.now() > self.cookies_expires:
-            logger.error("Session is out of date")
-            if not self.get_cookies():
-                logger.warn("retry after {}s".format(RETRY_DELAY_SEC))
-                time.sleep(RETRY_DELAY_SEC)
-            else:
-                logger.info("Connected")
 
     def get_cookies(self):
         data = {
@@ -72,7 +69,7 @@ class JudgerSession(object):
             "password": str(self.__password),
         }
         try:
-            self.post_json("/api/auth/login", data, update_cookies=True)
+            self.post_json("/api/user/login", data, update_cookies=True)
         except Exception as e:
             raise e
             return False
@@ -80,24 +77,20 @@ class JudgerSession(object):
             return True
 
     def submission_query(self, submission_id):
-        self.check_cookies_expires()
         data = {
             "submissionId": submission_id
         }
-        return self.post_json("/api/judger/submit/query", data)
+        return self.get_json("/api/judger/submit/query", data)
 
     def problem_query(self, pid):
-        self.check_cookies_expires()
         data = {
             "problemId": int(pid)
         }
-        return self.post_json("/api/judger/problem/query", data)
+        return self.get_json("/api/judger/problem/query", data)
 
     def send_judge_result(self, submission_id, judger_id, judge_result, judge_score, used_time, used_memory, judger_log, checkpointResults):
-        self.check_cookies_expires()
         data = {
             "submissionId": submission_id,
-            "judgerId": int(judger_id),
             "judgeResult": int(judge_result),
             "judgeScore": int(judge_score),
             "usedTime": int(used_time),
