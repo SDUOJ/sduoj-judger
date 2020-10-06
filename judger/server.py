@@ -101,8 +101,7 @@ class MQHandler(object):
         except (SpjError, SystemInternalError, SandboxInternalError, HTTPError, Exception) as e:  # 系统错误
             logger.error(str(e))
             checkpointResults = [[int(Judger.RETURN_TYPE[Judger.SYSTEM_ERROR]), 0, 0] for _ in problem_config["checkpoints"]]
-            self.session.send_judge_result(submission_id=submission_id, 
-                                            judger_id=1001, 
+            self.session.send_judge_result(submission_id=submission_id,
                                             judge_result=Judger.RETURN_TYPE[Judger.SYSTEM_ERROR], 
                                             judge_score=0, 
                                             used_time=0, 
@@ -122,7 +121,6 @@ class MQHandler(object):
                 if judge_result == 0: judge_result = ret["result"]
 
             self.session.send_judge_result(submission_id=submission_id,
-                                            judger_id=1001,
                                             judge_result=Judger.RETURN_TYPE[judge_result],
                                             judge_score=0,
                                             used_time=max_result_cpu_time,
@@ -130,6 +128,7 @@ class MQHandler(object):
                                             judger_log="ok",
                                             checkpointResults=checkpointResults)
         finally:
+            self.send_checkpoint_result([str(submission_id), -1])
             ch.basic_ack(delivery_tag=method.delivery_tag)  # manual ack
 
 
