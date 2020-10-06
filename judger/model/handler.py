@@ -88,7 +88,7 @@ class JudgerSession(object):
         }
         return self.get_json("/api/judger/problem/query", data)
 
-    def send_judge_result(self, submission_id, judger_id, judge_result, judge_score, used_time, used_memory, judger_log, checkpointResults):
+    def send_judge_result(self, submission_id, judge_result, judge_score, used_time, used_memory, judger_log, checkpointResults):
         data = {
             "submissionId": submission_id,
             "judgeResult": int(judge_result),

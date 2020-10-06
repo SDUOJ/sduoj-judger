@@ -230,11 +230,6 @@ class Judger(object):
                     break
                 self._case_id += 1
 
-            if handler:
-                handler.send_checkpoint_result([
-                    str(self._submission_id),
-                    -1
-                ])
             return judge_result
 
     # Return the result of one test
