@@ -39,8 +39,6 @@ class MQHandler(object):
         # self.channel.exchange_declare(exchange=self._checkpoint_push, durable=True)
         self.channel.basic_qos(prefetch_count=1)  # limit the number
         self.channel.basic_consume(queue=self._receive_queue, on_message_callback=self.__callback)
-        if not self.session.get_cookies():
-            exit(1)
         logger.info("Start listening...")
         self.channel.start_consuming()
 
@@ -55,7 +53,6 @@ class MQHandler(object):
                                    ))
     
     def __callback(self, ch, method, properties, body):
-        # ch.basic_ack(delivery_tag=method.delivery_tag)  # manual ack
         try:
             request = json.loads(str(body, encoding="utf8"))
             submission_id = request["submissionId"]
@@ -66,11 +63,9 @@ class MQHandler(object):
             # 查看题目时限、数据包地址
             problem_id = submission_config["problemId"]
             problem_config = self.session.problem_query(problem_id)
-            print(problem_config)
             # 检查url是否需要更新
             self.session.update_checkpoints(problem_config["checkpoints"])
             # 评测
-            time.sleep(1)
             client = Judger(submission_id=submission_id,
                             pid=problem_id,
                             code=submission_code,
@@ -132,6 +127,7 @@ class MQHandler(object):
             ch.basic_ack(delivery_tag=method.delivery_tag)  # manual ack
 
 
+
 def run():
     try:
         if not os.path.exists(BASE_WORKSPACE_PATH):
@@ -151,8 +147,6 @@ def run():
             MQHandler(mq_uname=CONFIG["mq_uname"], mq_pwd=CONFIG["mq_pwd"], mq_host=CONFIG["mq_server"], mq_port=CONFIG.get("mq_port", 5672), receive_queue=CONFIG["mq_receive_name"], session=session).run()
         except Exception as e:
             logger.error(str(e))
-        # logger.warn("offline from message qeue, retry after {}s".format(RETRY_DELAY_SEC))
-        # time.sleep(RETRY_DELAY_SEC)
 
 
 if __name__ == "__main__":
