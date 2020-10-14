@@ -230,11 +230,6 @@ class Judger(object):
                     break
                 self._case_id += 1
 
-            if handler:
-                handler.send_checkpoint_result([
-                    str(self._submission_id),
-                    -1
-                ])
             return judge_result
 
     # Return the result of one test
@@ -251,7 +246,7 @@ class Judger(object):
 
                             max_cpu_time=run_config.get("max_cpu_time", None),
                             max_real_time=run_config.get("max_real_time", None),
-                            max_memory=run_config.get("max_memory", None) * 1024,
+                            max_memory=run_config.get("max_memory", None),
                             max_stack=run_config.get("max_stack", None),
 
                             uid=NOBODY_UID,
