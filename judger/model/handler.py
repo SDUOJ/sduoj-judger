@@ -13,12 +13,13 @@ from judger.exception import HTTPError
 import logging, coloredlogs
 logger = logging.getLogger(__name__)
 logging.basicConfig(level=logging.NOTSET)
-coloredlogs.install(level="DEBUG")
+coloredlogs.install(level="INFO")
 
 
 def resolve_response_json(response):
     if response.status_code != 200: 
         raise HTTPError("unexpected http code " + str(response.status_code))
+        
     response_dict = response.json()
     code = response_dict["code"]
     message = response_dict['message']
@@ -37,14 +38,24 @@ class JudgerSession(object):
             "Origin": origin,
         }
         self.__cookies = requests.cookies.RequestsCookieJar()
+        self.do_login()
 
     def full_url(self, *parts):
         return urljoin(self.host, os.path.join(*parts))
 
     def get_json(self, url, data, expected_type="application/json"):
-        print(self.full_url(url), data, self.__cookies.values)
+        print(self.full_url(url), data)
         response = requests.get(self.full_url(url), headers=self.__headers, params=data, cookies=self.__cookies)
-        print(response.status_code, response.headers, response.text)
+
+        # 重试
+        cnt = 0;
+        while response.status_code == 401 and cnt < 5:
+            if self.do_login():
+                response = requests.post(self.full_url(url), headers=self.__headers, data=json.dumps(data), cookies=self.__cookies)
+            else:
+                cnt += 1
+                time.sleep(2 ** cnt)
+
         if expected_type not in response.headers["content-type"]:
             raise HTTPError("unexpected content type " + response.headers["content-type"])
         if expected_type != "application/json":
@@ -53,8 +64,18 @@ class JudgerSession(object):
 
     def post_json(self, url, data, update_cookies=False, expected_type="application/json"):
         print(self.full_url(url), data)
+
         response = requests.post(self.full_url(url), headers=self.__headers, data=json.dumps(data), cookies=self.__cookies)
-        print(response.status_code, response.headers)
+
+        # 重试
+        cnt = 0;
+        while response.status_code == 401 and cnt < 5:
+            if self.do_login():
+                response = requests.post(self.full_url(url), headers=self.__headers, data=json.dumps(data), cookies=self.__cookies)
+            else:
+                cnt += 1
+                time.sleep(2 ** cnt)
+        
         if expected_type not in response.headers["content-type"]:
             raise HTTPError("unexpected content type " + response.headers["content-type"])
         if expected_type != "application/json":
@@ -63,18 +84,20 @@ class JudgerSession(object):
             self.__cookies = response.cookies
         return resolve_response_json(response)
 
-    def get_cookies(self):
+    def do_login(self):
         data = {
             "username": str(self.__username),
             "password": str(self.__password),
         }
         try:
-            self.post_json("/api/user/login", data, update_cookies=True)
+            response = requests.post(self.full_url('/api/user/login'), headers=self.__headers, data=json.dumps(data))
+            if response.status_code == 200:
+                self.__cookies = response.cookies
+                return True
+            else:
+                return False
         except Exception as e:
-            raise e
             return False
-        else:
-            return True
 
     def submission_query(self, submission_id):
         data = {

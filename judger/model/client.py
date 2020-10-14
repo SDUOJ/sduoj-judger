@@ -11,7 +11,7 @@ import logging
 import coloredlogs
 
 logger = logging.getLogger(__name__)
-coloredlogs.install(level="DEBUG")
+coloredlogs.install(level="INFO")
 
 DEBUG_MODE = True
 
@@ -177,8 +177,8 @@ class Judger(object):
             self._exe_path, self._compile_info = self.compile(compile_config=self._lang_config,
                                                             src_path=src_path,
                                                             output_dir=workspace_dir)
-            # TODO: compile down!
-            logger.info("Compile down \"{}\"".format(self._exe_path))
+            # TODO: compiled!
+            logger.info("Compiled \"{}\"".format(self._exe_path))
             os.chown(self._exe_path, NOBODY_UID, 0)
             os.chmod(self._exe_path, 0o500)
 
@@ -193,8 +193,8 @@ class Judger(object):
                                                                 src_path=self._spj["src_path"],
                                                                 output_dir=workspace_dir,
                                                                 spj_name="spj")
-                    # TODO: spj compile down!
-                    logger.info("SPJ Compile down \"{}\"".format(self._spj_exe_path))
+                    # TODO: spj compiled!
+                    logger.info("SPJ Compiled \"{}\"".format(self._spj_exe_path))
 
             judge_result = {
                 "submission_id": self._submission_id,
