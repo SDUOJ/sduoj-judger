@@ -9,6 +9,7 @@ log
 workspace
 data
 config.yaml
+test
 
 # Byte-compiled / optimized / DLL files
 __pycache__/
