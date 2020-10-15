@@ -4,7 +4,7 @@ Fetch the code, compile and run it, and return the result.
 ## install dependency 
 
 ```
-pip3 install install -r requirements.txt
+pip3 install -r requirements.txt
 ```
 
 ## How to Run it
