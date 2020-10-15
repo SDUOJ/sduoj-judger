@@ -13,7 +13,7 @@ import coloredlogs
 logger = logging.getLogger(__name__)
 coloredlogs.install(level="INFO")
 
-DEBUG_MODE = True
+DEBUG_MODE = CONFIG.get('debug', False)
 
 def run(**kwargs):
     int_args = ["max_cpu_time", "max_real_time", "max_memory",
@@ -85,11 +85,10 @@ class WorkspaceInitializer(object):
         try:
             if not DEBUG_MODE:
                 shutil.rmtree(self._workspace_dir)
-            pass
         except Exception as e:
             # cannot remove judge dir, raise Exception here
             logger.warn("Cannot remove judge workspace \"{}\"".format(self._workspace_dir))
-            # raise SystemInternalError("cannot remove judge workspace")
+            raise SystemInternalError("cannot remove judge workspace")
             return True
         else:
             if exception_value:  # caught other error exception, raise here
@@ -199,6 +198,7 @@ class Judger(object):
             judge_result = {
                 "submission_id": self._submission_id,
                 "pid": self._pid,
+                'judger_log': self._compile_info,
                 "result": []
             }
             self._case_id = 0
@@ -305,7 +305,7 @@ class Judger(object):
                 raise UserCompileError("cannot get compiler output")
             with open(compiler_out, "r") as f:
                 compiler_info = f.read()
-            if compile_result["result"]:
+            if compile_result["result"] != Judger.SUCCESS:
                 raise UserCompileError(compiler_info)
             return exe_path, compiler_info
 
@@ -334,6 +334,6 @@ class Judger(object):
                 raise SpjCompileError("cannot get compiler output")
             with open(compiler_out, "r") as f:
                 compiler_info = f.read()
-                if compile_result["result"]:
+                if compile_result["result"] != Judger.SUCCESS:
                     raise SpjCompileError(compiler_info)
             return exe_path, compiler_info
