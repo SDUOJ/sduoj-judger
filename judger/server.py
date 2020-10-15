@@ -16,17 +16,20 @@ coloredlogs.install(level="INFO")
 
 
 class MQHandler(object):
-    def __init__(self, mq_host, mq_port, receive_queue, session, mq_uname="guest", mq_pwd="guest"):
+    def __init__(self, mq_host, mq_port, session, mq_uname, mq_pwd, mq_receive_queue, mq_virtualhost, mq_send_exchange, mq_send_routing_key):
         self._mq_uname = mq_uname
         self._mq_pwd = mq_pwd
         self._mq_host = mq_host
         self._mq_port = mq_port
-        self._receive_queue = receive_queue
+        self._mq_virtualhost = mq_virtualhost
+        self._mq_receive_queue = mq_receive_queue
+        self._mq_send_exchange = mq_send_exchange
+        self._mq_send_routing_key = mq_send_routing_key
         self.session = session
 
     def get_channel(self):
         _credentials = pika.PlainCredentials(self._mq_uname, self._mq_pwd)
-        _parameters = pika.ConnectionParameters(host=self._mq_host, port=self._mq_port, virtual_host="/sduoj", credentials=_credentials)
+        _parameters = pika.ConnectionParameters(host=self._mq_host, port=self._mq_port, virtual_host=self._mq_virtualhost, credentials=_credentials)
         _connection = pika.BlockingConnection(_parameters)
         self.channel = _connection.channel()
     
@@ -35,17 +38,15 @@ class MQHandler(object):
             self.get_channel()
 
         # regist receive queue callback
-        self.channel.queue_declare(queue=self._receive_queue, durable=True)
-        # self.channel.exchange_declare(exchange=self._checkpoint_push, durable=True)
+        self.channel.queue_declare(queue=self._mq_receive_queue, durable=True)
         self.channel.basic_qos(prefetch_count=1)  # limit the number
-        self.channel.basic_consume(queue=self._receive_queue, on_message_callback=self.__callback)
+        self.channel.basic_consume(queue=self._mq_receive_queue, on_message_callback=self.__callback)
         logger.info("Start listening...")
         self.channel.start_consuming()
 
     def send_checkpoint_result(self, data):
-        print(data)
-        self.channel.basic_publish(exchange="sduoj.submission.exchange", 
-                                   routing_key="submission.checkpoint.push", 
+        self.channel.basic_publish(exchange=self._mq_send_exchange, 
+                                   routing_key=self._mq_send_routing_key, 
                                    body=json.dumps(data),
                                    properties=pika.BasicProperties(
                                        content_type="application/json",
@@ -120,7 +121,7 @@ class MQHandler(object):
                                             judge_score=0,
                                             used_time=max_result_cpu_time,
                                             used_memory=max_result_memory // 1024,
-                                            judger_log="ok",
+                                            judger_log=result['judger_log'],
                                             checkpointResults=checkpointResults)
         finally:
             self.send_checkpoint_result([str(submission_id), -1])
@@ -141,12 +142,23 @@ def run():
         logger.critical("Crashed while creating WORKSPACE\n" + str(e))
         exit(1)
 
-    session = JudgerSession(host=CONFIG["server"], username=CONFIG["uname"], password=CONFIG["pwd"], origin=CONFIG["origin"])
+    logger.info(CONFIG)
+    session = JudgerSession(host=CONFIG.get("server", "127.0.0.1"), username=CONFIG["uname"], password=CONFIG["pwd"], origin=CONFIG.get("origin", "127.0.0.1"))
     while True:
         try:
-            MQHandler(mq_uname=CONFIG["mq_uname"], mq_pwd=CONFIG["mq_pwd"], mq_host=CONFIG["mq_server"], mq_port=CONFIG.get("mq_port", 5672), receive_queue=CONFIG["mq_receive_name"], session=session).run()
+            MQHandler(mq_uname=CONFIG.get("mq_uname", "guest"), 
+                      mq_pwd=CONFIG.get("mq_pwd", "guest"), 
+                      mq_host=CONFIG.get("mq_server", "127.0.0.1"), 
+                      mq_port=CONFIG.get("mq_port", 5672), 
+                      session=session,
+                      mq_virtualhost=CONFIG.get("mq_virtualhost", "/sduoj"),
+                      mq_receive_queue=CONFIG.get("mq_receive_name", "judge_queue"), 
+                      mq_send_exchange=CONFIG.get("mq_send_exchange", "sduoj.submission.exchange"),
+                      mq_send_routing_key=CONFIG.get("mq_send_routing", "submission.checkpoint.push")).run()
+
         except Exception as e:
             logger.error(str(e))
+            time.sleep(RETRY_DELAY_SEC)
 
 
 if __name__ == "__main__":

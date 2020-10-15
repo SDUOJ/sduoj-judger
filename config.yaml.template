@@ -1,9 +1,12 @@
-server:                  # 后端域名或地址
-orgin:                   # 前端域名
+server: 127.0.0.1        # 后端域名或地址，默认 '127.0.0.1'
+orgin: 127.0.0.1         # 前端域名，默认 '127.0.0.1'
 uname:                   # 评测机登录用户名
 pwd:                     # 评测机登录密码
 mq_server:               # 消息队列服务器地址
-mq_port:                 # 消息队列端口号，默认5672
-mq_uname:                # 消息队列用户名
-mq_pwd:                  # 消息队列密码
-mq_receive_name:         # 接受评测请求的队列
+mq_port:                 # 消息队列端口号，默认 5672
+mq_uname:                # 消息队列用户名，默认 'guest'
+mq_pwd:                  # 消息队列密码，默认 'guest'
+mq_receive_name:         # 接受评测请求的队列，默认 'judge_queue'
+mq_send_exchange:        # 发送动态评测结果的交换，默认 ‘sduoj.submission.exchange’
+mq_send_routing_key:     # "submission.checkpoint.push"
+mq_virtualhost:          # "/sduoj"
