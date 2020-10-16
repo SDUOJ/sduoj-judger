@@ -13,7 +13,7 @@ import coloredlogs
 logger = logging.getLogger(__name__)
 coloredlogs.install(level="INFO")
 
-DEBUG_MODE = CONFIG.get('debug', False)
+DEBUG_MODE = (CONFIG.get('debug', 'false') == 'true')
 
 def run(**kwargs):
     int_args = ["max_cpu_time", "max_real_time", "max_memory",
