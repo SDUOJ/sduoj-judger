@@ -32,6 +32,9 @@ RETRY_DELAY_SEC = 10
 
 def _init_CHECKPOINTIDS():
     tmp = dict()
+    if not os.path.exists(BASE_DATA_PATH):
+        return tmp
+
     for _dir in os.listdir(BASE_DATA_PATH):
         try:
             checkpoint_id, file_type = _dir.split(".")
