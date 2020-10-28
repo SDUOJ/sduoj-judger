@@ -7,7 +7,6 @@ import org.springframework.boot.CommandLineRunner;
 import org.springframework.stereotype.Component;
 
 import java.io.File;
-import java.nio.file.Paths;
 import java.util.Arrays;
 import java.util.Objects;
 import java.util.Optional;
@@ -18,26 +17,36 @@ import java.util.stream.Collectors;
 @Component
 public class LocalCheckpointManager implements CommandLineRunner {
 
-    private Set<String> checkpoints;
+    private final Set<String> checkpoints = Sets.newHashSet();
 
     @Override
     public void run(String... args) throws Exception {
-        checkpoints= Optional.ofNullable(Paths.get(PathConfig.CURRENT_DIR, PathConfig.DATA_DIR).toString())
+        Set<String> checkpointFileNames = Optional.ofNullable(PathConfig.DATA_DIR)
                 .map(File::new)
                 .map(File::list)
                 .map(Arrays::stream)
                 .map(o -> o.filter(s -> s.endsWith(".in") || s.endsWith(".out"))
-                           .collect(Collectors.toSet()))
+                        .collect(Collectors.toSet()))
                 .orElse(Sets.newHashSet());
+        checkpointFileNames.forEach(o -> {
+            if (o.endsWith(".in")) {
+                String id = o.substring(0, o.length() - 3);
+                if (checkpointFileNames.contains(id + ".out")) {
+                    checkpoints.add(id);
+                }
+            }
+        });
         log.info("{}", checkpoints);
     }
 
     public boolean isCheckpointExist(Long checkpointId) {
-        return checkpoints != null && checkpoints.contains(checkpointId.toString());
+        return checkpoints.contains(checkpointId.toString());
     }
 
     public void addCheckpoint(Long checkpointId) {
-        Optional.ofNullable(checkpointId).map(Objects::toString).ifPresent(checkpoints::add);
+        synchronized (checkpoints) {
+            Optional.ofNullable(checkpointId).map(Objects::toString).ifPresent(checkpoints::add);
+        }
     }
 
 }
