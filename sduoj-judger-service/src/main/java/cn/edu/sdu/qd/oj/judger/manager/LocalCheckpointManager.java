@@ -31,7 +31,7 @@ public class LocalCheckpointManager implements CommandLineRunner {
         checkpointFileNames.forEach(o -> {
             if (o.endsWith(".in")) {
                 String id = o.substring(0, o.length() - 3);
-                if (checkpointFileNames.contains(id + ".out")) {
+                if (checkpointFileNames.contains(id + ".ans")) {
                     checkpoints.add(id);
                 }
             }
