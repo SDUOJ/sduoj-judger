@@ -1,5 +1,6 @@
-package cn.edu.sdu.qd.oj.judger.handler;
+package cn.edu.sdu.qd.oj.judger.manager;
 
+import cn.edu.sdu.qd.oj.judger.handler.SubmissionHandler;
 import cn.edu.sdu.qd.oj.judger.util.SpringContextUtils;
 import cn.edu.sdu.qd.oj.judgetemplate.enums.JudgeTemplateTypeEnum;
 import com.google.common.collect.Maps;

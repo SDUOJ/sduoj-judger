@@ -5,7 +5,7 @@ import cn.edu.sdu.qd.oj.judger.client.SubmissionClient;
 import cn.edu.sdu.qd.oj.judger.exception.CompileErrorException;
 import cn.edu.sdu.qd.oj.judger.exception.SystemErrorException;
 import cn.edu.sdu.qd.oj.judger.handler.SubmissionHandler;
-import cn.edu.sdu.qd.oj.judger.handler.SubmissionHandlerManager;
+import cn.edu.sdu.qd.oj.judger.manager.SubmissionHandlerManager;
 import cn.edu.sdu.qd.oj.judger.property.JudgerProperty;
 import cn.edu.sdu.qd.oj.judgetemplate.dto.JudgeTemplateDTO;
 import cn.edu.sdu.qd.oj.judgetemplate.enums.JudgeTemplateTypeEnum;
