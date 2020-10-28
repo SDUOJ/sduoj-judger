@@ -25,7 +25,7 @@ public class LocalCheckpointManager implements CommandLineRunner {
                 .map(File::new)
                 .map(File::list)
                 .map(Arrays::stream)
-                .map(o -> o.filter(s -> s.endsWith(".in") || s.endsWith(".out"))
+                .map(o -> o.filter(s -> s.endsWith(".in") || s.endsWith(".ans"))
                         .collect(Collectors.toSet()))
                 .orElse(Sets.newHashSet());
         checkpointFileNames.forEach(o -> {
