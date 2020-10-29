@@ -32,6 +32,10 @@ public class RabbitSender {
                 break;
             } catch (AmqpException e) {
                 log.warn("sendOneJudgeResult", e);
+                try {
+                    Thread.sleep(i * 2000);
+                } catch (Throwable ignore) {
+                }
             } catch (Exception e) {
                 log.error("sendOneJudgeResult", e);
                 break;
