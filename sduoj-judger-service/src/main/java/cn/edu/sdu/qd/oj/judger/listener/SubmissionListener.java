@@ -12,14 +12,19 @@ import cn.edu.sdu.qd.oj.judgetemplate.enums.JudgeTemplateTypeEnum;
 import cn.edu.sdu.qd.oj.submit.dto.SubmissionMessageDTO;
 import cn.edu.sdu.qd.oj.submit.dto.SubmissionUpdateReqDTO;
 import cn.edu.sdu.qd.oj.submit.enums.SubmissionJudgeResult;
+import com.rabbitmq.client.Channel;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.amqp.rabbit.annotation.Exchange;
 import org.springframework.amqp.rabbit.annotation.Queue;
 import org.springframework.amqp.rabbit.annotation.QueueBinding;
 import org.springframework.amqp.rabbit.annotation.RabbitListener;
+import org.springframework.amqp.support.AmqpHeaders;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.context.properties.EnableConfigurationProperties;
+import org.springframework.messaging.handler.annotation.Header;
 import org.springframework.stereotype.Component;
+
+import java.io.IOException;
 
 @Slf4j
 @Component
@@ -40,10 +45,10 @@ public class SubmissionListener {
 
     @RabbitListener(bindings = @QueueBinding(
             value = @Queue(value = "judge_queue", durable = "true"),
-            exchange = @Exchange(value = "amq.direct", ignoreDeclarationExceptions = "true")
+            exchange = @Exchange(value = "amq.direct", ignoreDeclarationExceptions = "true")),
+            ackMode = "MANUAL"
     )
-    )
-    public void pushSubmissionResult(SubmissionMessageDTO submissionMessageDTO) {
+    public void pushSubmissionResult(SubmissionMessageDTO submissionMessageDTO, @Header(AmqpHeaders.DELIVERY_TAG) long deliveryTag, Channel channel) throws IOException {
         log.info("rabbitMQ: {}", submissionMessageDTO);
         SubmissionUpdateReqDTO result = new SubmissionUpdateReqDTO();
         try {
@@ -62,8 +67,11 @@ public class SubmissionListener {
         } catch (SystemErrorException e) {
             result.setJudgeResult(SubmissionJudgeResult.SE.code);
             result.setJudgeLog(e.toString());
-        } finally {
-
+        } catch (Exception e) {
+            channel.basicNack(deliveryTag, false, true);
+            return;
         }
+
+        channel.basicAck(deliveryTag, false);
     }
 }

@@ -1,6 +1,7 @@
 package cn.edu.sdu.qd.oj.sandbox.service;
 
 import cn.edu.sdu.qd.oj.judger.exception.SystemErrorException;
+import cn.edu.sdu.qd.oj.judger.util.ProcessUtils;
 import cn.edu.sdu.qd.oj.sandbox.dto.Argument;
 import cn.edu.sdu.qd.oj.sandbox.dto.SandboxResultDTO;
 import com.alibaba.fastjson.JSON;
@@ -22,13 +23,18 @@ public class SandboxService {
 
     private static final String SANDBOX_PATH = "/usr/bin/sandbox";
 
-    public SandboxResultDTO run(int cpuId, Argument... args) throws SystemErrorException {
+    public SandboxResultDTO run(int coreNo, Argument... args) throws SystemErrorException {
         List<String> commandList = new ArrayList<>();
 
-        commandList.add(MessageFormat.format("taskset -c {}", cpuId));
+        commandList.add("taskset");
+        commandList.add("-c");
+        commandList.add(String.valueOf(coreNo));
         commandList.add(SANDBOX_PATH);
 
         for (Argument arg : args) {
+            if (arg.value == null) {
+                continue;
+            }
             if (arg.key.clz == String.class) {
                 commandList.add(MessageFormat.format("--{}=\"{}\"", arg.key, arg.key.clz.cast(arg.value)));
             } else if (arg.key.clz == String[].class) {
@@ -40,43 +46,13 @@ public class SandboxService {
                 commandList.add(MessageFormat.format("--{}={}", arg.key, arg.key.clz.cast(arg.value)));
             }
         }
-        String command = String.join(" ", commandList);
-        log.info("sandbox {}", command);
 
-        Process process = null;
-        BufferedReader bufIn = null;
-        StringBuilder result = new StringBuilder();
-        try {
-            // 构建子进程运行沙箱
-            process = Runtime.getRuntime().exec(command);
-            if (process.waitFor() != 0) {
-                throw new SystemErrorException("Sandbox exits abnormally");
-            }
-            // correct
-            // 收集沙箱的输出
-            bufIn = new BufferedReader(new InputStreamReader(process.getInputStream(), StandardCharsets.UTF_8));
-            String line;
-            while ((line = bufIn.readLine()) != null) {
-                result.append(line);
-            }
-        } catch (IOException | InterruptedException e) {
-            // nothing
-        } finally {
-            closeStream(bufIn);
-            if (process != null) {
-                process.destroy();
-            }
-        }
-        return JSON.parseObject(result.toString(), SandboxResultDTO.class);
-    }
+        log.info("sandbox {}", String.join(" ", commandList));
 
-    private void closeStream(Closeable stream) {
-        try {
-            if (stream != null) {
-                stream.close();
-            }
-        } catch (Exception e) {
-            // nothing
+        ProcessUtils.ProcessStatus processStatus = ProcessUtils.cmd((String[]) commandList.toArray());
+        if (processStatus.exitCode != 0) {
+            throw new SystemErrorException(String.format("Sandbox exits abnormally: %d", processStatus.exitCode));
         }
+        return JSON.parseObject(processStatus.output, SandboxResultDTO.class);
     }
 }

@@ -13,9 +13,9 @@ import lombok.Setter;
 @NoArgsConstructor
 @AllArgsConstructor
 public class SandboxResultDTO {
-    private long cpuTime;
-    private long realTime;
-    private long memory;
+    private int cpuTime;
+    private int realTime;
+    private int memory;
     private int signal;
     private int exitCode;
     private int error;
