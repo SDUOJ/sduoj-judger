@@ -1,4 +1,6 @@
 sduoj:
+  judger:
+    coreNum: 2
   config:
     application-name: judger-service
     active: dev
