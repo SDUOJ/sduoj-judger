@@ -10,7 +10,6 @@ import java.util.List;
 @Setter
 @Builder
 @NoArgsConstructor
-@AllArgsConstructor
 public class CommandExecuteResult extends BaseDTO {
     public OneJudgeResult toOneJudgeResult(Long submissionId) {
         return null;

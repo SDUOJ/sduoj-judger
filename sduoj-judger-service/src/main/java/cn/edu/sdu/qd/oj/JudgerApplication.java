@@ -18,7 +18,7 @@ import java.util.Properties;
 public class JudgerApplication {
 
     public static void main(String[] args) {
-        judgeLinuxOS();
+//        judgeLinuxOS();
         initBaseDirectory();
         SpringApplication.run(JudgerApplication.class, args);
     }

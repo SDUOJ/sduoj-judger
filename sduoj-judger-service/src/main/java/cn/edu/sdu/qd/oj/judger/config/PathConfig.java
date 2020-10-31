@@ -7,9 +7,9 @@ import java.nio.file.Paths;
 @Configuration
 public class PathConfig {
     public static final String SANDBOX_PATH = "/usr/bin/sandbox";
-    public static final String WORKSPACE_DIR = "workspace";
-    public static final String LOG_DIR = "log";
-    public static final String DATA_DIR = "data";
+    public static final String WORKSPACE_DIR = "/workspace";
+    public static final String LOG_DIR = "/log";
+    public static final String DATA_DIR = "/data";
 
 
     public static final String SANDBOX_LOG_PATH = Paths.get(LOG_DIR, "sandbox.log").toString();

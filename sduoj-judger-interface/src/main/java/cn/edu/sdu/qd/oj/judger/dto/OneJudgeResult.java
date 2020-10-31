@@ -20,29 +20,33 @@ public class OneJudgeResult extends ArrayList<Object> {
         add(status.code);
     }
 
-    public OneJudgeResult(Long submisionId, Integer checkpintIndex, Integer judgeResult, Integer judgeScore, Integer usedTime, Integer usedMemory) {
+    public OneJudgeResult(Long submisionId, Integer checkpointIndex, Integer judgeResult, Integer judgeScore, Integer usedTime, Integer usedMemory) {
         super(6);
         add(INDEX_SUBMISSION_ID, String.valueOf(submisionId));
-        add(INDEX_CHECKPOINT_INDEX, checkpintIndex);
+        add(INDEX_CHECKPOINT_INDEX, checkpointIndex);
         add(INDEX_JUDGE_RESULT, judgeResult);
         add(INDEX_JUDGE_SCORE, judgeScore);
         add(INDEX_USED_TIME, usedTime);
         add(INDEX_USED_MEMORY, usedMemory);
     }
 
-    public Object getUsedTime() {
-        return get(INDEX_USED_TIME);
+    public Integer getUsedTime() {
+        return (Integer) get(INDEX_USED_TIME);
     }
 
-    public Object getUsedMemory() {
-        return get(INDEX_USED_MEMORY);
+    public Integer getUsedMemory() {
+        return (Integer) get(INDEX_USED_MEMORY);
     }
 
-    public Object getJudgeScore() {
-        return get(INDEX_JUDGE_SCORE);
+    public Integer getJudgeScore() {
+        return (Integer) get(INDEX_JUDGE_SCORE);
     }
 
-    public Object getJudgeResult() {
-        return get(INDEX_JUDGE_RESULT);
+    public Integer getJudgeResult() {
+        return (Integer) get(INDEX_JUDGE_RESULT);
+    }
+
+    public Integer getCheckpointIndex() {
+        return (Integer) get(INDEX_CHECKPOINT_INDEX);
     }
 }

@@ -1,5 +1,6 @@
 package cn.edu.sdu.qd.oj.judger.listener;
 
+import cn.edu.sdu.qd.oj.common.exception.InternalApiException;
 import cn.edu.sdu.qd.oj.judger.client.JudgeTemplateClient;
 import cn.edu.sdu.qd.oj.judger.client.SubmissionClient;
 import cn.edu.sdu.qd.oj.judger.exception.CompileErrorException;
@@ -46,32 +47,27 @@ public class SubmissionListener {
     @RabbitListener(bindings = @QueueBinding(
             value = @Queue(value = "judge_queue", durable = "true"),
             exchange = @Exchange(value = "amq.direct", ignoreDeclarationExceptions = "true")),
-            ackMode = "MANUAL"
+            concurrency = "1"
     )
-    public void pushSubmissionResult(SubmissionMessageDTO submissionMessageDTO, @Header(AmqpHeaders.DELIVERY_TAG) long deliveryTag, Channel channel) throws IOException {
-        log.info("rabbitMQ: {}", submissionMessageDTO);
-        SubmissionUpdateReqDTO result = new SubmissionUpdateReqDTO();
+    public void pushSubmissionResult(SubmissionMessageDTO submissionMessageDTO, @Header(AmqpHeaders.DELIVERY_TAG) long deliveryTag, Channel channel) throws IOException, InternalApiException {
+        log.info("submissionId {}, problemId {}, codeLength {}, judgeTemplateId {}", submissionMessageDTO.getSubmissionId(), submissionMessageDTO.getProblemId(), submissionMessageDTO.getCodeLength(), submissionMessageDTO.getJudgeTemplateId());
+        log.info("Channel: {}", channel.isOpen());
         try {
-            JudgeTemplateDTO judgeTemplateDTO = judgeTemplateClient.query(submissionMessageDTO.getSubmissionId());
+            JudgeTemplateDTO judgeTemplateDTO = judgeTemplateClient.query(submissionMessageDTO.getJudgeTemplateId());
 
             JudgeTemplateTypeEnum judgeTemplateTypeEnum = JudgeTemplateTypeEnum.of(judgeTemplateDTO.getType());
             SubmissionHandler handler = submissionHandlerManager.get(judgeTemplateTypeEnum);
             if (handler == null) {
                 throw new SystemErrorException(String.format("Unexpected judge template type: %s", judgeTemplateDTO.getType()));
             }
+
             handler.initializeWorkspace(submissionMessageDTO);
-            result = handler.start(judgeTemplateDTO);
-        } catch (CompileErrorException e) {
-            result.setJudgeResult(SubmissionJudgeResult.CE.code);
-            result.setJudgeLog(e.toString());
-        } catch (SystemErrorException e) {
-            result.setJudgeResult(SubmissionJudgeResult.SE.code);
-            result.setJudgeLog(e.toString());
+            submissionClient.update(handler.start(judgeTemplateDTO));
+            channel.basicAck(deliveryTag, false);
         } catch (Exception e) {
+            e.printStackTrace();
             channel.basicNack(deliveryTag, false, true);
-            return;
         }
 
-        channel.basicAck(deliveryTag, false);
     }
 }

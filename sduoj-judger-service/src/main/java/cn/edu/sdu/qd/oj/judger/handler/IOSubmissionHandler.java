@@ -27,6 +27,7 @@ import cn.edu.sdu.qd.oj.sandbox.dto.Argument;
 import cn.edu.sdu.qd.oj.sandbox.dto.SandboxResultDTO;
 import cn.edu.sdu.qd.oj.sandbox.enums.SandboxArgument;
 import cn.edu.sdu.qd.oj.sandbox.enums.SandboxResult;
+import cn.edu.sdu.qd.oj.submit.dto.OneCheckpointResult;
 import cn.edu.sdu.qd.oj.submit.dto.SubmissionUpdateReqDTO;
 import cn.edu.sdu.qd.oj.submit.enums.SubmissionJudgeResult;
 import com.alibaba.fastjson.JSON;
@@ -43,10 +44,7 @@ import org.springframework.stereotype.Component;
 
 import java.io.BufferedInputStream;
 import java.nio.file.Paths;
-import java.util.ArrayList;
-import java.util.Arrays;
-import java.util.List;
-import java.util.Objects;
+import java.util.*;
 import java.util.concurrent.ExecutionException;
 import java.util.stream.Collectors;
 import java.util.stream.Stream;
@@ -59,7 +57,6 @@ import java.util.zip.ZipInputStream;
 public class IOSubmissionHandler extends SubmissionHandler {
 
     private String judgeLog;
-    private JudgeTemplateConfigDTO judgeTemplateConfigDTO;
 
     @Autowired
     private SandboxService sandboxService;
@@ -89,38 +86,10 @@ public class IOSubmissionHandler extends SubmissionHandler {
     }
 
     @Override
-    public SubmissionUpdateReqDTO start(JudgeTemplateDTO judgeTemplateDTO) throws CompileErrorException, SystemErrorException {
-        judgeTemplateConfigDTO = JSON.parseObject(judgeTemplateDTO.getShellScript(), JudgeTemplateConfigDTO.class);
-
-        List<CheckpointManageListDTO> checkpointManageListDTOList = checkpointClient.queryCheckpointListByProblemId(submissionMessageDTO.getProblemId());
-
-        // 检查所有checkpoints，下载不存在的checkpoints
-        List<FileDownloadReqDTO> neededCheckpoints = new ArrayList<>();
-        for (CheckpointManageListDTO checkpointManageDTO : checkpointManageListDTOList.stream().filter(checkpointManageDTO -> !localCheckpointManager.isCheckpointExist(checkpointManageDTO.getCheckpointId())).collect(Collectors.toList())) {
-            FileDownloadReqDTO inFile = FileDownloadReqDTO.builder()
-                    .id(checkpointManageDTO.getInputFileId())
-                    .downloadFilename(checkpointManageDTO.getCheckpointId() + ".in")
-                    .build();
-            FileDownloadReqDTO outFile = FileDownloadReqDTO.builder()
-                    .id(checkpointManageDTO.getOutputFileId())
-                    .downloadFilename(checkpointManageDTO.getCheckpointId() + ".ans")
-                    .build();
-            neededCheckpoints.add(inFile);
-            neededCheckpoints.add(outFile);
-        }
-        try {
-            Resource download = filesysClient.download(neededCheckpoints);
-            ZipInputStream zipInputStream = new ZipInputStream(new BufferedInputStream(download.getInputStream()));
-            ZipEntry zipEntry;
-            while((zipEntry = zipInputStream.getNextEntry()) != null) {
-                String name = zipEntry.getName();
-                byte[] bytes = IOUtils.toByteArray(zipInputStream);
-                FileUtils.writeFile(Paths.get(PathConfig.DATA_DIR, name).toString(), bytes);
-            }
-        } catch(Exception e) {
-            throw new SystemErrorException(String.format("Can not download checkpoints:\n%s", e));
-        }
-
+    public SubmissionUpdateReqDTO start(JudgeTemplateDTO judgeTemplateDTO) {
+        // 评测基本信息
+        Long submissionId = submissionMessageDTO.getSubmissionId();
+        JudgeTemplateConfigDTO judgeTemplateConfigDTO = JSON.parseObject(judgeTemplateDTO.getShellScript(), JudgeTemplateConfigDTO.class);
         // 编译选项
         JudgeTemplateConfigDTO.TemplateConfig.Compile compileConfig = judgeTemplateConfigDTO.getUser().getCompile();
         // 运行选项
@@ -131,59 +100,126 @@ public class IOSubmissionHandler extends SubmissionHandler {
         int memoryLimit = problemJudgerDTO.getMemoryLimit();
         List<ProblemCheckpointDTO> checkpoints = problemJudgerDTO.getCheckpoints();
 
-        Long submissionId = submissionMessageDTO.getSubmissionId();
-        // 发送 compiling 的 websocket
-        rabbitSender.sendOneJudgeResult(new OneJudgeResult(submissionId, JudgeStatus.COMPILING));
-        // 编译
-        compile(compileConfig);
-
-        // 发送 juding 的 websocket
-        rabbitSender.sendOneJudgeResult(new OneJudgeResult(submissionId, JudgeStatus.JUDGING));
-
-        int checkpointNum = checkpointManageListDTOList.size();
-        for (int i = 0; i < checkpointNum; ++i) {
-            String checkpointId = String.valueOf(checkpointManageListDTOList.get(i).getCheckpointId());
-            String inputPath = Paths.get(PathConfig.DATA_DIR, checkpointId + ".in").toString();
-            String answerPath = Paths.get(PathConfig.DATA_DIR, checkpointId + ".ans").toString();
-            String outputPath = Paths.get(userOutputDir, checkpointId + ".out").toString();
-
-            Integer checkpointScore = checkpoints.get(i).getCheckpointScore();
-
-            commandExecutor.submit(new OneJudge(i, checkpointScore, timeLimit, memoryLimit, inputPath, outputPath, answerPath, runConfig));
-        }
-
-        int maxUsedTime = 0;
-        int maxUsedMemory = 0;
-        int judgeScore = 0;
-        SubmissionJudgeResult judgeResult = SubmissionJudgeResult.AC;
-        List<List<Integer>> checkpointResults = new ArrayList<>();
-        for (int i = 0; i < checkpointNum; ++i) {
-            try {
-                CommandExecuteResult executeResult = commandExecutor.take();
-                OneJudgeResult oneJudgeResult = executeResult.toOneJudgeResult(submissionId);
-                rabbitSender.sendOneJudgeResult(oneJudgeResult);
-
-                List<Integer> resultList = executeResult.toList();
-                checkpointResults.add(resultList);
-                maxUsedTime = Math.max(maxUsedTime, (Integer)oneJudgeResult.getUsedTime());
-                maxUsedMemory = Math.max(maxUsedMemory, (Integer)oneJudgeResult.getUsedMemory());
-                judgeScore += (Integer)oneJudgeResult.getJudgeScore();
-                if (SubmissionJudgeResult.AC.equals(judgeResult)) {
-                    judgeResult = SubmissionJudgeResult.of((Integer)oneJudgeResult.getJudgeResult());
-                }
-            } catch (InterruptedException | ExecutionException e) {
-                e.printStackTrace();
-            }
-        }
-        rabbitSender.sendOneJudgeResult(new OneJudgeResult(submissionId, JudgeStatus.END));
         SubmissionUpdateReqDTO result = new SubmissionUpdateReqDTO();
-        result.setCheckpointResults(checkpointResults);
-        result.setJudgeResult(judgeResult.code);
-        result.setJudgeScore(judgeScore);
-        result.setUsedTime(maxUsedTime);
-        result.setUsedMemory(maxUsedTime);
-        result.setJudgeLog(judgeLog);
         result.setSubmissionId(submissionId);
+        result.setJudgeScore(0);
+        result.setUsedTime(0);
+        result.setUsedMemory(0);
+        try {
+            List<CheckpointManageListDTO> checkpointManageListDTOList = checkpointClient.queryCheckpointListByProblemId(submissionMessageDTO.getProblemId());
+            // 检查所有checkpoints，下载不存在的checkpoints
+            List<FileDownloadReqDTO> neededCheckpoints = new ArrayList<>();
+            for (CheckpointManageListDTO checkpointManageDTO : checkpointManageListDTOList.stream().filter(checkpointManageDTO -> !localCheckpointManager.isCheckpointExist(checkpointManageDTO.getCheckpointId())).collect(Collectors.toList())) {
+                FileDownloadReqDTO inFile = FileDownloadReqDTO.builder()
+                        .id(checkpointManageDTO.getInputFileId())
+                        .downloadFilename(checkpointManageDTO.getCheckpointId() + ".in")
+                        .build();
+                FileDownloadReqDTO outFile = FileDownloadReqDTO.builder()
+                        .id(checkpointManageDTO.getOutputFileId())
+                        .downloadFilename(checkpointManageDTO.getCheckpointId() + ".ans")
+                        .build();
+                neededCheckpoints.add(inFile);
+                neededCheckpoints.add(outFile);
+            }
+            try {
+                log.info("Download {}", neededCheckpoints);
+                // 下载检查点并解压，维护本地已有 checkpoints
+                Resource download = filesysClient.download(neededCheckpoints);
+                ZipInputStream zipInputStream = new ZipInputStream(new BufferedInputStream(download.getInputStream()));
+                ZipEntry zipEntry;
+                while ((zipEntry = zipInputStream.getNextEntry()) != null) {
+                    String name = zipEntry.getName();
+                    byte[] bytes = IOUtils.toByteArray(zipInputStream);
+                    FileUtils.writeFile(Paths.get(PathConfig.DATA_DIR, name).toString(), bytes);
+
+                    Long checkpointId = Long.valueOf(name.substring(0, name.indexOf(".")));
+                    if (!localCheckpointManager.isCheckpointExist(checkpointId)) {
+                        localCheckpointManager.addCheckpoint(checkpointId);
+                    }
+                }
+            } catch (Exception e) {
+                throw new SystemErrorException(String.format("Can not download checkpoints:\n%s", e));
+            }
+
+            // 发送 compiling 的 websocket
+            rabbitSender.sendOneJudgeResult(new OneJudgeResult(submissionId, JudgeStatus.COMPILING));
+            // 编译
+            compile(compileConfig);
+
+            // 发送 judging 的 websocket
+            rabbitSender.sendOneJudgeResult(new OneJudgeResult(submissionId, JudgeStatus.JUDGING));
+            int checkpointNum = checkpoints.size();
+            for (int i = 0; i < checkpointNum; ++i) {
+                String checkpointId = String.valueOf(checkpointManageListDTOList.get(i).getCheckpointId());
+                String inputPath = Paths.get(PathConfig.DATA_DIR, checkpointId + ".in").toString();
+                String answerPath = Paths.get(PathConfig.DATA_DIR, checkpointId + ".ans").toString();
+                String outputPath = Paths.get(userOutputDir, checkpointId + ".out").toString();
+
+                Integer checkpointScore = checkpoints.get(i).getCheckpointScore();
+
+                commandExecutor.submit(new OneJudge(i, checkpointScore, timeLimit, memoryLimit, inputPath, outputPath, answerPath, runConfig));
+            }
+
+            int maxUsedTime = 0;
+            int maxUsedMemory = 0;
+            int judgeScore = 0;
+            SubmissionJudgeResult judgeResult = SubmissionJudgeResult.AC;
+            List<OneJudgeResult> checkpointResults = new ArrayList<>();
+            // 收集评测结果
+            for (int i = 0; i < checkpointNum; ++i) {
+                try {
+                    CommandExecuteResult executeResult = commandExecutor.take();
+                    OneJudgeResult oneJudgeResult = executeResult.toOneJudgeResult(submissionId);
+                    checkpointResults.add(oneJudgeResult);
+                    rabbitSender.sendOneJudgeResult(oneJudgeResult);
+
+                    maxUsedTime = Math.max(maxUsedTime, oneJudgeResult.getUsedTime());
+                    maxUsedMemory = Math.max(maxUsedMemory, oneJudgeResult.getUsedMemory());
+                    judgeScore += oneJudgeResult.getJudgeScore();
+                    if (SubmissionJudgeResult.AC.equals(judgeResult)) {
+                        judgeResult = SubmissionJudgeResult.of(oneJudgeResult.getJudgeResult());
+                    }
+                } catch (InterruptedException | ExecutionException e) {
+                    throw new SystemErrorException(e);
+                }
+            }
+            rabbitSender.sendOneJudgeResult(new OneJudgeResult(submissionId, JudgeStatus.END));
+
+
+            // 按 caseNo 排序
+            checkpointResults.sort(Comparator.comparingInt(OneJudgeResult::getCheckpointIndex));
+            List<OneCheckpointResult> collect = checkpointResults.stream().map(o ->
+                    new OneCheckpointResult(o.getJudgeResult(), o.getJudgeScore(), o.getUsedTime(), o.getUsedMemory())
+            ).collect(Collectors.toList());
+            result.setCheckpointResults(collect);
+            result.setJudgeResult(judgeResult.code);
+            result.setJudgeScore(judgeScore);
+            result.setUsedTime(maxUsedTime);
+            result.setUsedMemory(maxUsedTime);
+            result.setJudgeLog(judgeLog);
+        } catch (CompileErrorException e){
+            result.setJudgeResult(SubmissionJudgeResult.CE.code);
+
+            OneCheckpointResult oneCheckpointResult = new OneCheckpointResult(SubmissionJudgeResult.CE.code, 0, 0, 0);
+            List<OneCheckpointResult> checkpointResults = new ArrayList<>();
+            int checkpointNum = checkpoints.size();
+            for (int i = 0; i < checkpointNum; ++i) {
+                checkpointResults.add(oneCheckpointResult);
+            }
+            result.setCheckpointResults(checkpointResults);
+        } catch (SystemErrorException e) {
+            result.setJudgeResult(SubmissionJudgeResult.SE.code);
+
+            OneCheckpointResult oneCheckpointResult = new OneCheckpointResult(SubmissionJudgeResult.SE.code, 0, 0, 0);
+            List<OneCheckpointResult> checkpointResults = new ArrayList<>();
+            int checkpointNum = checkpoints.size();
+            for (int i = 0; i < checkpointNum; ++i) {
+                checkpointResults.add(oneCheckpointResult);
+            }
+            result.setCheckpointResults(checkpointResults);
+        } finally {
+            result.setJudgeLog(judgeLog);
+        }
         return result;
     }
 
@@ -191,13 +227,11 @@ public class IOSubmissionHandler extends SubmissionHandler {
         try {
             String srcPath = compileConfig.getSrcName();
             String code = submissionMessageDTO.getCode();
-            FileUtils.writeFile(srcPath, code);
-            ProcessUtils.chown(srcPath, "nobody");
-            ProcessUtils.chmod(srcPath, "400");
+            FileUtils.writeFile(Paths.get(workspaceDir, srcPath).toString(), code);
 
             log.info(String.format("Compiling \"%s\"", srcPath));
 
-            String compilerLogPath = Paths.get(workspaceDir, "compiler.out").toString();
+            String compilerLogPath = "compiler.out";
             String[] exeEnvs = new String[1];
             exeEnvs[0] = "PATH=" + System.getenv("PATH");
 
@@ -218,13 +252,13 @@ public class IOSubmissionHandler extends SubmissionHandler {
                 _args[8] = new Argument(SandboxArgument.INPUT_PATH, "/dev/null");                           /* input_path       */
                 _args[9] = new Argument(SandboxArgument.OUTPUT_PATH, compilerLogPath);                      /* output_path      */
 
-                SandboxResultDTO sandboxResultDTO = sandboxService.run(0, _args);
+                SandboxResultDTO sandboxResultDTO = sandboxService.run(0, workspaceDir, _args);
                 if (sandboxResultDTO == null) {
                     throw new SystemErrorException(String.format("Can not launch sandbox for command \"%s\"", eachCompileCommand));
                 }
 
                 try {
-                    sb.append(FileUtils.readFile(compilerLogPath)).append("\n");
+                    sb.append(FileUtils.readFile(Paths.get(workspaceDir, compilerLogPath).toString())).append("\n");
                 } catch (SystemErrorException e) {
                     throw new CompileErrorException(sb.toString());
                 }
@@ -249,7 +283,7 @@ public class IOSubmissionHandler extends SubmissionHandler {
 
         private final List<Argument[]> argsList;
 
-        OneJudge(int caseNo, int score, long timeLimit, long memoryLimit, String inputPath, String outputPath, String answerPath, JudgeTemplateConfigDTO.TemplateConfig.Run runConfig) throws SystemErrorException {
+        OneJudge(int caseNo, int score, int timeLimit, int memoryLimit, String inputPath, String outputPath, String answerPath, JudgeTemplateConfigDTO.TemplateConfig.Run runConfig) throws SystemErrorException {
             this.caseNo = caseNo;
             this.score = score;
             this.outputPath = outputPath;
@@ -286,7 +320,7 @@ public class IOSubmissionHandler extends SubmissionHandler {
                 int maxUsedTime = 0;
                 int maxUsedMemory = 0;
                 for (Argument[] args : argsList) {
-                    SandboxResultDTO judgeResult = sandboxService.run(coreNo, args);
+                    SandboxResultDTO judgeResult = sandboxService.run(coreNo, workspaceDir, args);
                     if (SandboxResult.SUCCESS.equals(judgeResult.getResult())) {
                         maxUsedTime = Math.max(maxUsedTime, judgeResult.getRealTime());
                         maxUsedMemory = Math.max(maxUsedMemory, judgeResult.getMemory());
@@ -315,11 +349,12 @@ public class IOSubmissionHandler extends SubmissionHandler {
                 judgeLog += e + "\n";
                 commandExecuteResult = new IOOneJudgeResult(SubmissionJudgeResult.SE, 0, 0, 0, caseNo);
             }
+            log.info("case {} finish", caseNo);
             return commandExecuteResult;
         }
 
         private SubmissionJudgeResult check() throws SystemErrorException {
-            ProcessUtils.ProcessStatus processStatus = ProcessUtils.cmd("diff", answerPath, outputPath, "--ignore-space-change", "--ignore-blank-lines");
+            ProcessUtils.ProcessStatus processStatus = ProcessUtils.cmd(workspaceDir, "sudo", "diff", answerPath, outputPath, "--ignore-space-change", "--ignore-blank-lines");
             return processStatus.exitCode == 0 ? SubmissionJudgeResult.AC : SubmissionJudgeResult.WA;
         }
     }
@@ -329,6 +364,12 @@ public class IOSubmissionHandler extends SubmissionHandler {
     @AllArgsConstructor
     @NoArgsConstructor
     private static class IOOneJudgeResult extends CommandExecuteResult {
+        public static final int INDEX_CHECKPOINT_INDEX = 0;
+        public static final int INDEX_JUDGE_RESULT = 1;
+        public static final int INDEX_JUDGE_SCORE = 2;
+        public static final int INDEX_USED_TIME = 3;
+        public static final int INDEX_USED_MEMORY = 4;
+
         private SubmissionJudgeResult judgeResult;
         private int judgeScore;
         private int usedTime;
@@ -340,7 +381,7 @@ public class IOSubmissionHandler extends SubmissionHandler {
         }
 
         public List<Integer> toList() {
-            return Lists.newArrayList(judgeResult.code, usedTime, usedMemory);
+            return Lists.newArrayList(caseNo, judgeResult.code, judgeScore, usedTime, usedMemory);
         }
     }
 }

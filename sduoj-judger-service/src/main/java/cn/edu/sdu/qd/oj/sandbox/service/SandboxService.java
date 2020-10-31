@@ -8,12 +8,6 @@ import com.alibaba.fastjson.JSON;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
 
-import java.io.BufferedReader;
-import java.io.Closeable;
-import java.io.IOException;
-import java.io.InputStreamReader;
-import java.nio.charset.StandardCharsets;
-import java.text.MessageFormat;
 import java.util.ArrayList;
 import java.util.List;
 
@@ -23,9 +17,10 @@ public class SandboxService {
 
     private static final String SANDBOX_PATH = "/usr/bin/sandbox";
 
-    public SandboxResultDTO run(int coreNo, Argument... args) throws SystemErrorException {
+    public SandboxResultDTO run(int coreNo, String cwd, Argument... args) throws SystemErrorException {
         List<String> commandList = new ArrayList<>();
 
+        commandList.add("sudo");
         commandList.add("taskset");
         commandList.add("-c");
         commandList.add(String.valueOf(coreNo));
@@ -36,23 +31,24 @@ public class SandboxService {
                 continue;
             }
             if (arg.key.clz == String.class) {
-                commandList.add(MessageFormat.format("--{}=\"{}\"", arg.key, arg.key.clz.cast(arg.value)));
+                commandList.add(String.format("--%s=\"%s\"", arg.key, arg.value));
             } else if (arg.key.clz == String[].class) {
                 String[] values = (String[]) arg.key.clz.cast(arg.value);
                 for (String value : values) {
-                    commandList.add(MessageFormat.format("--{}=\"{}\"", arg.key, value));
+                    commandList.add(String.format("--%s=\"%s\"", arg.key, value));
                 }
             } else {
-                commandList.add(MessageFormat.format("--{}={}", arg.key, arg.key.clz.cast(arg.value)));
+                commandList.add(String.format("--%s=%s", arg.key, arg.value));
             }
         }
 
         log.info("sandbox {}", String.join(" ", commandList));
 
-        ProcessUtils.ProcessStatus processStatus = ProcessUtils.cmd((String[]) commandList.toArray());
+        ProcessUtils.ProcessStatus processStatus = ProcessUtils.cmd(cwd, commandList.toArray(new String[0]));
         if (processStatus.exitCode != 0) {
             throw new SystemErrorException(String.format("Sandbox exits abnormally: %d", processStatus.exitCode));
         }
+        log.info("output {}", processStatus.output);
         return JSON.parseObject(processStatus.output, SandboxResultDTO.class);
     }
 }
