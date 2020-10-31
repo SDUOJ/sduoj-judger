@@ -78,7 +78,9 @@ public class CommandExecutor {
                 return command.run(coreNo != null ? coreNo : 0);
             } finally {
                 log.info("cpu release {}", coreNo);
-                cpuPool.offer(coreNo);
+                if (coreNo != null) {
+                    cpuPool.offer(coreNo);
+                }
             }
         }
     }
