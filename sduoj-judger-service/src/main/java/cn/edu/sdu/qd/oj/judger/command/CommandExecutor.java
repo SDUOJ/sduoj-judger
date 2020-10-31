@@ -16,18 +16,17 @@ import java.util.concurrent.*;
 @Component
 public class CommandExecutor {
 
-    @Value("${sduoj.judger.coreNum}")
-    private int coreNum;
-
     // CPU 池
     private final Queue<Integer> cpuPool;
 
     // 线程池
     private final CompletionService<CommandExecuteResult> threadPool;
 
-
+    /**
+    * @Description 提交一个异步任务
+    **/
     public void submit(Command command) {
-        threadPool.submit(new CommandThread(command));
+        threadPool.submit(new CommandThread(command, cpuPool));
     }
 
     /**
@@ -38,8 +37,8 @@ public class CommandExecutor {
         return threadPool.take().get();
     }
 
-
-    public CommandExecutor() {
+    public CommandExecutor(@Value("${sduoj.judger.coreNum}") int coreNum) {
+        this.
         // 初始化 cpu 池
         cpuPool = new LinkedBlockingDeque<>(coreNum);
         for (int i = 0; i < coreNum; i++) {
@@ -52,48 +51,37 @@ public class CommandExecutor {
                 0,
                 TimeUnit.SECONDS,
                 new LinkedBlockingQueue<>(1024),
-                new ThreadPoolExecutor.CallerRunsPolicy()) {
-
-            protected void beforeExecute(Thread t, Runnable r) {
-                Integer coreNo = cpuPool.poll();
-                log.info("consume {}", coreNo);
-                ((CommandThread) r).setCoreNo(coreNo);
-            }
-
-            protected void afterExecute(Thread t, Runnable r) {
-                int coreNo = ((CommandThread) r).getCoreNo();
-                log.info("release {}", coreNo);
-                cpuPool.offer(coreNo);
-            }
-        });
+                new ThreadPoolExecutor.CallerRunsPolicy())
+        );
         log.info("init threadPool {}", coreNum);
     }
 
 
     private static class CommandThread implements Callable<CommandExecuteResult> {
 
-        private int coreNo;
-
         private final Command command;
 
-        public CommandThread(Command command) {
+        private final Queue<Integer> cpuPool;
+
+        public CommandThread(Command command, Queue<Integer> cpuPool) {
             this.command = command;
-        }
-
-        public void setCoreNo(Integer coreNo) {
-            this.coreNo = coreNo == null ? 0 : coreNo;
-        }
-
-        public int getCoreNo() {
-            int tmp = coreNo;
-            this.coreNo = 0;
-            return tmp;
+            this.cpuPool = cpuPool;
         }
 
         @Override
         public CommandExecuteResult call() throws Exception {
             log.info("exec {}", command.toString());
-            return command.run(coreNo);
+            Integer coreNo = null;
+            try {
+                coreNo = cpuPool.poll();
+                log.info("cpu consume {}", coreNo);
+                return command.run(coreNo != null ? coreNo : 0);
+            } finally {
+                log.info("cpu release {}", coreNo);
+                if (coreNo != null) {
+                    cpuPool.offer(coreNo);
+                }
+            }
         }
     }
 }
