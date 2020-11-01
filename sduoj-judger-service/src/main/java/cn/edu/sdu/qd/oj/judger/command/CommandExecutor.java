@@ -23,22 +23,21 @@ public class CommandExecutor {
     private final CompletionService<CommandExecuteResult> threadPool;
 
     /**
-    * @Description 提交一个异步任务
-    **/
+     * @Description 提交一个异步任务
+     **/
     public void submit(Command command) {
         threadPool.submit(new CommandThread(command, cpuPool));
     }
 
     /**
-    * @Description 获取一个任务的执行结果，顺序任意取决于任务完成顺序
-    * @return cn.edu.sdu.qd.oj.judger.dto.CommandExecResult
-    **/
+     * @Description 获取一个任务的执行结果，顺序任意取决于任务完成顺序
+     * @return cn.edu.sdu.qd.oj.judger.dto.CommandExecResult
+     **/
     public CommandExecuteResult take() throws InterruptedException, ExecutionException {
         return threadPool.take().get();
     }
 
-    public CommandExecutor(@Value("${sduoj.judger.coreNum}") int coreNum) {
-        this.
+    public CommandExecutor(@Value("${sduoj.judger.core-num}") int coreNum) {
         // 初始化 cpu 池
         cpuPool = new LinkedBlockingDeque<>(coreNum);
         for (int i = 0; i < coreNum; i++) {

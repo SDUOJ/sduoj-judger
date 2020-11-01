@@ -1,8 +1,8 @@
 package cn.edu.sdu.qd.oj;
 
 import cn.edu.sdu.qd.oj.judger.config.PathConfig;
-import cn.edu.sdu.qd.oj.judger.exception.SystemErrorException;
-import cn.edu.sdu.qd.oj.judger.util.ShellUtils;
+import cn.edu.sdu.qd.oj.judger.util.ProcessUtils;
+import cn.edu.sdu.qd.oj.judger.util.FileUtils;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.boot.SpringApplication;
 import org.springframework.boot.autoconfigure.SpringBootApplication;
@@ -18,7 +18,7 @@ import java.util.Properties;
 public class JudgerApplication {
 
     public static void main(String[] args) {
-        judgeLinuxOS();
+//        judgeLinuxOS();
         initBaseDirectory();
         SpringApplication.run(JudgerApplication.class, args);
     }
@@ -40,10 +40,10 @@ public class JudgerApplication {
 
     private static void initBaseDirectory() {
         try {
-            ShellUtils.createDir(PathConfig.LOG_DIR);
-            ShellUtils.createDir(PathConfig.DATA_DIR);
-            ShellUtils.createDir(PathConfig.WORKSPACE_DIR);
-            ShellUtils.chmod(PathConfig.WORKSPACE_DIR, "711");
+            FileUtils.createDir(PathConfig.LOG_DIR);
+            FileUtils.createDir(PathConfig.DATA_DIR);
+            FileUtils.createDir(PathConfig.WORKSPACE_DIR);
+            ProcessUtils.chmod(PathConfig.WORKSPACE_DIR, "711");
         } catch (Throwable t) {
             log.error("{}", t);
             System.exit(-1);

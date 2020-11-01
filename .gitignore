@@ -18,3 +18,7 @@ out/
 .project
 
 *.gpg
+
+log/
+data/
+workspace/

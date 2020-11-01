@@ -1,19 +1,21 @@
 package cn.edu.sdu.qd.oj.sandbox.enums;
 
+import cn.edu.sdu.qd.oj.submit.enums.SubmissionJudgeResult;
 import lombok.AllArgsConstructor;
 
 @AllArgsConstructor
 public enum SandboxResult {
-    SUCCESS(0, "SUCCESS"),
-    CPU_TIME_LIMIT_EXCEEDED(1, "CPU Time Limit Exceeded"),
-    REAL_TIME_LIMIT_EXCEEDED(2, "Real Time Limit Exceeded"),
-    MEMORY_LIMIT_EXCEEDED(3, "Memory Limit Excedded"),
-    RUNTIME_ERROR(4, "Runtime Error"),
-    SYSTEM_ERROR(5, "System Error"),
+    SUCCESS(0, "SUCCESS", null),
+    CPU_TIME_LIMIT_EXCEEDED(1, "CPU Time Limit Exceeded", SubmissionJudgeResult.TLE),
+    REAL_TIME_LIMIT_EXCEEDED(2, "Real Time Limit Exceeded", SubmissionJudgeResult.TLE),
+    MEMORY_LIMIT_EXCEEDED(3, "Memory Limit Excedded", SubmissionJudgeResult.MLE),
+    RUNTIME_ERROR(4, "Runtime Error", SubmissionJudgeResult.RE),
+    SYSTEM_ERROR(5, "System Error", SubmissionJudgeResult.SE),
     ;
 
     public int code;
     public String message;
+    public SubmissionJudgeResult submissionJudgeResult;
 
     public boolean equals(Integer code) {
         if (code == null) {

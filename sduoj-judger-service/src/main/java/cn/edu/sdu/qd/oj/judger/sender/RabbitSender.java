@@ -26,7 +26,7 @@ public class RabbitSender {
             try {
                 this.rabbitTemplate.convertAndSend(
                         "sduoj.submission.exchange",
-                        "sduoj.submission.queue",
+                        "submission.checkpoint.push",
                         JSON.toJSONString(oneJudgeResult)
                 );
                 break;
