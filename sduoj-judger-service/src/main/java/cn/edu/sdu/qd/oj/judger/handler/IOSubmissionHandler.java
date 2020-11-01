@@ -158,7 +158,7 @@ public class IOSubmissionHandler extends SubmissionHandler {
             int judgeScore = 0;
             SubmissionJudgeResult judgeResult = SubmissionJudgeResult.AC;
             List<CheckpointResultMessageDTO> checkpointResults = new ArrayList<>();
-            for (int i = 0; i < checkpointNum; ++i) {
+            for (int i = 0, checkpointNum = checkpoints.size(); i < checkpointNum; ++i) {
                 try {
                     // 阻塞等待任一 checkpoint 测完
                     CommandExecuteResult<CheckpointResultMessageDTO> executeResult = commandExecutor.take();
