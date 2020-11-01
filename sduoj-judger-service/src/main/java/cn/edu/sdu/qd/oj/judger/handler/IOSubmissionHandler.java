@@ -141,8 +141,7 @@ public class IOSubmissionHandler extends SubmissionHandler {
 
             // 发送 judging 的 websocket
             rabbitSender.sendOneJudgeResult(new CheckpointResultMessageDTO(submissionId, JudgeStatus.JUDGING.code));
-            int checkpointNum = checkpoints.size();
-            for (int i = 0; i < checkpointNum; ++i) {
+            for (int i = 0, checkpointNum = checkpoints.size(); i < checkpointNum; ++i) {
                 String checkpointId = String.valueOf(allCheckpoints.get(i).getCheckpointId());
                 String inputPath = Paths.get(PathConfig.DATA_DIR, checkpointId + ".in").toString();
                 String answerPath = Paths.get(PathConfig.DATA_DIR, checkpointId + ".ans").toString();
