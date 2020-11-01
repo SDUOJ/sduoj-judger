@@ -26,7 +26,6 @@ public class ProcessUtils {
         Process process = null;
         Worker worker = null;
         try {
-            log.info("{} {}", cwd, commands);
             process = new ProcessBuilder("/bin/sh", "-c", String.join(" ", commands))
                     .directory((cwd == null || cwd.equals("")) ? null : new File(cwd))
                     .redirectErrorStream(true)
