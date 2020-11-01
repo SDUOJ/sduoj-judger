@@ -1,7 +1,6 @@
 package cn.edu.sdu.qd.oj.judger.sender;
 
-import cn.edu.sdu.qd.oj.judger.dto.OneJudgeResult;
-import com.alibaba.fastjson.JSON;
+import cn.edu.sdu.qd.oj.submit.dto.CheckpointResultMessageDTO;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.amqp.AmqpException;
 import org.springframework.amqp.rabbit.core.RabbitTemplate;
@@ -21,19 +20,19 @@ public class RabbitSender {
     /**
     * @Description 发送单点评测结果
     **/
-    public void sendOneJudgeResult(OneJudgeResult oneJudgeResult) {
+    public void sendOneJudgeResult(CheckpointResultMessageDTO messageDTO) {
+        send("sduoj.submission.exchange", "submission.checkpoint.push", messageDTO);
+    }
+
+    private void send(String exchange, String routingKey, Object o) {
         for (int i = 0; i < 5; i++) {
             try {
-                this.rabbitTemplate.convertAndSend(
-                        "sduoj.submission.exchange",
-                        "submission.checkpoint.push",
-                        JSON.toJSONString(oneJudgeResult)
-                );
+                this.rabbitTemplate.convertAndSend(exchange, routingKey, o);
                 break;
             } catch (AmqpException e) {
                 log.warn("sendOneJudgeResult", e);
                 try {
-                    Thread.sleep(i * 2000);
+                    Thread.sleep(i * 2000L);
                 } catch (Throwable ignore) {
                 }
             } catch (Exception e) {
