@@ -38,9 +38,8 @@ public class CommandExecutor {
     }
 
     public CommandExecutor(@Value("${sduoj.judger.core-num}") int coreNum) {
-        this.
-                // 初始化 cpu 池
-                cpuPool = new LinkedBlockingDeque<>(coreNum);
+        // 初始化 cpu 池
+        cpuPool = new LinkedBlockingDeque<>(coreNum);
         for (int i = 0; i < coreNum; i++) {
             cpuPool.offer(i);
         }
@@ -78,7 +77,9 @@ public class CommandExecutor {
                 return command.run(coreNo != null ? coreNo : 0);
             } finally {
                 log.info("cpu release {}", coreNo);
-                cpuPool.offer(coreNo);
+                if (coreNo != null) {
+                    cpuPool.offer(coreNo);
+                }
             }
         }
     }
