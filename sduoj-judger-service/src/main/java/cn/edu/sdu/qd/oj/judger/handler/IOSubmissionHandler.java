@@ -1,10 +1,5 @@
 package cn.edu.sdu.qd.oj.judger.handler;
 
-import cn.edu.sdu.qd.oj.checkpoint.dto.CheckpointManageListDTO;
-import cn.edu.sdu.qd.oj.dto.FileDownloadReqDTO;
-import cn.edu.sdu.qd.oj.judger.client.CheckpointClient;
-import cn.edu.sdu.qd.oj.judger.client.FilesysClient;
-import cn.edu.sdu.qd.oj.judger.client.ProblemClient;
 import cn.edu.sdu.qd.oj.judger.command.Command;
 import cn.edu.sdu.qd.oj.judger.command.CommandExecutor;
 import cn.edu.sdu.qd.oj.judger.config.PathConfig;
@@ -13,15 +8,11 @@ import cn.edu.sdu.qd.oj.submit.dto.CheckpointResultMessageDTO;
 import cn.edu.sdu.qd.oj.judger.enums.JudgeStatus;
 import cn.edu.sdu.qd.oj.judger.exception.CompileErrorException;
 import cn.edu.sdu.qd.oj.judger.exception.SystemErrorException;
-import cn.edu.sdu.qd.oj.judger.manager.LocalCheckpointManager;
 import cn.edu.sdu.qd.oj.judger.sender.RabbitSender;
 import cn.edu.sdu.qd.oj.judger.util.ProcessUtils;
 import cn.edu.sdu.qd.oj.judger.util.FileUtils;
 import cn.edu.sdu.qd.oj.judgetemplate.dto.JudgeTemplateConfigDTO;
-import cn.edu.sdu.qd.oj.judgetemplate.dto.JudgeTemplateDTO;
 import cn.edu.sdu.qd.oj.judgetemplate.enums.JudgeTemplateTypeEnum;
-import cn.edu.sdu.qd.oj.problem.dto.ProblemCheckpointDTO;
-import cn.edu.sdu.qd.oj.problem.dto.ProblemJudgerDTO;
 import cn.edu.sdu.qd.oj.sandbox.service.SandboxService;
 import cn.edu.sdu.qd.oj.sandbox.dto.Argument;
 import cn.edu.sdu.qd.oj.sandbox.dto.SandboxResultDTO;
@@ -32,23 +23,18 @@ import cn.edu.sdu.qd.oj.submit.dto.SubmissionUpdateReqDTO;
 import cn.edu.sdu.qd.oj.submit.enums.SubmissionJudgeResult;
 import com.alibaba.fastjson.JSON;
 import lombok.extern.slf4j.Slf4j;
-import org.apache.commons.io.IOUtils;
 import org.springframework.beans.factory.annotation.Autowired;
-import org.springframework.core.io.Resource;
 import org.springframework.stereotype.Component;
 
-import java.io.BufferedInputStream;
 import java.nio.file.Paths;
 import java.util.*;
 import java.util.concurrent.ExecutionException;
 import java.util.stream.Collectors;
-import java.util.zip.ZipEntry;
-import java.util.zip.ZipInputStream;
 
 
 @Slf4j
 @Component
-public class IOSubmissionHandler extends SubmissionHandler {
+public class IOSubmissionHandler extends AbstractSubmissionHandler {
 
     private String judgeLog;
 
@@ -56,22 +42,10 @@ public class IOSubmissionHandler extends SubmissionHandler {
     private SandboxService sandboxService;
 
     @Autowired
-    private CheckpointClient checkpointClient;
-
-    @Autowired
-    private FilesysClient filesysClient;
-
-    @Autowired
-    private ProblemClient problemClient;
-
-    @Autowired
     private CommandExecutor commandExecutor;
 
     @Autowired
     private RabbitSender rabbitSender;
-
-    @Autowired
-    private LocalCheckpointManager localCheckpointManager;
 
 
     @Override
@@ -79,60 +53,27 @@ public class IOSubmissionHandler extends SubmissionHandler {
         return JudgeTemplateTypeEnum.IO;
     }
 
-    @Override
-    public SubmissionUpdateReqDTO start(JudgeTemplateDTO judgeTemplateDTO) {
+    public SubmissionUpdateReqDTO start() {
         // 评测基本信息
-        Long submissionId = submissionMessageDTO.getSubmissionId();
-        JudgeTemplateConfigDTO judgeTemplateConfigDTO = JSON.parseObject(judgeTemplateDTO.getShellScript(), JudgeTemplateConfigDTO.class);
+        long submissionId = submission.getSubmissionId();
+        JudgeTemplateConfigDTO judgeTemplateConfigDTO = JSON.parseObject(judgeTemplate.getShellScript(), JudgeTemplateConfigDTO.class);
         // 编译选项
         JudgeTemplateConfigDTO.TemplateConfig.Compile compileConfig = judgeTemplateConfigDTO.getUser().getCompile();
         // 运行选项
         JudgeTemplateConfigDTO.TemplateConfig.Run runConfig = judgeTemplateConfigDTO.getUser().getRun();
+
         // 题目配置：时间、空间、检查点分数
-        ProblemJudgerDTO problemJudgerDTO = problemClient.queryProblemJudgeDTO(submissionMessageDTO.getProblemId());
-        int timeLimit = problemJudgerDTO.getTimeLimit();
-        int memoryLimit = problemJudgerDTO.getMemoryLimit();
-        List<ProblemCheckpointDTO> checkpoints = problemJudgerDTO.getCheckpoints();
+        int timeLimit = problem.getTimeLimit();
+        int memoryLimit = problem.getMemoryLimit();
 
-        SubmissionUpdateReqDTO result = new SubmissionUpdateReqDTO();
-        result.setSubmissionId(submissionId);
-        result.setJudgeScore(0);
-        result.setUsedTime(0);
-        result.setUsedMemory(0);
+        SubmissionUpdateReqDTO result = SubmissionUpdateReqDTO.builder()
+                .submissionId(submissionId)
+                .judgeScore(0)
+                .usedTime(0)
+                .usedMemory(0)
+                .build();
+
         try {
-            List<CheckpointManageListDTO> allCheckpoints = checkpointClient.queryCheckpointListByProblemId(submissionMessageDTO.getProblemId());
-            // 检查所有checkpoints，下载不存在的checkpoints
-            List<CheckpointManageListDTO> neededCheckpoint = allCheckpoints.stream()
-                    .filter(o -> !localCheckpointManager.isCheckpointExist(o.getCheckpointId()))
-                    .collect(Collectors.toList());
-            List<FileDownloadReqDTO> fileDownloadReqList = new ArrayList<>();
-            for (CheckpointManageListDTO checkpointManageDTO : neededCheckpoint) {
-                fileDownloadReqList.add(FileDownloadReqDTO.builder()
-                        .id(checkpointManageDTO.getInputFileId())
-                        .downloadFilename(checkpointManageDTO.getCheckpointId() + ".in")
-                        .build());
-                fileDownloadReqList.add(FileDownloadReqDTO.builder()
-                        .id(checkpointManageDTO.getOutputFileId())
-                        .downloadFilename(checkpointManageDTO.getCheckpointId() + ".ans")
-                        .build());
-            }
-            try {
-                log.info("Download {}", neededCheckpoint);
-                // 下载检查点并解压，维护本地已有 checkpoints
-                Resource download = filesysClient.download(fileDownloadReqList);
-                ZipInputStream zipInputStream = new ZipInputStream(new BufferedInputStream(download.getInputStream()));
-                ZipEntry zipEntry;
-                while ((zipEntry = zipInputStream.getNextEntry()) != null) {
-                    String name = zipEntry.getName();
-                    byte[] bytes = IOUtils.toByteArray(zipInputStream);
-                    FileUtils.writeFile(Paths.get(PathConfig.DATA_DIR, name).toString(), bytes);
-
-                    localCheckpointManager.addCheckpoint(Long.valueOf(name.substring(0, name.indexOf("."))));
-                }
-            } catch (Exception e) {
-                throw new SystemErrorException(String.format("Can not download checkpoints:\n%s", e));
-            }
-
             // 发送 compiling 的 websocket
             rabbitSender.sendOneJudgeResult(new CheckpointResultMessageDTO(submissionId, JudgeStatus.COMPILING.code));
 
@@ -141,8 +82,10 @@ public class IOSubmissionHandler extends SubmissionHandler {
 
             // 发送 judging 的 websocket
             rabbitSender.sendOneJudgeResult(new CheckpointResultMessageDTO(submissionId, JudgeStatus.JUDGING.code));
+
+            // 提交评测任务到线程池
             for (int i = 0, checkpointNum = checkpoints.size(); i < checkpointNum; ++i) {
-                String checkpointId = String.valueOf(allCheckpoints.get(i).getCheckpointId());
+                String checkpointId = String.valueOf(checkpoints.get(i).getCheckpointId());
                 String inputPath = Paths.get(PathConfig.DATA_DIR, checkpointId + ".in").toString();
                 String answerPath = Paths.get(PathConfig.DATA_DIR, checkpointId + ".ans").toString();
                 String outputPath = Paths.get(userOutputDir, checkpointId + ".out").toString();
@@ -179,9 +122,11 @@ public class IOSubmissionHandler extends SubmissionHandler {
                     throw new SystemErrorException(e);
                 }
             }
+
+            // 发送评测结束消息 websocket
             rabbitSender.sendOneJudgeResult(new CheckpointResultMessageDTO(submissionId, JudgeStatus.END.code));
 
-            // 按 caseNo 排序
+            // 组装最终评测结果
             checkpointResults.sort(Comparator.comparingInt(CheckpointResultMessageDTO::getCheckpointIndex));
             result.setCheckpointResults(checkpointResults.stream()
                     .map(CheckpointResultMessageDTO::toEachCheckpointResult)
@@ -218,7 +163,7 @@ public class IOSubmissionHandler extends SubmissionHandler {
     private void compile(JudgeTemplateConfigDTO.TemplateConfig.Compile compileConfig) throws CompileErrorException {
         try {
             String srcPath = compileConfig.getSrcName();
-            String code = submissionMessageDTO.getCode();
+            String code = submission.getCode();
             FileUtils.writeFile(Paths.get(workspaceDir, srcPath).toString(), code);
 
             log.info(String.format("Compiling \"%s\"", srcPath));

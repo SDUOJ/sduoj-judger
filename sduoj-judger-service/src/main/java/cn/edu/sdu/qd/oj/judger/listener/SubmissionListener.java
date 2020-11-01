@@ -3,16 +3,13 @@ package cn.edu.sdu.qd.oj.judger.listener;
 import cn.edu.sdu.qd.oj.common.exception.InternalApiException;
 import cn.edu.sdu.qd.oj.judger.client.JudgeTemplateClient;
 import cn.edu.sdu.qd.oj.judger.client.SubmissionClient;
-import cn.edu.sdu.qd.oj.judger.exception.CompileErrorException;
 import cn.edu.sdu.qd.oj.judger.exception.SystemErrorException;
-import cn.edu.sdu.qd.oj.judger.handler.SubmissionHandler;
+import cn.edu.sdu.qd.oj.judger.handler.AbstractSubmissionHandler;
 import cn.edu.sdu.qd.oj.judger.manager.SubmissionHandlerManager;
 import cn.edu.sdu.qd.oj.judger.property.JudgerProperty;
 import cn.edu.sdu.qd.oj.judgetemplate.dto.JudgeTemplateDTO;
 import cn.edu.sdu.qd.oj.judgetemplate.enums.JudgeTemplateTypeEnum;
 import cn.edu.sdu.qd.oj.submit.dto.SubmissionMessageDTO;
-import cn.edu.sdu.qd.oj.submit.dto.SubmissionUpdateReqDTO;
-import cn.edu.sdu.qd.oj.submit.enums.SubmissionJudgeResult;
 import com.rabbitmq.client.Channel;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.amqp.rabbit.annotation.Exchange;
@@ -55,17 +52,17 @@ public class SubmissionListener {
             JudgeTemplateDTO judgeTemplateDTO = judgeTemplateClient.query(submissionMessageDTO.getJudgeTemplateId());
 
             JudgeTemplateTypeEnum judgeTemplateTypeEnum = JudgeTemplateTypeEnum.of(judgeTemplateDTO.getType());
-            SubmissionHandler handler = submissionHandlerManager.get(judgeTemplateTypeEnum);
+            AbstractSubmissionHandler handler = submissionHandlerManager.get(judgeTemplateTypeEnum);
             if (handler == null) {
                 throw new SystemErrorException(String.format("Unexpected judge template type: %s", judgeTemplateDTO.getType()));
             }
 
-            handler.initializeWorkspace(submissionMessageDTO);
-            submissionClient.update(handler.start(judgeTemplateDTO));
+            submissionClient.update(handler.handle(submissionMessageDTO, judgeTemplateDTO));
             channel.basicAck(deliveryTag, false);
         } catch (Exception e) {
             e.printStackTrace();
             channel.basicNack(deliveryTag, false, true);
+            // TODO: 解决死循环消费失败问题
         }
 
     }

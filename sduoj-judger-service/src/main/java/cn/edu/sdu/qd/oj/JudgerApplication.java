@@ -42,6 +42,7 @@ public class JudgerApplication {
         try {
             FileUtils.createDir(PathConfig.LOG_DIR);
             FileUtils.createDir(PathConfig.DATA_DIR);
+            FileUtils.createDir(PathConfig.ZIP_DIR);
             FileUtils.createDir(PathConfig.WORKSPACE_DIR);
             ProcessUtils.chmod(PathConfig.WORKSPACE_DIR, "711");
         } catch (Throwable t) {
