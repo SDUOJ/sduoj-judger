@@ -24,7 +24,7 @@ public class SandboxRunner {
         commandList.add(SANDBOX_PATH);
 
         for (Argument arg : args) {
-            if (arg.value == null) {
+            if (arg == null || arg.value == null) {
                 continue;
             }
             if (arg.key.clz == String.class) {

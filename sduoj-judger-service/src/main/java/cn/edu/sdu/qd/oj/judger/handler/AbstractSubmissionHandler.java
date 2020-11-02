@@ -102,6 +102,9 @@ public abstract class AbstractSubmissionHandler {
             initializeCheckpoint();
             // 调用子类实现的评测逻辑
             updateReqDTO = this.start();
+
+            // 释放用户空间
+            releaseWorkspace();
         } catch (CompletionException e) {
             updateReqDTO = SubmissionUpdateReqDTO.builder()
                     .submissionId(submissionMessageDTO.getSubmissionId())
@@ -154,9 +157,17 @@ public abstract class AbstractSubmissionHandler {
             FileUtils.createDir(workspaceDir);
             FileUtils.createDir(userOutputDir);
             ProcessUtils.chown(workspaceDir, "nobody");
-            ProcessUtils.chmod(workspaceDir, "711");
+            ProcessUtils.chmod(workspaceDir, "717");
         } catch (Exception e) {
             throw new SystemErrorException("Can not initialize workspace:\n" + e.toString());
+        }
+    }
+
+    private void releaseWorkspace() throws SystemErrorException {
+        try {
+            ProcessUtils.chmod(workspaceDir + "/*", "711");
+        } catch (Exception e) {
+            throw new SystemErrorException("Can not release workspace:\n" + e.toString());
         }
     }
 

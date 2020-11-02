@@ -262,11 +262,14 @@ public class IOSubmissionHandler extends AbstractSubmissionHandler {
                     }
                 }
             } catch (SystemErrorException e) {
-                e.printStackTrace();
+                log.warn("", e);
                 judgeLog += e + "\n";
                 commandExecuteResult = new CommandExecuteResult<>(new CheckpointResultMessageDTO(
                         submissionId, caseNo, SubmissionJudgeResult.SE.code, 0, 0, 0)
                 );
+            } catch (Exception e) {
+                log.warn("", e);
+                throw e;
             }
             log.info("case {} finish", caseNo);
             return commandExecuteResult;

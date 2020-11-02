@@ -48,6 +48,9 @@ public class AdvancedSubmissionHandler extends AbstractSubmissionHandler {
 
         // shell 脚本代码写入文件
         FileUtils.writeFile(jtPath, judgeTemplate.getShellScript());
+        if (judgeTemplate.getZipFileId() != null) {
+            ProcessUtils.unzip(Paths.get(PathConfig.ZIP_DIR, judgeTemplate.getZipFileId() + ".zip").toString(), workspaceDir);
+        }
 
         // 用户文件或代码写入文件
         if (StringUtils.isNotBlank(submission.getCode())) {
@@ -57,16 +60,26 @@ public class AdvancedSubmissionHandler extends AbstractSubmissionHandler {
             ProcessUtils.unzip(Paths.get(PathConfig.ZIP_DIR, submission.getZipFileId() + ".zip").toString(), workspaceUserDir);
         }
 
+        // 工作目录下的所有文件授权 717 给nobody读写权限
+        ProcessUtils.chmod(workspaceDir + "/*", "717");
 
+        String[] exeEnvs = new String[1];
+        String[] exeArgs = new String[2];
+        exeEnvs[0] = "PATH=" + System.getenv("PATH");
+        exeArgs[0] = "-c";
+        exeArgs[1] = jtPath;
         // 执行 judgeTemplate 的脚本 ./jt.sh
-        ProcessUtils.chown(jtPath, "+x");
-        Argument[] _args = new Argument[7];
+        ProcessUtils.chmod(jtPath, "+x");
+        Argument[] _args = new Argument[9];
         _args[0] = new Argument(SandboxArgument.MAX_CPU_TIME, timeLimit);
         _args[1] = new Argument(SandboxArgument.MAX_REAL_TIME, timeLimit);
-        _args[2] = new Argument(SandboxArgument.MAX_MEMORY, memoryLimit * 1024L);
+        _args[2] = new Argument(SandboxArgument.MAX_MEMORY, memoryLimit * 1024);
         _args[3] = new Argument(SandboxArgument.MAX_STACK, 128 * 1024 * 1024);
         _args[4] = new Argument(SandboxArgument.MAX_OUTPUT_SIZE, 1024 * 1024);
-        _args[5] = new Argument(SandboxArgument.EXE_PATH, jtPath);
+        _args[5] = new Argument(SandboxArgument.EXE_PATH, "/bin/sh");
+        _args[6] = new Argument(SandboxArgument.EXE_ARGS, exeArgs);
+        _args[7] = new Argument(SandboxArgument.EXE_ENVS, exeEnvs);
+        _args[8] = new Argument(SandboxArgument.OUTPUT_PATH, "jt.log");
 
         // 发送 judging 的 websocket
         rabbitSender.sendOneJudgeResult(new CheckpointResultMessageDTO(submissionId, JudgeStatus.JUDGING.code));
