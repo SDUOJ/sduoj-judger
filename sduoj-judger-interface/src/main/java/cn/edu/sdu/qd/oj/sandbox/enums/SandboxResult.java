@@ -5,7 +5,7 @@ import lombok.AllArgsConstructor;
 
 @AllArgsConstructor
 public enum SandboxResult {
-    SUCCESS(0, "SUCCESS", null),
+    SUCCESS(0, "SUCCESS", SubmissionJudgeResult.AC),
     CPU_TIME_LIMIT_EXCEEDED(1, "CPU Time Limit Exceeded", SubmissionJudgeResult.TLE),
     REAL_TIME_LIMIT_EXCEEDED(2, "Real Time Limit Exceeded", SubmissionJudgeResult.TLE),
     MEMORY_LIMIT_EXCEEDED(3, "Memory Limit Excedded", SubmissionJudgeResult.MLE),

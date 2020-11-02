@@ -18,7 +18,7 @@ import java.util.Properties;
 public class JudgerApplication {
 
     public static void main(String[] args) {
-//        judgeLinuxOS();
+        judgeLinuxOS();
         initBaseDirectory();
         SpringApplication.run(JudgerApplication.class, args);
     }
@@ -46,7 +46,7 @@ public class JudgerApplication {
             FileUtils.createDir(PathConfig.WORKSPACE_DIR);
             ProcessUtils.chmod(PathConfig.WORKSPACE_DIR, "711");
         } catch (Throwable t) {
-            log.error("{}", t);
+            log.error("", t);
             System.exit(-1);
         }
     }

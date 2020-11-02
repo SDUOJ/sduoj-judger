@@ -19,6 +19,10 @@ public class ProcessUtils {
         cmdOnRootPath("sudo", "chown", own, path);
     }
 
+    public static void unzip(String zipFilePath, String targetDirPath) throws SystemErrorException {
+        cmdOnRootPath("sudo", "unzip", "-o", "-q", "-d", targetDirPath, zipFilePath);
+    }
+
     /**
      * 运行一个外部命令，返回状态.若超过指定的超时时间，抛出TimeoutException
      */

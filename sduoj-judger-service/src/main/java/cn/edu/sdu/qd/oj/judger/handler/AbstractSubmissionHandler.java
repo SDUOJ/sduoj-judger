@@ -12,6 +12,7 @@ import cn.edu.sdu.qd.oj.judger.exception.CompileErrorException;
 import cn.edu.sdu.qd.oj.judger.exception.SystemErrorException;
 import cn.edu.sdu.qd.oj.judger.manager.LocalCheckpointManager;
 import cn.edu.sdu.qd.oj.judger.manager.LocalZipManager;
+import cn.edu.sdu.qd.oj.judger.sender.RabbitSender;
 import cn.edu.sdu.qd.oj.judger.util.ProcessUtils;
 import cn.edu.sdu.qd.oj.judger.util.FileUtils;
 import cn.edu.sdu.qd.oj.judgetemplate.dto.JudgeTemplateDTO;
@@ -56,6 +57,9 @@ public abstract class AbstractSubmissionHandler {
     @Autowired
     protected LocalZipManager localZipManager;
 
+    @Autowired
+    protected RabbitSender rabbitSender;
+
     protected SubmissionMessageDTO submission;
 
     protected JudgeTemplateDTO judgeTemplate;
@@ -74,7 +78,7 @@ public abstract class AbstractSubmissionHandler {
     * @Description 子类需要实现的具体评测逻辑
     * @return cn.edu.sdu.qd.oj.submit.dto.SubmissionUpdateReqDTO
     **/
-    protected abstract SubmissionUpdateReqDTO start() throws CompileErrorException, SystemErrorException;
+    protected abstract SubmissionUpdateReqDTO start() throws CompileErrorException, SystemErrorException ;
 
     public SubmissionUpdateReqDTO handle(SubmissionMessageDTO submissionMessageDTO, JudgeTemplateDTO judgeTemplateDTO) throws SystemErrorException, CompileErrorException {
         this.submission = submissionMessageDTO;
@@ -89,7 +93,6 @@ public abstract class AbstractSubmissionHandler {
         initializeProblem();
         // 下载检查点
         initializeCheckpoint();
-
         // 调用子类实现的评测逻辑
         return this.start();
     }

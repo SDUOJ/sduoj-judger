@@ -14,7 +14,7 @@ public class SPJSubmissionHandler extends AbstractSubmissionHandler {
         return JudgeTemplateTypeEnum.SPJ;
     }
 
-    protected SubmissionUpdateReqDTO start() throws CompileErrorException, SystemErrorException {
+    protected SubmissionUpdateReqDTO start() throws CompileErrorException, SystemErrorException  {
         return null;
     }
 }

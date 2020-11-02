@@ -41,16 +41,13 @@ public class IOSubmissionHandler extends AbstractSubmissionHandler {
     @Autowired
     private CommandExecutor commandExecutor;
 
-    @Autowired
-    private RabbitSender rabbitSender;
-
 
     @Override
     public JudgeTemplateTypeEnum getSupportJudgeTemplateType() {
         return JudgeTemplateTypeEnum.IO;
     }
 
-    protected SubmissionUpdateReqDTO start() {
+    protected SubmissionUpdateReqDTO start() throws CompileErrorException, SystemErrorException {
         // 评测基本信息
         long submissionId = submission.getSubmissionId();
         JudgeTemplateConfigDTO judgeTemplateConfigDTO = JSON.parseObject(judgeTemplate.getShellScript(), JudgeTemplateConfigDTO.class);
@@ -120,9 +117,6 @@ public class IOSubmissionHandler extends AbstractSubmissionHandler {
                 }
             }
 
-            // 发送评测结束消息 websocket
-            rabbitSender.sendOneJudgeResult(new CheckpointResultMessageDTO(submissionId, JudgeStatus.END.code));
-
             // 组装最终评测结果
             checkpointResults.sort(Comparator.comparingInt(CheckpointResultMessageDTO::getCheckpointIndex));
             result.setCheckpointResults(checkpointResults.stream()
@@ -133,24 +127,6 @@ public class IOSubmissionHandler extends AbstractSubmissionHandler {
             result.setUsedTime(maxUsedTime);
             result.setUsedMemory(maxUsedTime);
             result.setJudgeLog(judgeLog);
-        } catch (CompileErrorException e){
-            result.setJudgeResult(SubmissionJudgeResult.CE.code);
-
-            EachCheckpointResult EachCheckpointResult = new EachCheckpointResult(SubmissionJudgeResult.CE.code, 0, 0, 0);
-            List<EachCheckpointResult> checkpointResults = new ArrayList<>();
-            for (int i = 0, checkpointNum = checkpoints.size(); i < checkpointNum; ++i) {
-                checkpointResults.add(EachCheckpointResult);
-            }
-            result.setCheckpointResults(checkpointResults);
-        } catch (SystemErrorException e) {
-            result.setJudgeResult(SubmissionJudgeResult.SE.code);
-
-            EachCheckpointResult EachCheckpointResult = new EachCheckpointResult(SubmissionJudgeResult.SE.code, 0, 0, 0);
-            List<EachCheckpointResult> checkpointResults = new ArrayList<>();
-            for (int i = 0, checkpointNum = checkpoints.size(); i < checkpointNum; ++i) {
-                checkpointResults.add(EachCheckpointResult);
-            }
-            result.setCheckpointResults(checkpointResults);
         } finally {
             result.setJudgeLog(judgeLog);
         }
