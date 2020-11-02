@@ -57,8 +57,6 @@ public class AdvancedSubmissionHandler extends AbstractSubmissionHandler {
             ProcessUtils.unzip(Paths.get(PathConfig.ZIP_DIR, submission.getZipFileId() + ".zip").toString(), workspaceUserDir);
         }
 
-        // 发送 judging 的 websocket
-        rabbitSender.sendOneJudgeResult(new CheckpointResultMessageDTO(submissionId, JudgeStatus.JUDGING.code));
 
         // 执行 judgeTemplate 的脚本 ./jt.sh
         ProcessUtils.chown(jtPath, "+x");
@@ -69,6 +67,9 @@ public class AdvancedSubmissionHandler extends AbstractSubmissionHandler {
         _args[3] = new Argument(SandboxArgument.MAX_STACK, 128 * 1024 * 1024);
         _args[4] = new Argument(SandboxArgument.MAX_OUTPUT_SIZE, 1024 * 1024);
         _args[5] = new Argument(SandboxArgument.EXE_PATH, jtPath);
+
+        // 发送 judging 的 websocket
+        rabbitSender.sendOneJudgeResult(new CheckpointResultMessageDTO(submissionId, JudgeStatus.JUDGING.code));
 
         SandboxResultDTO sandboxResult = SandboxRunner.run(0, workspaceDir, _args);
         if (sandboxResult == null) {

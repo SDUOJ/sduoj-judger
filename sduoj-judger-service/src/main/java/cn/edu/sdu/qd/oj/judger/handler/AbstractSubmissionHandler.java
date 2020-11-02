@@ -3,11 +3,9 @@ package cn.edu.sdu.qd.oj.judger.handler;
 import cn.edu.sdu.qd.oj.checkpoint.dto.CheckpointManageListDTO;
 import cn.edu.sdu.qd.oj.common.util.CollectionUtils;
 import cn.edu.sdu.qd.oj.dto.FileDownloadReqDTO;
-import cn.edu.sdu.qd.oj.judger.client.CheckpointClient;
-import cn.edu.sdu.qd.oj.judger.client.FilesysClient;
-import cn.edu.sdu.qd.oj.judger.client.JudgeTemplateClient;
-import cn.edu.sdu.qd.oj.judger.client.ProblemClient;
+import cn.edu.sdu.qd.oj.judger.client.*;
 import cn.edu.sdu.qd.oj.judger.config.PathConfig;
+import cn.edu.sdu.qd.oj.judger.enums.JudgeStatus;
 import cn.edu.sdu.qd.oj.judger.exception.CompileErrorException;
 import cn.edu.sdu.qd.oj.judger.exception.SystemErrorException;
 import cn.edu.sdu.qd.oj.judger.manager.LocalCheckpointManager;
@@ -18,11 +16,14 @@ import cn.edu.sdu.qd.oj.judger.util.FileUtils;
 import cn.edu.sdu.qd.oj.judgetemplate.dto.JudgeTemplateDTO;
 import cn.edu.sdu.qd.oj.judgetemplate.enums.JudgeTemplateTypeEnum;
 import cn.edu.sdu.qd.oj.problem.dto.ProblemJudgerDTO;
+import cn.edu.sdu.qd.oj.submit.dto.CheckpointResultMessageDTO;
 import cn.edu.sdu.qd.oj.submit.dto.SubmissionMessageDTO;
 import cn.edu.sdu.qd.oj.submit.dto.SubmissionUpdateReqDTO;
+import cn.edu.sdu.qd.oj.submit.enums.SubmissionJudgeResult;
 import com.google.common.collect.Lists;
 import lombok.extern.slf4j.Slf4j;
 import org.apache.commons.io.IOUtils;
+import org.springframework.amqp.AmqpException;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.core.io.Resource;
 
@@ -32,6 +33,7 @@ import java.nio.file.Paths;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Optional;
+import java.util.concurrent.CompletionException;
 import java.util.stream.Collectors;
 import java.util.zip.ZipEntry;
 import java.util.zip.ZipInputStream;
@@ -50,6 +52,9 @@ public abstract class AbstractSubmissionHandler {
 
     @Autowired
     protected FilesysClient filesysClient;
+
+    @Autowired
+    private SubmissionClient submissionClient;
 
     @Autowired
     protected LocalCheckpointManager localCheckpointManager;
@@ -80,21 +85,66 @@ public abstract class AbstractSubmissionHandler {
     **/
     protected abstract SubmissionUpdateReqDTO start() throws CompileErrorException, SystemErrorException ;
 
-    public SubmissionUpdateReqDTO handle(SubmissionMessageDTO submissionMessageDTO, JudgeTemplateDTO judgeTemplateDTO) throws SystemErrorException, CompileErrorException {
+    public void handle(SubmissionMessageDTO submissionMessageDTO, JudgeTemplateDTO judgeTemplateDTO) throws Exception {
         this.submission = submissionMessageDTO;
         this.judgeTemplate = judgeTemplateDTO;
-        // 初始化用户空间
-        initializeWorkspace();
-        // 下载用户提交文件
-        initializeSubmission();
-        // 下载评测模板支撑文件
-        initializeJudgeTemplate();
-        // 初始化题目配置
-        initializeProblem();
-        // 下载检查点
-        initializeCheckpoint();
-        // 调用子类实现的评测逻辑
-        return this.start();
+        SubmissionUpdateReqDTO updateReqDTO = null;
+        try {
+            // 初始化用户空间
+            initializeWorkspace();
+            // 下载用户提交文件
+            initializeSubmission();
+            // 下载评测模板支撑文件
+            initializeJudgeTemplate();
+            // 初始化题目配置
+            initializeProblem();
+            // 下载检查点
+            initializeCheckpoint();
+            // 调用子类实现的评测逻辑
+            updateReqDTO = this.start();
+        } catch (CompletionException e) {
+            updateReqDTO = SubmissionUpdateReqDTO.builder()
+                    .submissionId(submissionMessageDTO.getSubmissionId())
+                    .judgeResult(SubmissionJudgeResult.CE.code)
+                    .judgeScore(0)
+                    .usedTime(0)
+                    .usedMemory(0)
+                    .judgeLog(e.getMessage())
+                    .build();
+        } catch (SystemErrorException e) {
+            updateReqDTO = SubmissionUpdateReqDTO.builder()
+                    .submissionId(submissionMessageDTO.getSubmissionId())
+                    .judgeResult(SubmissionJudgeResult.SE.code)
+                    .judgeScore(0)
+                    .usedTime(0)
+                    .usedMemory(0)
+                    .judgeLog(e.getMessage())
+                    .build();
+        } catch (Exception e) {
+            e.printStackTrace();
+            throw e;
+        }
+        // 更新 result 并 ack
+        if (updateReqDTO != null) {
+            for (int i = 0; i < 5; i++) {
+                try {
+                    // 更新 submission result
+                    submissionClient.update(updateReqDTO);
+                    // 发送 end 的 websocket
+                    rabbitSender.sendOneJudgeResult(new CheckpointResultMessageDTO(submissionMessageDTO.getSubmissionId(), JudgeStatus.END.code));
+                    break;
+                } catch (AmqpException e) {
+                    log.warn("sendOneJudgeResult", e);
+                    try {
+                        Thread.sleep(i * 2000L);
+                    } catch (Throwable ignore) {
+                    }
+                } catch (Exception e) {
+                    log.error("sendOneJudgeResult", e);
+                    throw e;
+                }
+            }
+        }
     }
 
     private void initializeWorkspace() throws SystemErrorException {

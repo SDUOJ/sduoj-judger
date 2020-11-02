@@ -37,9 +37,6 @@ import java.util.concurrent.CompletionException;
 public class SubmissionListener {
 
     @Autowired
-    private SubmissionClient submissionClient;
-
-    @Autowired
     private JudgeTemplateClient judgeTemplateClient;
 
     @Autowired
@@ -55,8 +52,6 @@ public class SubmissionListener {
     )
     public void pushSubmissionResult(SubmissionMessageDTO submissionMessageDTO, @Header(AmqpHeaders.DELIVERY_TAG) long deliveryTag, Channel channel) throws IOException, InternalApiException {
         log.info("submissionId {}, problemId {}, codeLength {}, judgeTemplateId {}", submissionMessageDTO.getSubmissionId(), submissionMessageDTO.getProblemId(), submissionMessageDTO.getCodeLength(), submissionMessageDTO.getJudgeTemplateId());
-
-        SubmissionUpdateReqDTO updateReqDTO = null;
         try {
             // 查询评测模板
             JudgeTemplateDTO judgeTemplateDTO = judgeTemplateClient.query(submissionMessageDTO.getJudgeTemplateId());
@@ -67,52 +62,12 @@ public class SubmissionListener {
             if (handler == null) {
                 throw new SystemErrorException(String.format("Unexpected judge template type: %s", judgeTemplateDTO.getType()));
             }
-            updateReqDTO = handler.handle(submissionMessageDTO, judgeTemplateDTO);
-        } catch (CompletionException e) {
-            updateReqDTO = SubmissionUpdateReqDTO.builder()
-                    .submissionId(submissionMessageDTO.getSubmissionId())
-                    .judgeResult(SubmissionJudgeResult.CE.code)
-                    .judgeScore(0)
-                    .usedTime(0)
-                    .usedMemory(0)
-                    .judgeLog(e.getMessage())
-                    .build();
-        } catch (SystemErrorException e) {
-            updateReqDTO = SubmissionUpdateReqDTO.builder()
-                    .submissionId(submissionMessageDTO.getSubmissionId())
-                    .judgeResult(SubmissionJudgeResult.SE.code)
-                    .judgeScore(0)
-                    .usedTime(0)
-                    .usedMemory(0)
-                    .judgeLog(e.getMessage())
-                    .build();
+            handler.handle(submissionMessageDTO, judgeTemplateDTO);
+            channel.basicAck(deliveryTag, false);
         } catch (Exception e) {
             e.printStackTrace();
             channel.basicNack(deliveryTag, false, true);
             // TODO: 解决死循环消费失败问题
-        }
-        // 更新 result 并 ack
-        if (updateReqDTO != null) {
-            for (int i = 0; i < 5; i++) {
-                try {
-                    // 更新 submission result
-                    submissionClient.update(updateReqDTO);
-                    // ack
-                    channel.basicAck(deliveryTag, false);
-                    // 发送 end 的 websocket
-                    rabbitSender.sendOneJudgeResult(new CheckpointResultMessageDTO(submissionMessageDTO.getSubmissionId(), JudgeStatus.END.code));
-                    break;
-                } catch (AmqpException e) {
-                    log.warn("sendOneJudgeResult", e);
-                    try {
-                        Thread.sleep(i * 2000L);
-                    } catch (Throwable ignore) {
-                    }
-                } catch (Exception e) {
-                    log.error("sendOneJudgeResult", e);
-                    break;
-                }
-            }
         }
     }
 }

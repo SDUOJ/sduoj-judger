@@ -235,7 +235,7 @@ public class IOSubmissionHandler extends AbstractSubmissionHandler {
                 for (Argument[] args : argsList) {
                     SandboxResultDTO judgeResult = SandboxRunner.run(coreNo, workspaceDir, args);
                     if (SandboxResult.SUCCESS.equals(judgeResult.getResult())) {
-                        maxUsedTime = Math.max(maxUsedTime, judgeResult.getRealTime());
+                        maxUsedTime = Math.max(maxUsedTime, Math.max(judgeResult.getCpuTime(), judgeResult.getRealTime()));
                         maxUsedMemory = Math.max(maxUsedMemory, judgeResult.getMemory());
                     } else if (SandboxResult.SYSTEM_ERROR.equals(judgeResult.getResult())) {
                         success = false;
