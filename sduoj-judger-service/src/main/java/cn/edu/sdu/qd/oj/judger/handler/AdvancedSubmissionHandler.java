@@ -16,7 +16,7 @@ public class AdvancedSubmissionHandler extends AbstractSubmissionHandler {
     }
 
 
-    public SubmissionUpdateReqDTO start() throws CompileErrorException, SystemErrorException {
+    protected SubmissionUpdateReqDTO start() throws CompileErrorException, SystemErrorException {
 
 
         return null;

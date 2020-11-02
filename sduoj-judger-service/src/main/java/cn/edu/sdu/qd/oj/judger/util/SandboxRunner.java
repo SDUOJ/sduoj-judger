@@ -1,23 +1,20 @@
-package cn.edu.sdu.qd.oj.sandbox.service;
+package cn.edu.sdu.qd.oj.judger.util;
 
 import cn.edu.sdu.qd.oj.judger.exception.SystemErrorException;
-import cn.edu.sdu.qd.oj.judger.util.ProcessUtils;
 import cn.edu.sdu.qd.oj.sandbox.dto.Argument;
 import cn.edu.sdu.qd.oj.sandbox.dto.SandboxResultDTO;
 import com.alibaba.fastjson.JSON;
 import lombok.extern.slf4j.Slf4j;
-import org.springframework.stereotype.Service;
 
 import java.util.ArrayList;
 import java.util.List;
 
 @Slf4j
-@Service
-public class SandboxService {
+public class SandboxRunner {
 
     private static final String SANDBOX_PATH = "/usr/bin/sandbox";
 
-    public SandboxResultDTO run(int coreNo, String cwd, Argument... args) throws SystemErrorException {
+    public static SandboxResultDTO run(int coreNo, String cwd, Argument... args) throws SystemErrorException {
         List<String> commandList = new ArrayList<>();
 
         commandList.add("sudo");

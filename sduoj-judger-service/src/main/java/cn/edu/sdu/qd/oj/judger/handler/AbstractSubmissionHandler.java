@@ -74,7 +74,7 @@ public abstract class AbstractSubmissionHandler {
     * @Description 子类需要实现的具体评测逻辑
     * @return cn.edu.sdu.qd.oj.submit.dto.SubmissionUpdateReqDTO
     **/
-    public abstract SubmissionUpdateReqDTO start() throws CompileErrorException, SystemErrorException;
+    protected abstract SubmissionUpdateReqDTO start() throws CompileErrorException, SystemErrorException;
 
     public SubmissionUpdateReqDTO handle(SubmissionMessageDTO submissionMessageDTO, JudgeTemplateDTO judgeTemplateDTO) throws SystemErrorException, CompileErrorException {
         this.submission = submissionMessageDTO;
@@ -91,9 +91,7 @@ public abstract class AbstractSubmissionHandler {
         initializeCheckpoint();
 
         // 调用子类实现的评测逻辑
-        SubmissionUpdateReqDTO submissionUpdateReqDTO = this.start();
-
-        return submissionUpdateReqDTO;
+        return this.start();
     }
 
     private void initializeWorkspace() throws SystemErrorException {
@@ -131,7 +129,7 @@ public abstract class AbstractSubmissionHandler {
             File file = new File(Paths.get(PathConfig.ZIP_DIR, zipFileId + ".zip").toString());
             org.apache.commons.io.FileUtils.copyInputStreamToFile(resource.getInputStream(), file);
         } catch (Exception e) {
-            throw new SystemErrorException(String.format("Can not download judgeTemplate Zip:\n%s", e));
+            throw new SystemErrorException(String.format("Can not download Zip:%s \n%s", zipFileId, e));
         }
     }
 

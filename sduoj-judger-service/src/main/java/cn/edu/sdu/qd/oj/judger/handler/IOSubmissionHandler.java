@@ -13,7 +13,7 @@ import cn.edu.sdu.qd.oj.judger.util.ProcessUtils;
 import cn.edu.sdu.qd.oj.judger.util.FileUtils;
 import cn.edu.sdu.qd.oj.judgetemplate.dto.JudgeTemplateConfigDTO;
 import cn.edu.sdu.qd.oj.judgetemplate.enums.JudgeTemplateTypeEnum;
-import cn.edu.sdu.qd.oj.sandbox.service.SandboxService;
+import cn.edu.sdu.qd.oj.judger.util.SandboxRunner;
 import cn.edu.sdu.qd.oj.sandbox.dto.Argument;
 import cn.edu.sdu.qd.oj.sandbox.dto.SandboxResultDTO;
 import cn.edu.sdu.qd.oj.sandbox.enums.SandboxArgument;
@@ -39,9 +39,6 @@ public class IOSubmissionHandler extends AbstractSubmissionHandler {
     private String judgeLog;
 
     @Autowired
-    private SandboxService sandboxService;
-
-    @Autowired
     private CommandExecutor commandExecutor;
 
     @Autowired
@@ -53,7 +50,7 @@ public class IOSubmissionHandler extends AbstractSubmissionHandler {
         return JudgeTemplateTypeEnum.IO;
     }
 
-    public SubmissionUpdateReqDTO start() {
+    protected SubmissionUpdateReqDTO start() {
         // 评测基本信息
         long submissionId = submission.getSubmissionId();
         JudgeTemplateConfigDTO judgeTemplateConfigDTO = JSON.parseObject(judgeTemplate.getShellScript(), JudgeTemplateConfigDTO.class);
@@ -189,7 +186,7 @@ public class IOSubmissionHandler extends AbstractSubmissionHandler {
                 _args[8] = new Argument(SandboxArgument.INPUT_PATH, "/dev/null");                           /* input_path       */
                 _args[9] = new Argument(SandboxArgument.OUTPUT_PATH, compilerLogPath);                      /* output_path      */
 
-                SandboxResultDTO sandboxResultDTO = sandboxService.run(0, workspaceDir, _args);
+                SandboxResultDTO sandboxResultDTO = SandboxRunner.run(0, workspaceDir, _args);
                 if (sandboxResultDTO == null) {
                     throw new SystemErrorException(String.format("Can not launch sandbox for command \"%s\"", eachCompileCommand));
                 }
@@ -260,7 +257,7 @@ public class IOSubmissionHandler extends AbstractSubmissionHandler {
                 int maxUsedTime = 0;
                 int maxUsedMemory = 0;
                 for (Argument[] args : argsList) {
-                    SandboxResultDTO judgeResult = sandboxService.run(coreNo, workspaceDir, args);
+                    SandboxResultDTO judgeResult = SandboxRunner.run(coreNo, workspaceDir, args);
                     if (SandboxResult.SUCCESS.equals(judgeResult.getResult())) {
                         maxUsedTime = Math.max(maxUsedTime, judgeResult.getRealTime());
                         maxUsedMemory = Math.max(maxUsedMemory, judgeResult.getMemory());
