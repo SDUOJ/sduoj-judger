@@ -4,8 +4,8 @@ import lombok.AllArgsConstructor;
 
 @AllArgsConstructor
 public enum JudgeStatus {
-    COMPILING(1),
-    JUDGING(2),
+    COMPILING(-3),
+    JUDGING(-2),
     END(-1),
     ;
 
