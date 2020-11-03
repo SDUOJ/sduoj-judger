@@ -151,16 +151,16 @@ public class IOSubmissionHandler extends AbstractSubmissionHandler {
                 String[] _commands = eachCompileCommand.split(" ");
 
                 Argument[] _args = new Argument[10];
-                _args[0] = new Argument(SandboxArgument.MAX_CPU_TIME, compileConfig.getMaxCpuTime());       /* max_cpu_time     */
-                _args[1] = new Argument(SandboxArgument.MAX_REAL_TIME, compileConfig.getMaxRealTime());     /* max_real_time    */
-                _args[2] = new Argument(SandboxArgument.MAX_MEMORY, compileConfig.getMaxMemory() * 1024);          /* max_memory       */
-                _args[3] = new Argument(SandboxArgument.MAX_STACK, 134217728 /* 128 * 1024 * 1024 */);      /* max_stack        */
-                _args[4] = new Argument(SandboxArgument.MAX_OUTPUT_SIZE, 1048576 /* 1024 * 1024 */);        /* max_output_size  */
-                _args[5] = new Argument(SandboxArgument.EXE_PATH, _commands[0]);                            /* exe_path         */
+                _args[0] = new Argument(SandboxArgument.MAX_CPU_TIME, compileConfig.getMaxCpuTime());       /* max_cpu_time    */
+                _args[1] = new Argument(SandboxArgument.MAX_REAL_TIME, compileConfig.getMaxRealTime());     /* max_real_time   */
+                _args[2] = new Argument(SandboxArgument.MAX_MEMORY, compileConfig.getMaxMemory() * 1024);   /* max_memory      */
+                _args[3] = new Argument(SandboxArgument.MAX_STACK, 128 * 1024 * 1024);                      /* max_stack       */
+                _args[4] = new Argument(SandboxArgument.MAX_OUTPUT_SIZE, 1024 * 1024);                      /* max_output_size */
+                _args[5] = new Argument(SandboxArgument.EXE_PATH, _commands[0]);                            /* exe_path        */
                 _args[6] = new Argument(SandboxArgument.EXE_ARGS, Arrays.copyOfRange(_commands, 1, _commands.length));
-                _args[7] = new Argument(SandboxArgument.EXE_ENVS, exeEnvs);                                 /* exe_envs         */
-                _args[8] = new Argument(SandboxArgument.INPUT_PATH, "/dev/null");                           /* input_path       */
-                _args[9] = new Argument(SandboxArgument.OUTPUT_PATH, compilerLogPath);                      /* output_path      */
+                _args[7] = new Argument(SandboxArgument.EXE_ENVS, exeEnvs);                                 /* exe_envs        */
+                _args[8] = new Argument(SandboxArgument.INPUT_PATH, "/dev/null");                           /* input_path      */
+                _args[9] = new Argument(SandboxArgument.OUTPUT_PATH, compilerLogPath);                      /* output_path     */
 
                 SandboxResultDTO sandboxResultDTO = SandboxRunner.run(0, workspaceDir, _args);
                 if (sandboxResultDTO == null) {
@@ -238,7 +238,6 @@ public class IOSubmissionHandler extends AbstractSubmissionHandler {
                         maxUsedTime = Math.max(maxUsedTime, Math.max(judgeResult.getCpuTime(), judgeResult.getRealTime()));
                         maxUsedMemory = Math.max(maxUsedMemory, judgeResult.getMemory());
                     } else if (SandboxResult.SYSTEM_ERROR.equals(judgeResult.getResult())) {
-                        success = false;
                         throw new SystemErrorException(String.format("Sandbox Internal Error #%d, signal #%d", judgeResult.getError(), judgeResult.getSignal()));
                     } else {
                         success = false;

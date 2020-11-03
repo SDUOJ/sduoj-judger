@@ -14,6 +14,7 @@ import cn.edu.sdu.qd.oj.sandbox.enums.SandboxArgument;
 import cn.edu.sdu.qd.oj.sandbox.enums.SandboxResult;
 import cn.edu.sdu.qd.oj.submit.dto.CheckpointResultMessageDTO;
 import cn.edu.sdu.qd.oj.submit.dto.SubmissionUpdateReqDTO;
+import org.apache.commons.lang3.ArrayUtils;
 import org.apache.commons.lang3.StringUtils;
 import org.springframework.stereotype.Component;
 
@@ -27,7 +28,6 @@ public class AdvancedSubmissionHandler extends AbstractSubmissionHandler {
     public JudgeTemplateTypeEnum getSupportJudgeTemplateType() {
         return JudgeTemplateTypeEnum.ADVANCED;
     }
-
 
     /**
     * @Description 进阶模式处理
@@ -62,24 +62,26 @@ public class AdvancedSubmissionHandler extends AbstractSubmissionHandler {
 
         // 工作目录下的所有文件授权 717 给nobody读写权限
         ProcessUtils.chmod(workspaceDir + "/*", "717");
+        // 执行 judgeTemplate 的脚本 ./jt.sh
+        ProcessUtils.chmod(jtPath, "+x");
 
         String[] exeEnvs = new String[1];
         String[] exeArgs = new String[2];
         exeEnvs[0] = "PATH=" + System.getenv("PATH");
         exeArgs[0] = "-c";
         exeArgs[1] = jtPath;
-        // 执行 judgeTemplate 的脚本 ./jt.sh
-        ProcessUtils.chmod(jtPath, "+x");
-        Argument[] _args = new Argument[9];
-        _args[0] = new Argument(SandboxArgument.MAX_CPU_TIME, timeLimit);
-        _args[1] = new Argument(SandboxArgument.MAX_REAL_TIME, timeLimit);
-        _args[2] = new Argument(SandboxArgument.MAX_MEMORY, memoryLimit * 1024);
-        _args[3] = new Argument(SandboxArgument.MAX_STACK, 128 * 1024 * 1024);
-        _args[4] = new Argument(SandboxArgument.MAX_OUTPUT_SIZE, 1024 * 1024);
-        _args[5] = new Argument(SandboxArgument.EXE_PATH, "/bin/sh");
-        _args[6] = new Argument(SandboxArgument.EXE_ARGS, exeArgs);
-        _args[7] = new Argument(SandboxArgument.EXE_ENVS, exeEnvs);
-        _args[8] = new Argument(SandboxArgument.OUTPUT_PATH, "jt.log");
+
+        Argument[] _args = ArrayUtils.toArray(
+            new Argument(SandboxArgument.MAX_CPU_TIME, timeLimit),
+            new Argument(SandboxArgument.MAX_REAL_TIME, timeLimit),
+            new Argument(SandboxArgument.MAX_MEMORY, memoryLimit * 1024),
+            new Argument(SandboxArgument.EXE_PATH, "/bin/sh"),
+            new Argument(SandboxArgument.EXE_ARGS, exeArgs),
+            new Argument(SandboxArgument.EXE_ENVS, exeEnvs),
+            new Argument(SandboxArgument.OUTPUT_PATH, "jt.log"),
+            new Argument(SandboxArgument.UID, 0),
+            new Argument(SandboxArgument.GID, 0)
+        );
 
         // 发送 judging 的 websocket
         rabbitSender.sendOneJudgeResult(new CheckpointResultMessageDTO(submissionId, JudgeStatus.JUDGING.code));
@@ -89,6 +91,11 @@ public class AdvancedSubmissionHandler extends AbstractSubmissionHandler {
             throw new SystemErrorException(String.format("Can not launch sandbox for command \"%s\"", jtPath));
         }
 
+        String judgeLog = null;
+        try {
+            judgeLog = FileUtils.readFile(Paths.get(workspaceDir, "jt.log").toString());
+        } catch(Exception ignored) {}
+
         // 拼装结果
         return SubmissionUpdateReqDTO.builder()
                 .submissionId(submissionId)
@@ -96,6 +103,7 @@ public class AdvancedSubmissionHandler extends AbstractSubmissionHandler {
                 .judgeScore(SandboxResult.SUCCESS.equals(sandboxResult.getResult()) ? 100 : 0)
                 .usedTime(Math.max(sandboxResult.getCpuTime(), sandboxResult.getRealTime()))
                 .usedMemory(sandboxResult.getMemory())
+                .judgeLog(judgeLog)
                 .build();
     }
 }
