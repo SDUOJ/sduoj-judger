@@ -20,4 +20,8 @@ public class SandboxResultDTO {
     private int exitCode;
     private int error;
     private int result;
+
+    public int getMemory() {
+        return memory / 1024;
+    }
 }

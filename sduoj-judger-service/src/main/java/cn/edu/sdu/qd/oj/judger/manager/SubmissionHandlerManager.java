@@ -1,6 +1,6 @@
 package cn.edu.sdu.qd.oj.judger.manager;
 
-import cn.edu.sdu.qd.oj.judger.handler.SubmissionHandler;
+import cn.edu.sdu.qd.oj.judger.handler.AbstractSubmissionHandler;
 import cn.edu.sdu.qd.oj.judger.util.SpringContextUtils;
 import cn.edu.sdu.qd.oj.judgetemplate.enums.JudgeTemplateTypeEnum;
 import com.google.common.collect.Maps;
@@ -14,13 +14,13 @@ import java.util.Map;
 @Component
 public class SubmissionHandlerManager implements CommandLineRunner {
 
-    private Map<JudgeTemplateTypeEnum, SubmissionHandler> handlers = Maps.newConcurrentMap();
+    private Map<JudgeTemplateTypeEnum, AbstractSubmissionHandler> handlers = Maps.newConcurrentMap();
 
     @Override
     public void run(String... args) throws Exception {
         try {
-            Map<String, SubmissionHandler> handlerMap = SpringContextUtils.getApplicationContext().getBeansOfType(SubmissionHandler.class);
-            for (SubmissionHandler handler : handlerMap.values()) {
+            Map<String, AbstractSubmissionHandler> handlerMap = SpringContextUtils.getApplicationContext().getBeansOfType(AbstractSubmissionHandler.class);
+            for (AbstractSubmissionHandler handler : handlerMap.values()) {
                 handlers.put(handler.getSupportJudgeTemplateType(), handler);
             }
         } catch (Throwable t) {
@@ -30,7 +30,7 @@ public class SubmissionHandlerManager implements CommandLineRunner {
         log.info("handler register {}", handlers);
     }
 
-    public SubmissionHandler get(JudgeTemplateTypeEnum judgeTemplateTypeEnum) {
+    public AbstractSubmissionHandler get(JudgeTemplateTypeEnum judgeTemplateTypeEnum) {
         if (judgeTemplateTypeEnum == null) {
             return null;
         }
