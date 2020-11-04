@@ -242,7 +242,7 @@ public class IOSubmissionHandler extends AbstractSubmissionHandler {
                     } else {
                         success = false;
                         commandExecuteResult = new CommandExecuteResult<>(new CheckpointResultMessageDTO(
-                                submissionId, caseNo, Objects.requireNonNull(SandboxResult.of(judgeResult.getResult())).submissionJudgeResult.code,
+                                submissionId, caseNo, SandboxResult.of(judgeResult.getResult()).submissionJudgeResult.code,
                                 0, 0, 0)
                         );
                         break;

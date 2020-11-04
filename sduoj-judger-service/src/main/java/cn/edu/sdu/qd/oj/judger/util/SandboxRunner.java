@@ -39,13 +39,11 @@ public class SandboxRunner {
             }
         }
 
-        log.info("sandbox {}", String.join(" ", commandList));
-
         ProcessUtils.ProcessStatus processStatus = ProcessUtils.cmd(cwd, commandList.toArray(new String[0]));
         if (processStatus.exitCode != 0) {
             throw new SystemErrorException(String.format("Sandbox exits abnormally: %d", processStatus.exitCode));
         }
-        log.info("output {}", processStatus.output);
+        log.info("\nsandbox output: {}", processStatus.output);
         return JSON.parseObject(processStatus.output, SandboxResultDTO.class);
     }
 }

@@ -3,10 +3,12 @@ package cn.edu.sdu.qd.oj.judger.util;
 import cn.edu.sdu.qd.oj.judger.exception.SystemErrorException;
 import lombok.extern.slf4j.Slf4j;
 import org.apache.commons.io.IOUtils;
+import org.apache.commons.lang.StringUtils;
 
 import java.io.File;
 import java.io.IOException;
 import java.io.InputStream;
+import java.util.Optional;
 
 @Slf4j
 public class ProcessUtils {
@@ -26,12 +28,13 @@ public class ProcessUtils {
     /**
      * 运行一个外部命令，返回状态.若超过指定的超时时间，抛出TimeoutException
      */
-    public static ProcessStatus cmd(String cwd, final String... commands) throws SystemErrorException {
+    public static ProcessStatus cmd(String pwd, final String... commands) throws SystemErrorException {
+        log.info("Run CommandLine\npwd: {}\ncommand: {}\n", pwd, String.join(" ", commands));
         Process process = null;
         Worker worker = null;
         try {
             process = new ProcessBuilder("/bin/sh", "-c", String.join(" ", commands))
-                    .directory((cwd == null || cwd.equals("")) ? null : new File(cwd))
+                    .directory(Optional.ofNullable(pwd).filter(StringUtils::isNotBlank).map(File::new).orElse(null))
                     .redirectErrorStream(true)
                     .start();
 

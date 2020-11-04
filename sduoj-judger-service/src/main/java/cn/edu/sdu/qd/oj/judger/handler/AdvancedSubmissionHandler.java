@@ -2,7 +2,6 @@ package cn.edu.sdu.qd.oj.judger.handler;
 
 import cn.edu.sdu.qd.oj.judger.config.PathConfig;
 import cn.edu.sdu.qd.oj.judger.enums.JudgeStatus;
-import cn.edu.sdu.qd.oj.judger.exception.CompileErrorException;
 import cn.edu.sdu.qd.oj.judger.exception.SystemErrorException;
 import cn.edu.sdu.qd.oj.judger.util.FileUtils;
 import cn.edu.sdu.qd.oj.judger.util.ProcessUtils;
@@ -14,6 +13,8 @@ import cn.edu.sdu.qd.oj.sandbox.enums.SandboxArgument;
 import cn.edu.sdu.qd.oj.sandbox.enums.SandboxResult;
 import cn.edu.sdu.qd.oj.submit.dto.CheckpointResultMessageDTO;
 import cn.edu.sdu.qd.oj.submit.dto.SubmissionUpdateReqDTO;
+import cn.edu.sdu.qd.oj.submit.enums.SubmissionJudgeResult;
+import lombok.AllArgsConstructor;
 import org.apache.commons.lang3.ArrayUtils;
 import org.apache.commons.lang3.StringUtils;
 import org.springframework.stereotype.Component;
@@ -65,12 +66,8 @@ public class AdvancedSubmissionHandler extends AbstractSubmissionHandler {
         // 执行 judgeTemplate 的脚本 ./jt.sh
         ProcessUtils.chmod(jtPath, "+x");
 
-        String[] exeEnvs = new String[1];
-        String[] exeArgs = new String[2];
-        exeEnvs[0] = "PATH=" + System.getenv("PATH");
-        exeArgs[0] = "-c";
-        exeArgs[1] = jtPath;
-
+        String[] exeEnvs = System.getenv().entrySet().stream().map(entry -> entry.getKey() + "=" + entry.getValue()).toArray(String[]::new);
+        String[] exeArgs = ArrayUtils.toArray("-c", jtPath);
         Argument[] _args = ArrayUtils.toArray(
             new Argument(SandboxArgument.MAX_CPU_TIME, timeLimit),
             new Argument(SandboxArgument.MAX_REAL_TIME, timeLimit),
@@ -99,11 +96,31 @@ public class AdvancedSubmissionHandler extends AbstractSubmissionHandler {
         // 拼装结果
         return SubmissionUpdateReqDTO.builder()
                 .submissionId(submissionId)
-                .judgeResult(SandboxResult.of(sandboxResult.getResult()).submissionJudgeResult.code)
+                .judgeResult(ExitCode.getSubmissionResultCode(sandboxResult.getExitCode()))
                 .judgeScore(SandboxResult.SUCCESS.equals(sandboxResult.getResult()) ? 100 : 0)
                 .usedTime(Math.max(sandboxResult.getCpuTime(), sandboxResult.getRealTime()))
                 .usedMemory(sandboxResult.getMemory())
                 .judgeLog(judgeLog)
                 .build();
+    }
+
+    @AllArgsConstructor
+    private static enum ExitCode {
+        AC(0, SubmissionJudgeResult.AC),
+        WA(111, SubmissionJudgeResult.WA),
+
+        ;
+
+        int code;
+        SubmissionJudgeResult submissionJudgeResult;
+
+        public static int getSubmissionResultCode(int exitCode) {
+            for (ExitCode ec : ExitCode.values()) {
+                if (ec.code == exitCode) {
+                    return ec.submissionJudgeResult.code;
+                }
+            }
+            return SubmissionJudgeResult.RE.code;
+        }
     }
 }
