@@ -1,10 +1,10 @@
 sduoj:
   judger:
-    core-num: 2
+    core-num: 1
   config:
     application-name: judger-service
     active: dev
-    nacos-addr: nacos.oj.cs.sdu.edu.cn:8848
+    nacos-addr: nacos.oj.qd.sdu.edu.cn:8848
     nacos-config-namespace: ${sduoj.config.active}
 
 spring:
