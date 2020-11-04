@@ -233,7 +233,7 @@ public abstract class AbstractSubmissionHandler {
         // 下载不存在的checkpoints
         if (CollectionUtils.isNotEmpty(fileDownloadReqList)) {
             try {
-                log.info("Download {}", neededCheckpoint);
+                log.info("\nDownloadCheckpoint: {}", neededCheckpoint.stream().map(CheckpointManageListDTO::getCheckpointId).collect(Collectors.toList()));
                 // 下载检查点并解压，维护本地已有 checkpoints
                 Resource download = filesysClient.download(fileDownloadReqList);
                 ZipInputStream zipInputStream = new ZipInputStream(new BufferedInputStream(download.getInputStream()));
