@@ -30,7 +30,7 @@ public class FeignClientErrorDecoder implements feign.codec.ErrorDecoder {
             JSONObject jsonObject = JSONObject.parseObject(Util.toString(response.body().asReader()));
             return new InternalApiException(jsonObject.getIntValue("code"), jsonObject.getString("message"));
         } catch (IOException e) {
-            e.printStackTrace();
+            log.error("", e);
         }
         return new InternalApiException(ApiExceptionEnum.UNKNOWN_ERROR);
     }
