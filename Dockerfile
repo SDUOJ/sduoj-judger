@@ -15,6 +15,7 @@ COPY mavenSettings.xml /usr/share/maven/conf/settings.xml
 
 ENV CORE_NUM=1
 ENV NACOS_ADDR=nacos.oj.qd.sdu.edu.cn:8848
+ENV ACTIVE=prod
 
 RUN mkdir /sduoj \
  && wget -O /sduoj/server.zip https://codeload.github.com/SDUOJ/sduoj-server/zip/master \
@@ -33,4 +34,4 @@ RUN mkdir /sduoj \
  && apt-get autoremove -y
 
 WORKDIR /sduoj
-CMD java -jar sduoj-judger.jar --sduoj.judger.core-num=$CORE_NUM --sduoj.config.nacos-addr=$NACOS_ADDR > /sduoj/sduoj.log
+CMD java -jar sduoj-judger.jar --sduoj.judger.core-num=$CORE_NUM --sduoj.config.nacos-addr=$NACOS_ADDR --sduoj.config.active=$ACTIVE > /sduoj/sduoj.log
