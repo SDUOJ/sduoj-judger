@@ -71,7 +71,7 @@ public class AdvancedSubmissionHandler extends AbstractSubmissionHandler {
         Argument[] _args = ArrayUtils.toArray(
             new Argument(SandboxArgument.MAX_CPU_TIME, timeLimit),
             new Argument(SandboxArgument.MAX_REAL_TIME, timeLimit),
-            new Argument(SandboxArgument.MAX_MEMORY, memoryLimit * 1024),
+            new Argument(SandboxArgument.MAX_MEMORY, memoryLimit * 1024L),
             new Argument(SandboxArgument.EXE_PATH, "/bin/sh"),
             new Argument(SandboxArgument.EXE_ARGS, exeArgs),
             new Argument(SandboxArgument.EXE_ENVS, exeEnvs),

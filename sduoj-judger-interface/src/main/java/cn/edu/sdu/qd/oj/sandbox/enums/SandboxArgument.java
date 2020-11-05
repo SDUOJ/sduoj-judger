@@ -6,8 +6,8 @@ import lombok.AllArgsConstructor;
 public enum SandboxArgument {
     MAX_CPU_TIME("max_cpu_time", Integer.class),
     MAX_REAL_TIME("max_real_time", Integer.class),
-    MAX_MEMORY("max_memory", Integer.class),
-    MAX_STACK("max_stack", Integer.class),
+    MAX_MEMORY("max_memory", Long.class),
+    MAX_STACK("max_stack", Long.class),
     MAX_PROCESS_NUMBER("max_process_number", Integer.class),
     MAX_OUTPUT_SIZE("max_output_size", Integer.class),
     UID("uid", Integer.class),
