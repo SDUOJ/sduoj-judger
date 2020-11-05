@@ -85,7 +85,7 @@ public abstract class AbstractSubmissionHandler {
     **/
     protected abstract SubmissionUpdateReqDTO start() throws CompileErrorException, SystemErrorException ;
 
-    public void handle(SubmissionMessageDTO submissionMessageDTO, JudgeTemplateDTO judgeTemplateDTO) throws Exception {
+    public void handle(SubmissionMessageDTO submissionMessageDTO, JudgeTemplateDTO judgeTemplateDTO) throws Throwable {
         this.submission = submissionMessageDTO;
         this.judgeTemplate = judgeTemplateDTO;
         SubmissionUpdateReqDTO updateReqDTO = null;
@@ -123,9 +123,9 @@ public abstract class AbstractSubmissionHandler {
                     .usedMemory(0)
                     .judgeLog(e.getMessage())
                     .build();
-        } catch (Exception e) {
-            e.printStackTrace();
-            throw e;
+        } catch (Throwable t) {
+            log.error("", t);
+            throw t;
         }
         // 更新 result 并 ack
         if (updateReqDTO != null) {
@@ -142,9 +142,9 @@ public abstract class AbstractSubmissionHandler {
                         Thread.sleep(i * 2000L);
                     } catch (Throwable ignore) {
                     }
-                } catch (Exception e) {
-                    log.error("sendOneJudgeResult", e);
-                    throw e;
+                } catch (Throwable t) {
+                    log.error("sendOneJudgeResult", t);
+                    throw t;
                 }
             }
         }
