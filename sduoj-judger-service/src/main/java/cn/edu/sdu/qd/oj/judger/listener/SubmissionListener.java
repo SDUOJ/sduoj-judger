@@ -47,7 +47,6 @@ public class SubmissionListener {
         } catch (Throwable t) {
             log.error("", t);
             throw t;
-            // TODO: 解决死循环消费失败问题
         }
     }
 }
