@@ -30,8 +30,7 @@ RUN mkdir /sduoj \
  && rm -rf ~/.m2 \
  && rm -rf /sduoj/sduoj-server-master \
  && rm -rf /sduoj/sduoj-judger-master \
- && apt-get purge -y maven \
- && apt-get autoremove -y
+ && apt-get purge -y maven
 
 WORKDIR /sduoj
 CMD java -jar sduoj-judger.jar --sduoj.judger.core-num=$CORE_NUM --sduoj.config.nacos-addr=$NACOS_ADDR --sduoj.config.active=$ACTIVE > /sduoj/sduoj.log
