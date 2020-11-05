@@ -211,7 +211,7 @@ public class IOSubmissionHandler extends AbstractSubmissionHandler {
                 _args[0] = new Argument(SandboxArgument.MAX_CPU_TIME, timeLimit * runConfig.getMaxCpuTimeFactor());       /* max_cpu_time     */
                 _args[1] = new Argument(SandboxArgument.MAX_REAL_TIME, timeLimit * runConfig.getMaxRealTimeFactor());     /* max_real_time    */
                 _args[2] = new Argument(SandboxArgument.MAX_MEMORY, memoryLimit * runConfig.getMaxMemoryFactor() * 1024L);          /* max_memory       */
-                _args[3] = new Argument(SandboxArgument.MAX_STACK, 134217728 /* 128 * 1024 * 1024 */);      /* max_stack        */
+                _args[3] = new Argument(SandboxArgument.MAX_STACK, 128L * 1024 * 1024);      /* max_stack        */
                 _args[4] = new Argument(SandboxArgument.MAX_OUTPUT_SIZE, 1048576 /* 1024 * 1024 */);        /* max_output_size  */
                 _args[5] = new Argument(SandboxArgument.EXE_PATH, _commands[0]);                            /* exe_path         */
                 _args[6] = new Argument(SandboxArgument.EXE_ARGS, Arrays.copyOfRange(_commands, 1, _commands.length));
