@@ -30,6 +30,6 @@ public enum SandboxResult {
                 return value;
             }
         }
-        return null;
+        return SYSTEM_ERROR;
     }
 }

@@ -70,7 +70,7 @@ public class AdvancedSubmissionHandler extends AbstractSubmissionHandler {
         String[] exeArgs = ArrayUtils.toArray("-c", jtPath);
         Argument[] _args = ArrayUtils.toArray(
             new Argument(SandboxArgument.MAX_CPU_TIME, timeLimit),
-            new Argument(SandboxArgument.MAX_REAL_TIME, timeLimit),
+            new Argument(SandboxArgument.MAX_REAL_TIME, timeLimit * 2),
             new Argument(SandboxArgument.MAX_MEMORY, memoryLimit * 1024L),
             new Argument(SandboxArgument.EXE_PATH, "/bin/sh"),
             new Argument(SandboxArgument.EXE_ARGS, exeArgs),
@@ -93,20 +93,25 @@ public class AdvancedSubmissionHandler extends AbstractSubmissionHandler {
             judgeLog = FileUtils.readFile(Paths.get(workspaceDir, "jt.log").toString());
         } catch(Exception ignored) {}
 
+        // 若是 SE 可能
+        SandboxResult sr = SandboxResult.of(sandboxResult.getResult());
+        int judgeResult = sr.submissionJudgeResult.code;
+        if (sr == SandboxResult.RUNTIME_ERROR) {
+            judgeResult = ExitCode.getSubmissionResultCode(sandboxResult.getExitCode());
+        }
         // 拼装结果
         return SubmissionUpdateReqDTO.builder()
                 .submissionId(submissionId)
-                .judgeResult(ExitCode.getSubmissionResultCode(sandboxResult.getExitCode()))
+                .judgeResult(judgeResult)
                 .judgeScore(SandboxResult.SUCCESS.equals(sandboxResult.getResult()) ? 100 : 0)
-                .usedTime(Math.max(sandboxResult.getCpuTime(), sandboxResult.getRealTime()))
+                .usedTime(sandboxResult.getCpuTime())
                 .usedMemory(sandboxResult.getMemory())
                 .judgeLog(judgeLog)
                 .build();
     }
 
     @AllArgsConstructor
-    private static enum ExitCode {
-        AC(0, SubmissionJudgeResult.AC),
+    private enum ExitCode {
         WA(111, SubmissionJudgeResult.WA),
 
         ;
