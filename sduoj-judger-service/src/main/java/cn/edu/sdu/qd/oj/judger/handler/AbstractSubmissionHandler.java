@@ -33,7 +33,6 @@ import java.nio.file.Paths;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Optional;
-import java.util.concurrent.CompletionException;
 import java.util.stream.Collectors;
 import java.util.zip.ZipEntry;
 import java.util.zip.ZipInputStream;
@@ -105,7 +104,7 @@ public abstract class AbstractSubmissionHandler {
 
             // 释放用户空间
             releaseWorkspace();
-        } catch (CompletionException e) {
+        } catch (CompileErrorException e) {
             updateReqDTO = SubmissionUpdateReqDTO.builder()
                     .submissionId(submissionMessageDTO.getSubmissionId())
                     .judgeResult(SubmissionJudgeResult.CE.code)
