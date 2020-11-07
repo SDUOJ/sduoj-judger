@@ -67,69 +67,66 @@ public class IOSubmissionHandler extends AbstractSubmissionHandler {
                 .usedMemory(0)
                 .build();
 
-        try {
-            // 发送 compiling 的 websocket
-            rabbitSender.sendOneJudgeResult(new CheckpointResultMessageDTO(submissionId, JudgeStatus.COMPILING.code));
+        // 发送 compiling 的 websocket
+        rabbitSender.sendOneJudgeResult(new CheckpointResultMessageDTO(submissionId, JudgeStatus.COMPILING.code));
 
-            // 编译
-            compile(compileConfig);
+        // 编译
+        compile(compileConfig);
 
-            // 发送 judging 的 websocket
-            rabbitSender.sendOneJudgeResult(new CheckpointResultMessageDTO(submissionId, JudgeStatus.JUDGING.code));
+        // 发送 judging 的 websocket
+        rabbitSender.sendOneJudgeResult(new CheckpointResultMessageDTO(submissionId, JudgeStatus.JUDGING.code));
 
-            // 提交评测任务到线程池
-            for (int i = 0, checkpointNum = checkpoints.size(); i < checkpointNum; ++i) {
-                String checkpointId = String.valueOf(checkpoints.get(i).getCheckpointId());
-                String inputPath = Paths.get(PathConfig.DATA_DIR, checkpointId + ".in").toString();
-                String answerPath = Paths.get(PathConfig.DATA_DIR, checkpointId + ".ans").toString();
-                String outputPath = Paths.get(userOutputDir, checkpointId + ".out").toString();
+        // 提交评测任务到线程池
+        for (int i = 0, checkpointNum = checkpoints.size(); i < checkpointNum; ++i) {
+            String checkpointId = String.valueOf(checkpoints.get(i).getCheckpointId());
+            String inputPath = Paths.get(PathConfig.DATA_DIR, checkpointId + ".in").toString();
+            String answerPath = Paths.get(PathConfig.DATA_DIR, checkpointId + ".ans").toString();
+            String outputPath = Paths.get(userOutputDir, checkpointId + ".out").toString();
 
-                Integer checkpointScore = checkpoints.get(i).getCheckpointScore();
+            Integer checkpointScore = checkpoints.get(i).getCheckpointScore();
 
-                commandExecutor.submit(new IOJudgeCommand(submissionId, i, checkpointScore, timeLimit, memoryLimit, inputPath, outputPath, answerPath, runConfig));
-            }
-
-            // 收集评测结果
-            int maxUsedTime = 0;
-            int maxUsedMemory = 0;
-            int judgeScore = 0;
-            SubmissionJudgeResult judgeResult = SubmissionJudgeResult.AC;
-            List<CheckpointResultMessageDTO> checkpointResults = new ArrayList<>();
-            for (int i = 0, checkpointNum = checkpoints.size(); i < checkpointNum; ++i) {
-                try {
-                    // 阻塞等待任一 checkpoint 测完
-                    CommandExecuteResult<CheckpointResultMessageDTO> executeResult = commandExecutor.take();
-
-                    // 取出结果发送一个 checkpoint 的结果
-                    CheckpointResultMessageDTO checkpointResultMessageDTO = executeResult.getResult();
-                    rabbitSender.sendOneJudgeResult(checkpointResultMessageDTO);
-                    checkpointResults.add(checkpointResultMessageDTO);
-
-                    maxUsedTime = Math.max(maxUsedTime, checkpointResultMessageDTO.getUsedTime());
-                    maxUsedMemory = Math.max(maxUsedMemory, checkpointResultMessageDTO.getUsedMemory());
-                    judgeScore += checkpointResultMessageDTO.getJudgeScore();
-
-                    if (SubmissionJudgeResult.AC.equals(judgeResult)) {
-                        judgeResult = SubmissionJudgeResult.of(checkpointResultMessageDTO.getJudgeResult());
-                    }
-                } catch (InterruptedException | ExecutionException e) {
-                    throw new SystemErrorException(e);
-                }
-            }
-
-            // 组装最终评测结果
-            checkpointResults.sort(Comparator.comparingInt(CheckpointResultMessageDTO::getCheckpointIndex));
-            result.setCheckpointResults(checkpointResults.stream()
-                    .map(CheckpointResultMessageDTO::toEachCheckpointResult)
-                    .collect(Collectors.toList()));
-            result.setJudgeResult(judgeResult.code);
-            result.setJudgeScore(judgeScore);
-            result.setUsedTime(maxUsedTime);
-            result.setUsedMemory(maxUsedTime);
-            result.setJudgeLog(judgeLog);
-        } finally {
-            result.setJudgeLog(judgeLog);
+            commandExecutor.submit(new IOJudgeCommand(submissionId, i, checkpointScore, timeLimit, memoryLimit, inputPath, outputPath, answerPath, runConfig));
         }
+
+        // 收集评测结果
+        int maxUsedTime = 0;
+        int maxUsedMemory = 0;
+        int judgeScore = 0;
+        SubmissionJudgeResult judgeResult = SubmissionJudgeResult.AC;
+        List<CheckpointResultMessageDTO> checkpointResults = new ArrayList<>();
+        for (int i = 0, checkpointNum = checkpoints.size(); i < checkpointNum; ++i) {
+            try {
+                // 阻塞等待任一 checkpoint 测完
+                CommandExecuteResult<CheckpointResultMessageDTO> executeResult = commandExecutor.take();
+
+                // 取出结果发送一个 checkpoint 的结果
+                CheckpointResultMessageDTO checkpointResultMessageDTO = executeResult.getResult();
+                rabbitSender.sendOneJudgeResult(checkpointResultMessageDTO);
+                checkpointResults.add(checkpointResultMessageDTO);
+
+                maxUsedTime = Math.max(maxUsedTime, checkpointResultMessageDTO.getUsedTime());
+                maxUsedMemory = Math.max(maxUsedMemory, checkpointResultMessageDTO.getUsedMemory());
+                judgeScore += checkpointResultMessageDTO.getJudgeScore();
+
+                if (SubmissionJudgeResult.AC.equals(judgeResult)) {
+                    judgeResult = SubmissionJudgeResult.of(checkpointResultMessageDTO.getJudgeResult());
+                }
+            } catch (InterruptedException | ExecutionException e) {
+                throw new SystemErrorException(e);
+            }
+        }
+
+        // 组装最终评测结果
+        checkpointResults.sort(Comparator.comparingInt(CheckpointResultMessageDTO::getCheckpointIndex));
+        result.setCheckpointResults(checkpointResults.stream()
+                .map(CheckpointResultMessageDTO::toEachCheckpointResult)
+                .collect(Collectors.toList()));
+        result.setJudgeResult(judgeResult.code);
+        result.setJudgeScore(judgeScore);
+        result.setUsedTime(maxUsedTime);
+        result.setUsedMemory(maxUsedTime);
+        result.setJudgeLog(judgeLog);
+
         return result;
     }
 
