@@ -228,44 +228,39 @@ public class IOSubmissionHandler extends AbstractSubmissionHandler {
         @Override
         public CommandExecuteResult<CheckpointResultMessageDTO> run(int coreNo) {
             CommandExecuteResult<CheckpointResultMessageDTO> commandExecuteResult = null;
+            int maxUsedTime = 0;
+            int maxUsedMemory = 0;
             try {
                 boolean success = true;
-                int maxUsedTime = 0;
-                int maxUsedMemory = 0;
                 for (Argument[] args : argsList) {
                     SandboxResultDTO judgeResult = SandboxRunner.run(coreNo, workspaceDir, args);
-                    if (SandboxResult.SUCCESS.equals(judgeResult.getResult())) {
-                        maxUsedTime = Math.max(maxUsedTime, judgeResult.getCpuTime());
-                        maxUsedMemory = Math.max(maxUsedMemory, judgeResult.getMemory());
-                    } else if (SandboxResult.SYSTEM_ERROR.equals(judgeResult.getResult())) {
+                    maxUsedTime = Math.max(maxUsedTime, judgeResult.getCpuTime());
+                    maxUsedMemory = Math.max(maxUsedMemory, judgeResult.getMemory());
+                    if (SandboxResult.SYSTEM_ERROR.equals(judgeResult.getResult())) {
                         throw new SystemErrorException(String.format("Sandbox Internal Error #%d, signal #%d", judgeResult.getError(), judgeResult.getSignal()));
-                    } else {
+                    } else if (!SandboxResult.SUCCESS.equals(judgeResult.getResult())) {
                         success = false;
                         commandExecuteResult = new CommandExecuteResult<>(new CheckpointResultMessageDTO(
                                 submissionId, caseNo, SandboxResult.of(judgeResult.getResult()).submissionJudgeResult.code,
-                                0, judgeResult.getCpuTime(), judgeResult.getMemory())
-                        );
+                                0, maxUsedTime, maxUsedMemory
+                        ));
                         break;
                     }
                 }
                 if (success) {
                     SubmissionJudgeResult result = check();
-                    if (SubmissionJudgeResult.AC.code == result.code) {
-                        commandExecuteResult = new CommandExecuteResult<>(new CheckpointResultMessageDTO(
-                                submissionId, caseNo, result.code, score, maxUsedTime, maxUsedMemory)
-                        );
-                    } else {
-                        commandExecuteResult = new CommandExecuteResult<>(new CheckpointResultMessageDTO(
-                                submissionId, caseNo, result.code, 0, maxUsedTime, maxUsedMemory)
-                        );
-                    }
+                    commandExecuteResult = new CommandExecuteResult<>(new CheckpointResultMessageDTO(
+                            submissionId, caseNo, result.code,
+                            SubmissionJudgeResult.AC.code == result.code ? score : 0, maxUsedTime, maxUsedMemory
+                    ));
                 }
             } catch (SystemErrorException e) {
                 log.warn("", e);
                 judgeLog += e + "\n";
                 commandExecuteResult = new CommandExecuteResult<>(new CheckpointResultMessageDTO(
-                        submissionId, caseNo, SubmissionJudgeResult.SE.code, 0, 0, 0)
-                );
+                        submissionId, caseNo, SubmissionJudgeResult.SE.code,
+                        0, maxUsedTime, maxUsedMemory
+                ));
             } catch (Exception e) {
                 log.warn("", e);
                 throw e;
