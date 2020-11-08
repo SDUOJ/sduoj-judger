@@ -8,7 +8,6 @@ import cn.edu.sdu.qd.oj.submit.dto.CheckpointResultMessageDTO;
 import cn.edu.sdu.qd.oj.judger.enums.JudgeStatus;
 import cn.edu.sdu.qd.oj.judger.exception.CompileErrorException;
 import cn.edu.sdu.qd.oj.judger.exception.SystemErrorException;
-import cn.edu.sdu.qd.oj.judger.sender.RabbitSender;
 import cn.edu.sdu.qd.oj.judger.util.ProcessUtils;
 import cn.edu.sdu.qd.oj.judger.util.FileUtils;
 import cn.edu.sdu.qd.oj.judgetemplate.dto.JudgeTemplateConfigDTO;
@@ -18,11 +17,11 @@ import cn.edu.sdu.qd.oj.sandbox.dto.Argument;
 import cn.edu.sdu.qd.oj.sandbox.dto.SandboxResultDTO;
 import cn.edu.sdu.qd.oj.sandbox.enums.SandboxArgument;
 import cn.edu.sdu.qd.oj.sandbox.enums.SandboxResult;
-import cn.edu.sdu.qd.oj.submit.dto.EachCheckpointResult;
 import cn.edu.sdu.qd.oj.submit.dto.SubmissionUpdateReqDTO;
 import cn.edu.sdu.qd.oj.submit.enums.SubmissionJudgeResult;
 import com.alibaba.fastjson.JSON;
 import lombok.extern.slf4j.Slf4j;
+import org.apache.commons.lang3.ArrayUtils;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Component;
 
@@ -147,17 +146,18 @@ public class IOSubmissionHandler extends AbstractSubmissionHandler {
             for (String eachCompileCommand : compileConfig.getCommands()) {
                 String[] _commands = eachCompileCommand.split(" ");
 
-                Argument[] _args = new Argument[10];
-                _args[0] = new Argument(SandboxArgument.MAX_CPU_TIME, compileConfig.getMaxCpuTime());       /* max_cpu_time    */
-                _args[1] = new Argument(SandboxArgument.MAX_REAL_TIME, compileConfig.getMaxRealTime());     /* max_real_time   */
-                _args[2] = new Argument(SandboxArgument.MAX_MEMORY, compileConfig.getMaxMemory() * 1024L);  /* max_memory      */
-                _args[3] = new Argument(SandboxArgument.MAX_STACK, 128 * 1024 * 1024L);                     /* max_stack       */
-                _args[4] = new Argument(SandboxArgument.MAX_OUTPUT_SIZE, 1024 * 1024);                     /* max_output_size */
-                _args[5] = new Argument(SandboxArgument.EXE_PATH, _commands[0]);                            /* exe_path        */
-                _args[6] = new Argument(SandboxArgument.EXE_ARGS, Arrays.copyOfRange(_commands, 1, _commands.length));
-                _args[7] = new Argument(SandboxArgument.EXE_ENVS, exeEnvs);                                 /* exe_envs        */
-                _args[8] = new Argument(SandboxArgument.INPUT_PATH, "/dev/null");                           /* input_path      */
-                _args[9] = new Argument(SandboxArgument.OUTPUT_PATH, compilerLogPath);                      /* output_path     */
+                Argument[] _args = ArrayUtils.toArray(
+                    new Argument(SandboxArgument.MAX_CPU_TIME, compileConfig.getMaxCpuTime()),
+                    new Argument(SandboxArgument.MAX_REAL_TIME, compileConfig.getMaxRealTime()),
+                    new Argument(SandboxArgument.MAX_MEMORY, compileConfig.getMaxMemory() * 1024L),
+                    new Argument(SandboxArgument.MAX_STACK, 128 * 1024 * 1024L),
+                    new Argument(SandboxArgument.MAX_OUTPUT_SIZE, 48 * 1024), // 48K
+                    new Argument(SandboxArgument.EXE_PATH, _commands[0]),
+                    new Argument(SandboxArgument.EXE_ARGS, Arrays.copyOfRange(_commands, 1, _commands.length)),
+                    new Argument(SandboxArgument.EXE_ENVS, exeEnvs),
+                    new Argument(SandboxArgument.INPUT_PATH, "/dev/null"),
+                    new Argument(SandboxArgument.OUTPUT_PATH, compilerLogPath)
+                );
 
                 SandboxResultDTO sandboxResultDTO = SandboxRunner.run(0, workspaceDir, _args);
                 if (sandboxResultDTO == null) {
@@ -204,19 +204,19 @@ public class IOSubmissionHandler extends AbstractSubmissionHandler {
             for (String eachCompileCommand : runConfig.getCommands()) {
                 String[] _commands = eachCompileCommand.split(" ");
 
-                Argument[] _args = new Argument[12];
-                _args[0] = new Argument(SandboxArgument.MAX_CPU_TIME, timeLimit * runConfig.getMaxCpuTimeFactor());       /* max_cpu_time     */
-                _args[1] = new Argument(SandboxArgument.MAX_REAL_TIME, timeLimit * runConfig.getMaxRealTimeFactor());     /* max_real_time    */
-                _args[2] = new Argument(SandboxArgument.MAX_MEMORY, memoryLimit * runConfig.getMaxMemoryFactor() * 1024L);          /* max_memory       */
-                _args[3] = new Argument(SandboxArgument.MAX_STACK, 128L * 1024 * 1024);      /* max_stack        */
-                _args[4] = new Argument(SandboxArgument.MAX_OUTPUT_SIZE, 1048576 /* 1024 * 1024 */);        /* max_output_size  */
-                _args[5] = new Argument(SandboxArgument.EXE_PATH, _commands[0]);                            /* exe_path         */
-                _args[6] = new Argument(SandboxArgument.EXE_ARGS, Arrays.copyOfRange(_commands, 1, _commands.length));
-                _args[7] = new Argument(SandboxArgument.EXE_ENVS, runConfig.getEnvs());                                 /* exe_envs         */
-                _args[8] = new Argument(SandboxArgument.INPUT_PATH, inputPath);                           /* input_path       */
-                _args[9] = new Argument(SandboxArgument.OUTPUT_PATH, outputPath);                      /* output_path      */
-                _args[10] = new Argument(SandboxArgument.UID, PathConfig.NOBODY_UID);
-                _args[11] = new Argument(SandboxArgument.GID, PathConfig.NOBODY_GID);
+                Argument[] _args = ArrayUtils.toArray(
+                    new Argument(SandboxArgument.MAX_CPU_TIME, timeLimit * runConfig.getMaxCpuTimeFactor()),
+                    new Argument(SandboxArgument.MAX_REAL_TIME, timeLimit * runConfig.getMaxRealTimeFactor()),
+                    new Argument(SandboxArgument.MAX_MEMORY, memoryLimit * runConfig.getMaxMemoryFactor() * 1024L),
+                    new Argument(SandboxArgument.MAX_STACK, 128L * 1024 * 1024),
+                    new Argument(SandboxArgument.EXE_PATH, _commands[0]),
+                    new Argument(SandboxArgument.EXE_ARGS, Arrays.copyOfRange(_commands, 1, _commands.length)),
+                    new Argument(SandboxArgument.EXE_ENVS, runConfig.getEnvs()),
+                    new Argument(SandboxArgument.INPUT_PATH, inputPath),
+                    new Argument(SandboxArgument.OUTPUT_PATH, outputPath),
+                    new Argument(SandboxArgument.UID, PathConfig.NOBODY_UID),
+                    new Argument(SandboxArgument.GID, PathConfig.NOBODY_GID)
+                );
 
                 argsList.add(_args);
             }
