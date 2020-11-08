@@ -23,6 +23,7 @@ import cn.edu.sdu.qd.oj.submit.enums.SubmissionJudgeResult;
 import com.google.common.collect.Lists;
 import lombok.extern.slf4j.Slf4j;
 import org.apache.commons.io.IOUtils;
+import org.apache.commons.lang3.StringUtils;
 import org.springframework.amqp.AmqpException;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.core.io.Resource;
@@ -128,6 +129,12 @@ public abstract class AbstractSubmissionHandler {
         }
         // 更新 result 并 ack
         if (updateReqDTO != null) {
+            // judgeLog 字段长度限制
+            String judgeLog = updateReqDTO.getJudgeLog();
+            if (StringUtils.isNotBlank(judgeLog)) {
+                updateReqDTO.setJudgeLog(judgeLog.substring(0, Math.min(judgeLog.length(), 48 * 1024))); // 限制 48K judgeLog
+            }
+            // 多次尝试
             for (int i = 0; i < 5; i++) {
                 try {
                     // 更新 submission result
@@ -165,6 +172,7 @@ public abstract class AbstractSubmissionHandler {
     private void releaseWorkspace() throws SystemErrorException {
         try {
             ProcessUtils.chmod(workspaceDir + "/*", "711");
+            // TODO: 考虑删除文件
         } catch (Exception e) {
             throw new SystemErrorException("Can not release workspace:\n" + e.toString());
         }
