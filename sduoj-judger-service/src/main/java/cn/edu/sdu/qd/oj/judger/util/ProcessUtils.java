@@ -25,6 +25,14 @@ public class ProcessUtils {
         cmdOnRootPath("sudo", "unzip", "-o", "-q", "-d", targetDirPath, zipFilePath);
     }
 
+    public static void deleteWorkspaceDir(String path) throws SystemErrorException {
+        if (path.startsWith("/workspace/")) {
+            cmdOnRootPath("sudo", "rm", "-rf", path);
+        } else {
+            log.warn("deleteDir {}", path);
+        }
+    }
+
     /**
      * 运行一个外部命令，返回状态.若超过指定的超时时间，抛出TimeoutException
      */
