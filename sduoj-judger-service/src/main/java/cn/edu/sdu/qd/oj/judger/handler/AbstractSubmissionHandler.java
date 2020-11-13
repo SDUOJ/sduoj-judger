@@ -114,7 +114,7 @@ public abstract class AbstractSubmissionHandler {
                     .usedMemory(0)
                     .judgeLog(e.getMessage())
                     .build();
-        } catch (SystemErrorException e) {
+        } catch (SystemErrorException | OutOfMemoryError e) {
             updateReqDTO = SubmissionUpdateReqDTO.builder()
                     .submissionId(submissionMessageDTO.getSubmissionId())
                     .judgeResult(SubmissionJudgeResult.SE.code)
@@ -160,6 +160,7 @@ public abstract class AbstractSubmissionHandler {
         workspaceDir = Paths.get(PathConfig.WORKSPACE_DIR, String.valueOf(submission.getSubmissionId())).toString();
         userOutputDir = Paths.get(workspaceDir, "output").toString();
         try {
+            ProcessUtils.deleteWorkspaceDir(workspaceDir);
             FileUtils.createDir(workspaceDir);
             FileUtils.createDir(userOutputDir);
             ProcessUtils.chown(workspaceDir, "nobody");
