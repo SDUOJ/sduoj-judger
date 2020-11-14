@@ -5,7 +5,6 @@ import cn.edu.sdu.qd.oj.common.util.CollectionUtils;
 import cn.edu.sdu.qd.oj.dto.FileDownloadReqDTO;
 import cn.edu.sdu.qd.oj.judger.client.*;
 import cn.edu.sdu.qd.oj.judger.config.PathConfig;
-import cn.edu.sdu.qd.oj.judger.enums.JudgeStatus;
 import cn.edu.sdu.qd.oj.judger.exception.CompileErrorException;
 import cn.edu.sdu.qd.oj.judger.exception.SystemErrorException;
 import cn.edu.sdu.qd.oj.judger.manager.LocalCheckpointManager;
@@ -17,7 +16,7 @@ import cn.edu.sdu.qd.oj.judgetemplate.dto.JudgeTemplateDTO;
 import cn.edu.sdu.qd.oj.judgetemplate.enums.JudgeTemplateTypeEnum;
 import cn.edu.sdu.qd.oj.problem.dto.ProblemJudgerDTO;
 import cn.edu.sdu.qd.oj.submit.dto.CheckpointResultMessageDTO;
-import cn.edu.sdu.qd.oj.submit.dto.SubmissionMessageDTO;
+import cn.edu.sdu.qd.oj.submit.dto.SubmissionJudgeDTO;
 import cn.edu.sdu.qd.oj.submit.dto.SubmissionUpdateReqDTO;
 import cn.edu.sdu.qd.oj.submit.enums.SubmissionJudgeResult;
 import com.google.common.collect.Lists;
@@ -65,7 +64,7 @@ public abstract class AbstractSubmissionHandler {
     @Autowired
     protected RabbitSender rabbitSender;
 
-    protected SubmissionMessageDTO submission;
+    protected SubmissionJudgeDTO submission;
 
     protected JudgeTemplateDTO judgeTemplate;
 
@@ -85,8 +84,8 @@ public abstract class AbstractSubmissionHandler {
     **/
     protected abstract SubmissionUpdateReqDTO start() throws CompileErrorException, SystemErrorException ;
 
-    public void handle(SubmissionMessageDTO submissionMessageDTO, JudgeTemplateDTO judgeTemplateDTO) throws Throwable {
-        this.submission = submissionMessageDTO;
+    public void handle(SubmissionJudgeDTO submissionJudgeDTO, JudgeTemplateDTO judgeTemplateDTO) throws Throwable {
+        this.submission = submissionJudgeDTO;
         this.judgeTemplate = judgeTemplateDTO;
         SubmissionUpdateReqDTO updateReqDTO = null;
         try {
@@ -107,7 +106,7 @@ public abstract class AbstractSubmissionHandler {
             releaseWorkspace();
         } catch (CompileErrorException e) {
             updateReqDTO = SubmissionUpdateReqDTO.builder()
-                    .submissionId(submissionMessageDTO.getSubmissionId())
+                    .submissionId(submission.getSubmissionId())
                     .judgeResult(SubmissionJudgeResult.CE.code)
                     .judgeScore(0)
                     .usedTime(0)
@@ -116,7 +115,7 @@ public abstract class AbstractSubmissionHandler {
                     .build();
         } catch (SystemErrorException | OutOfMemoryError e) {
             updateReqDTO = SubmissionUpdateReqDTO.builder()
-                    .submissionId(submissionMessageDTO.getSubmissionId())
+                    .submissionId(submission.getSubmissionId())
                     .judgeResult(SubmissionJudgeResult.SE.code)
                     .judgeScore(0)
                     .usedTime(0)
@@ -129,6 +128,8 @@ public abstract class AbstractSubmissionHandler {
         }
         // 更新 result 并 ack
         if (updateReqDTO != null) {
+            // 设置 updateDTO 中的乐观锁字段
+            updateReqDTO.setVersion(submission.getVersion());
             // judgeLog 字段长度限制
             String judgeLog = updateReqDTO.getJudgeLog();
             if (StringUtils.isNotBlank(judgeLog)) {
@@ -140,7 +141,7 @@ public abstract class AbstractSubmissionHandler {
                     // 更新 submission result
                     submissionClient.update(updateReqDTO);
                     // 发送 end 的 websocket
-                    rabbitSender.sendOneJudgeResult(new CheckpointResultMessageDTO(submissionMessageDTO.getSubmissionId(), JudgeStatus.END.code));
+                    rabbitSender.sendOneJudgeResult(new CheckpointResultMessageDTO(submission.getSubmissionId(), SubmissionJudgeResult.END.code));
                     break;
                 } catch (AmqpException e) {
                     log.warn("sendOneJudgeResult", e);

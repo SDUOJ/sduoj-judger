@@ -5,7 +5,6 @@ import cn.edu.sdu.qd.oj.judger.command.CommandExecutor;
 import cn.edu.sdu.qd.oj.judger.config.PathConfig;
 import cn.edu.sdu.qd.oj.judger.dto.CommandExecuteResult;
 import cn.edu.sdu.qd.oj.submit.dto.CheckpointResultMessageDTO;
-import cn.edu.sdu.qd.oj.judger.enums.JudgeStatus;
 import cn.edu.sdu.qd.oj.judger.exception.CompileErrorException;
 import cn.edu.sdu.qd.oj.judger.exception.SystemErrorException;
 import cn.edu.sdu.qd.oj.judger.util.ProcessUtils;
@@ -67,13 +66,13 @@ public class IOSubmissionHandler extends AbstractSubmissionHandler {
                 .build();
 
         // 发送 compiling 的 websocket
-        rabbitSender.sendOneJudgeResult(new CheckpointResultMessageDTO(submissionId, JudgeStatus.COMPILING.code));
+        rabbitSender.sendOneJudgeResult(new CheckpointResultMessageDTO(submissionId, SubmissionJudgeResult.COMPILING.code));
 
         // 编译
         compile(compileConfig);
 
         // 发送 judging 的 websocket
-        rabbitSender.sendOneJudgeResult(new CheckpointResultMessageDTO(submissionId, JudgeStatus.JUDGING.code));
+        rabbitSender.sendOneJudgeResult(new CheckpointResultMessageDTO(submissionId, SubmissionJudgeResult.JUDGING.code));
 
         // 提交评测任务到线程池
         for (int i = 0, checkpointNum = checkpoints.size(); i < checkpointNum; ++i) {
