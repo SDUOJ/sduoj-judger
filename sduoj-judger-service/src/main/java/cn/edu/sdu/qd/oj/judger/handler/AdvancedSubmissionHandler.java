@@ -1,7 +1,6 @@
 package cn.edu.sdu.qd.oj.judger.handler;
 
 import cn.edu.sdu.qd.oj.judger.config.PathConfig;
-import cn.edu.sdu.qd.oj.judger.enums.JudgeStatus;
 import cn.edu.sdu.qd.oj.judger.exception.SystemErrorException;
 import cn.edu.sdu.qd.oj.judger.util.FileUtils;
 import cn.edu.sdu.qd.oj.judger.util.ProcessUtils;
@@ -81,7 +80,7 @@ public class AdvancedSubmissionHandler extends AbstractSubmissionHandler {
         );
 
         // 发送 judging 的 websocket
-        rabbitSender.sendOneJudgeResult(new CheckpointResultMessageDTO(submissionId, JudgeStatus.JUDGING.code));
+        rabbitSender.sendOneJudgeResult(new CheckpointResultMessageDTO(submissionId, SubmissionJudgeResult.JUDGING.code));
 
         SandboxResultDTO sandboxResult = SandboxRunner.run(0, workspaceDir, _args);
         if (sandboxResult == null) {
