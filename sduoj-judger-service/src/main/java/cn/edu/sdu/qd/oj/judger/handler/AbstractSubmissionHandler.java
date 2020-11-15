@@ -140,8 +140,17 @@ public abstract class AbstractSubmissionHandler {
                 try {
                     // 更新 submission result
                     submissionClient.update(updateReqDTO);
+
                     // 发送 end 的 websocket
-                    rabbitSender.sendOneJudgeResult(new CheckpointResultMessageDTO(submission.getSubmissionId(), SubmissionJudgeResult.END.code));
+                    CheckpointResultMessageDTO messageDTO = new CheckpointResultMessageDTO(
+                            updateReqDTO.getSubmissionId(),
+                            SubmissionJudgeResult.END.code,
+                            updateReqDTO.getJudgeResult(),
+                            updateReqDTO.getJudgeScore(),
+                            updateReqDTO.getUsedTime(),
+                            updateReqDTO.getUsedMemory()
+                    );
+                    rabbitSender.sendOneJudgeResult(messageDTO);
                     break;
                 } catch (AmqpException e) {
                     log.warn("sendOneJudgeResult", e);
