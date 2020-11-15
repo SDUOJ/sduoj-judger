@@ -143,7 +143,7 @@ public abstract class AbstractSubmissionHandler {
 
                     // 发送 end 的 websocket
                     CheckpointResultMessageDTO messageDTO = new CheckpointResultMessageDTO(
-                            submission.getSubmissionId(),
+                            updateReqDTO.getSubmissionId(),
                             SubmissionJudgeResult.END.code,
                             updateReqDTO.getJudgeResult(),
                             updateReqDTO.getJudgeScore(),
