@@ -26,10 +26,7 @@ import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Component;
 
 import java.nio.file.Paths;
-import java.util.ArrayList;
-import java.util.Arrays;
-import java.util.Comparator;
-import java.util.List;
+import java.util.*;
 import java.util.concurrent.ExecutionException;
 import java.util.regex.Pattern;
 import java.util.stream.Collectors;
@@ -61,6 +58,12 @@ public class SPJSubmissionHandler extends AbstractSubmissionHandler {
         // 运行选项
         JudgeTemplateConfigDTO.TemplateConfig.Run runConfig = judgeTemplateConfigDTO.getUser().getRun();
         JudgeTemplateConfigDTO.TemplateConfig.Run spjRunConfig = judgeTemplateConfigDTO.getSpj().getRun();
+
+        // 格式串中获取题目数据
+        compileConfig.setCommands(replacePatternToProblemInfo(compileConfig.getCommands()));
+        spjCompileConfig.setCommands(replacePatternToProblemInfo(spjCompileConfig.getCommands()));
+        runConfig.setCommand(replacePatternToProblemInfo(runConfig.getCommand()));
+        spjRunConfig.setCommand(replacePatternToProblemInfo(spjRunConfig.getCommand()));
 
         // 题目配置：时间、空间、检查点分数
         int timeLimit = problem.getTimeLimit();

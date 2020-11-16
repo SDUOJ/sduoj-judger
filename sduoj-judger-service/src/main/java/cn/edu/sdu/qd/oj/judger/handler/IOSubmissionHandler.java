@@ -25,10 +25,7 @@ import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Component;
 
 import java.nio.file.Paths;
-import java.util.ArrayList;
-import java.util.Arrays;
-import java.util.Comparator;
-import java.util.List;
+import java.util.*;
 import java.util.concurrent.ExecutionException;
 import java.util.regex.Pattern;
 import java.util.stream.Collectors;
@@ -58,6 +55,9 @@ public class IOSubmissionHandler extends AbstractSubmissionHandler {
         JudgeTemplateConfigDTO.TemplateConfig.Compile compileConfig = judgeTemplateConfigDTO.getUser().getCompile();
         // 运行选项
         JudgeTemplateConfigDTO.TemplateConfig.Run runConfig = judgeTemplateConfigDTO.getUser().getRun();
+        // 格式串中获取题目数据
+        compileConfig.setCommands(replacePatternToProblemInfo(compileConfig.getCommands()));
+        runConfig.setCommand(replacePatternToProblemInfo(runConfig.getCommand()));
 
         // 题目配置：时间、空间、检查点分数
         int timeLimit = problem.getTimeLimit();
