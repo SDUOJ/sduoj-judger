@@ -4,18 +4,18 @@ import cn.edu.sdu.qd.oj.judger.command.Command;
 import cn.edu.sdu.qd.oj.judger.command.CommandExecutor;
 import cn.edu.sdu.qd.oj.judger.config.PathConfig;
 import cn.edu.sdu.qd.oj.judger.dto.CommandExecuteResult;
-import cn.edu.sdu.qd.oj.submit.dto.CheckpointResultMessageDTO;
 import cn.edu.sdu.qd.oj.judger.exception.CompileErrorException;
 import cn.edu.sdu.qd.oj.judger.exception.SystemErrorException;
-import cn.edu.sdu.qd.oj.judger.util.ProcessUtils;
 import cn.edu.sdu.qd.oj.judger.util.FileUtils;
+import cn.edu.sdu.qd.oj.judger.util.ProcessUtils;
+import cn.edu.sdu.qd.oj.judger.util.SandboxRunner;
 import cn.edu.sdu.qd.oj.judgetemplate.dto.JudgeTemplateConfigDTO;
 import cn.edu.sdu.qd.oj.judgetemplate.enums.JudgeTemplateTypeEnum;
-import cn.edu.sdu.qd.oj.judger.util.SandboxRunner;
 import cn.edu.sdu.qd.oj.sandbox.dto.Argument;
 import cn.edu.sdu.qd.oj.sandbox.dto.SandboxResultDTO;
 import cn.edu.sdu.qd.oj.sandbox.enums.SandboxArgument;
 import cn.edu.sdu.qd.oj.sandbox.enums.SandboxResult;
+import cn.edu.sdu.qd.oj.submit.dto.CheckpointResultMessageDTO;
 import cn.edu.sdu.qd.oj.submit.dto.SubmissionUpdateReqDTO;
 import cn.edu.sdu.qd.oj.submit.enums.SubmissionJudgeResult;
 import com.alibaba.fastjson.JSON;
@@ -25,8 +25,12 @@ import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Component;
 
 import java.nio.file.Paths;
-import java.util.*;
+import java.util.ArrayList;
+import java.util.Arrays;
+import java.util.Comparator;
+import java.util.List;
 import java.util.concurrent.ExecutionException;
+import java.util.regex.Pattern;
 import java.util.stream.Collectors;
 
 
@@ -35,6 +39,7 @@ import java.util.stream.Collectors;
 public class IOSubmissionHandler extends AbstractSubmissionHandler {
 
     private String judgeLog;
+    private static final Pattern WHITESPACE_PATTERN = Pattern.compile("\\s+");
 
     @Autowired
     private CommandExecutor commandExecutor;
@@ -68,6 +73,9 @@ public class IOSubmissionHandler extends AbstractSubmissionHandler {
         // 发送 compiling 的 websocket
         rabbitSender.sendOneJudgeResult(new CheckpointResultMessageDTO(submissionId, SubmissionJudgeResult.COMPILING.code));
 
+        // 用户代码写入文件
+        String code = submission.getCode();
+        FileUtils.writeFile(Paths.get(workspaceDir, compileConfig.getSrcName()).toString(), code);
         // 编译
         compile(compileConfig);
 
@@ -131,8 +139,6 @@ public class IOSubmissionHandler extends AbstractSubmissionHandler {
     private void compile(JudgeTemplateConfigDTO.TemplateConfig.Compile compileConfig) throws CompileErrorException {
         try {
             String srcPath = compileConfig.getSrcName();
-            String code = submission.getCode();
-            FileUtils.writeFile(Paths.get(workspaceDir, srcPath).toString(), code);
 
             log.info(String.format("Compiling \"%s\"", srcPath));
 
@@ -143,19 +149,19 @@ public class IOSubmissionHandler extends AbstractSubmissionHandler {
             StringBuilder sb = new StringBuilder();
 
             for (String eachCompileCommand : compileConfig.getCommands()) {
-                String[] _commands = eachCompileCommand.split(" ");
+                String[] _commands = IOSubmissionHandler.WHITESPACE_PATTERN.split(eachCompileCommand.trim());
 
                 Argument[] _args = ArrayUtils.toArray(
-                    new Argument(SandboxArgument.MAX_CPU_TIME, compileConfig.getMaxCpuTime()),
-                    new Argument(SandboxArgument.MAX_REAL_TIME, compileConfig.getMaxRealTime()),
-                    new Argument(SandboxArgument.MAX_MEMORY, compileConfig.getMaxMemory() * 1024L),
-                    new Argument(SandboxArgument.MAX_STACK, 128 * 1024 * 1024L),
-                    new Argument(SandboxArgument.MAX_OUTPUT_SIZE, 20 * 1024 * 1024), // 20MB
-                    new Argument(SandboxArgument.EXE_PATH, _commands[0]),
-                    new Argument(SandboxArgument.EXE_ARGS, Arrays.copyOfRange(_commands, 1, _commands.length)),
-                    new Argument(SandboxArgument.EXE_ENVS, exeEnvs),
-                    new Argument(SandboxArgument.INPUT_PATH, "/dev/null"),
-                    new Argument(SandboxArgument.OUTPUT_PATH, compilerLogPath)
+                        new Argument(SandboxArgument.MAX_CPU_TIME, compileConfig.getMaxCpuTime()),
+                        new Argument(SandboxArgument.MAX_REAL_TIME, compileConfig.getMaxRealTime()),
+                        new Argument(SandboxArgument.MAX_MEMORY, compileConfig.getMaxMemory() * 1024L),
+                        new Argument(SandboxArgument.MAX_STACK, 128 * 1024 * 1024L),
+                        new Argument(SandboxArgument.MAX_OUTPUT_SIZE, 20 * 1024 * 1024), // 20MB
+                        new Argument(SandboxArgument.EXE_PATH, _commands[0]),
+                        new Argument(SandboxArgument.EXE_ARGS, Arrays.copyOfRange(_commands, 1, _commands.length)),
+                        new Argument(SandboxArgument.EXE_ENVS, exeEnvs),
+                        new Argument(SandboxArgument.INPUT_PATH, "/dev/null"),
+                        new Argument(SandboxArgument.OUTPUT_PATH, compilerLogPath)
                 );
 
                 SandboxResultDTO sandboxResultDTO = SandboxRunner.run(0, workspaceDir, _args);
@@ -164,7 +170,7 @@ public class IOSubmissionHandler extends AbstractSubmissionHandler {
                 }
 
                 try {
-                    sb.append(FileUtils.readFile(Paths.get(workspaceDir, compilerLogPath).toString())).append("\n");
+                    sb.append(FileUtils.readFile(Paths.get(workspaceDir, compilerLogPath).toString()));
                 } catch (SystemErrorException e) {
                     throw new CompileErrorException(sb.toString());
                 }
@@ -188,7 +194,7 @@ public class IOSubmissionHandler extends AbstractSubmissionHandler {
         private final String outputPath;
         private final String answerPath;
 
-        private final List<Argument[]> argsList;
+        private final Argument[] runCommand;
 
         IOJudgeCommand(long submissionId, int caseNo, int score, int timeLimit, int memoryLimit, String inputPath,
                        String outputPath, String answerPath, JudgeTemplateConfigDTO.TemplateConfig.Run runConfig) throws SystemErrorException {
@@ -198,12 +204,9 @@ public class IOSubmissionHandler extends AbstractSubmissionHandler {
             this.outputPath = outputPath;
             this.answerPath = answerPath;
 
-            argsList = new ArrayList<>();
+            String[] _commands = IOSubmissionHandler.WHITESPACE_PATTERN.split(runConfig.getCommand().trim());
 
-            for (String eachCompileCommand : runConfig.getCommands()) {
-                String[] _commands = eachCompileCommand.split(" ");
-
-                Argument[] _args = ArrayUtils.toArray(
+            runCommand = ArrayUtils.toArray(
                     new Argument(SandboxArgument.MAX_CPU_TIME, timeLimit * runConfig.getMaxCpuTimeFactor()),
                     new Argument(SandboxArgument.MAX_REAL_TIME, timeLimit * runConfig.getMaxRealTimeFactor()),
                     new Argument(SandboxArgument.MAX_MEMORY, memoryLimit * runConfig.getMaxMemoryFactor() * 1024L),
@@ -215,39 +218,26 @@ public class IOSubmissionHandler extends AbstractSubmissionHandler {
                     new Argument(SandboxArgument.OUTPUT_PATH, outputPath),
                     new Argument(SandboxArgument.UID, PathConfig.NOBODY_UID),
                     new Argument(SandboxArgument.GID, PathConfig.NOBODY_GID)
-                );
-
-                argsList.add(_args);
-            }
+            );
         }
 
         @Override
         public CommandExecuteResult<CheckpointResultMessageDTO> run(int coreNo) {
             CommandExecuteResult<CheckpointResultMessageDTO> commandExecuteResult = null;
-            int maxUsedTime = 0;
-            int maxUsedMemory = 0;
             try {
-                boolean success = true;
-                for (Argument[] args : argsList) {
-                    SandboxResultDTO judgeResult = SandboxRunner.run(coreNo, workspaceDir, args);
-                    maxUsedTime = Math.max(maxUsedTime, judgeResult.getCpuTime());
-                    maxUsedMemory = Math.max(maxUsedMemory, judgeResult.getMemory());
-                    if (SandboxResult.SYSTEM_ERROR.equals(judgeResult.getResult())) {
-                        throw new SystemErrorException(String.format("Sandbox Internal Error #%d, signal #%d", judgeResult.getError(), judgeResult.getSignal()));
-                    } else if (!SandboxResult.SUCCESS.equals(judgeResult.getResult())) {
-                        success = false;
-                        commandExecuteResult = new CommandExecuteResult<>(new CheckpointResultMessageDTO(
-                                submissionId, caseNo, SandboxResult.of(judgeResult.getResult()).submissionJudgeResult.code,
-                                0, maxUsedTime, maxUsedMemory
-                        ));
-                        break;
-                    }
-                }
-                if (success) {
+                SandboxResultDTO judgeResult = SandboxRunner.run(coreNo, workspaceDir, runCommand);
+                if (SandboxResult.SYSTEM_ERROR.equals(judgeResult.getResult())) {
+                    throw new SystemErrorException(String.format("Sandbox Internal Error #%d, signal #%d", judgeResult.getError(), judgeResult.getSignal()));
+                } else if (SandboxResult.SUCCESS.equals(judgeResult.getResult())) {
                     SubmissionJudgeResult result = check();
                     commandExecuteResult = new CommandExecuteResult<>(new CheckpointResultMessageDTO(
                             submissionId, caseNo, result.code,
-                            SubmissionJudgeResult.AC.code == result.code ? score : 0, maxUsedTime, maxUsedMemory
+                            SubmissionJudgeResult.AC.code == result.code ? score : 0, judgeResult.getCpuTime(), judgeResult.getMemory()
+                    ));
+                } else {
+                    commandExecuteResult = new CommandExecuteResult<>(new CheckpointResultMessageDTO(
+                            submissionId, caseNo, SandboxResult.of(judgeResult.getResult()).submissionJudgeResult.code,
+                            0, judgeResult.getCpuTime(), judgeResult.getMemory()
                     ));
                 }
             } catch (SystemErrorException e) {
@@ -255,7 +245,7 @@ public class IOSubmissionHandler extends AbstractSubmissionHandler {
                 judgeLog += e + "\n";
                 commandExecuteResult = new CommandExecuteResult<>(new CheckpointResultMessageDTO(
                         submissionId, caseNo, SubmissionJudgeResult.SE.code,
-                        0, maxUsedTime, maxUsedMemory
+                        0, 0, 0
                 ));
             } catch (Exception e) {
                 log.warn("", e);
