@@ -130,7 +130,7 @@ public class IOSubmissionHandler extends AbstractSubmissionHandler {
         result.setJudgeResult(judgeResult.code);
         result.setJudgeScore(judgeScore);
         result.setUsedTime(maxUsedTime);
-        result.setUsedMemory(maxUsedTime);
+        result.setUsedMemory(maxUsedMemory);
         result.setJudgeLog(judgeLog);
 
         return result;

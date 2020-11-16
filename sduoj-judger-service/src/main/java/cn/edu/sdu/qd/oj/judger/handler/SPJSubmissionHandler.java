@@ -135,13 +135,14 @@ public class SPJSubmissionHandler extends AbstractSubmissionHandler {
         result.setJudgeResult(judgeResult.code);
         result.setJudgeScore(judgeScore);
         result.setUsedTime(maxUsedTime);
-        result.setUsedMemory(maxUsedTime);
+        result.setUsedMemory(maxUsedMemory);
         result.setJudgeLog(judgeLog);
 
         return result;
     }
 
-    private void compile(JudgeTemplateConfigDTO.TemplateConfig.Compile compileConfig, JudgeTemplateConfigDTO.TemplateConfig.Compile spjCompileConfig) throws CompileErrorException {
+    private void compile(JudgeTemplateConfigDTO.TemplateConfig.Compile compileConfig,
+                         JudgeTemplateConfigDTO.TemplateConfig.Compile spjCompileConfig) throws CompileErrorException {
         try {
             String srcPath = compileConfig.getSrcName();
             String spjSrcPath = spjCompileConfig.getSrcName();
@@ -152,79 +153,53 @@ public class SPJSubmissionHandler extends AbstractSubmissionHandler {
             String[] exeEnvs = new String[1];
             exeEnvs[0] = "PATH=" + System.getenv("PATH");
 
-            StringBuilder sb = new StringBuilder();
-
             // 编译用户代码
-            for (String eachCompileCommand : compileConfig.getCommands()) {
-                String[] _commands = SPJSubmissionHandler.WHITESPACE_PATTERN.split(eachCompileCommand.trim());
-
-                Argument[] _args = ArrayUtils.toArray(
-                        new Argument(SandboxArgument.MAX_CPU_TIME, compileConfig.getMaxCpuTime()),
-                        new Argument(SandboxArgument.MAX_REAL_TIME, compileConfig.getMaxRealTime()),
-                        new Argument(SandboxArgument.MAX_MEMORY, compileConfig.getMaxMemory() * 1024L),
-                        new Argument(SandboxArgument.MAX_STACK, 128 * 1024 * 1024L),
-                        new Argument(SandboxArgument.MAX_OUTPUT_SIZE, 20 * 1024 * 1024), // 20MB
-                        new Argument(SandboxArgument.EXE_PATH, _commands[0]),
-                        new Argument(SandboxArgument.EXE_ARGS, Arrays.copyOfRange(_commands, 1, _commands.length)),
-                        new Argument(SandboxArgument.EXE_ENVS, exeEnvs),
-                        new Argument(SandboxArgument.INPUT_PATH, "/dev/null"),
-                        new Argument(SandboxArgument.OUTPUT_PATH, compilerLogPath)
-                );
-
-                SandboxResultDTO sandboxResultDTO = SandboxRunner.run(0, workspaceDir, _args);
-                if (sandboxResultDTO == null) {
-                    throw new SystemErrorException(String.format("Can not launch sandbox for command \"%s\"", eachCompileCommand));
-                }
-
-                try {
-                    sb.append(FileUtils.readFile(Paths.get(workspaceDir, compilerLogPath).toString()));
-                } catch (SystemErrorException e) {
-                    throw new CompileErrorException(sb.toString());
-                }
-
-                if (!SandboxResult.SUCCESS.equals(sandboxResultDTO.getResult())) {
-                    throw new CompileErrorException(sb.toString());
-                }
-            }
-
+            judgeLog = compileCode(compileConfig, exeEnvs, compilerLogPath);
             // 编译spj代码
-            for (String eachCompileCommand : spjCompileConfig.getCommands()) {
-                String[] _commands = SPJSubmissionHandler.WHITESPACE_PATTERN.split(eachCompileCommand.trim());
-
-                Argument[] _args = ArrayUtils.toArray(
-                        new Argument(SandboxArgument.MAX_CPU_TIME, spjCompileConfig.getMaxCpuTime()),
-                        new Argument(SandboxArgument.MAX_REAL_TIME, spjCompileConfig.getMaxRealTime()),
-                        new Argument(SandboxArgument.MAX_MEMORY, spjCompileConfig.getMaxMemory() * 1024L),
-                        new Argument(SandboxArgument.MAX_STACK, 128 * 1024 * 1024L),
-                        new Argument(SandboxArgument.MAX_OUTPUT_SIZE, 20 * 1024 * 1024), // 20MB
-                        new Argument(SandboxArgument.EXE_PATH, _commands[0]),
-                        new Argument(SandboxArgument.EXE_ARGS, Arrays.copyOfRange(_commands, 1, _commands.length)),
-                        new Argument(SandboxArgument.EXE_ENVS, exeEnvs),
-                        new Argument(SandboxArgument.INPUT_PATH, "/dev/null"),
-                        new Argument(SandboxArgument.OUTPUT_PATH, compilerLogPath)
-                );
-
-                SandboxResultDTO sandboxResultDTO = SandboxRunner.run(0, workspaceDir, _args);
-                if (sandboxResultDTO == null) {
-                    throw new SystemErrorException(String.format("Can not launch sandbox for command \"%s\"", eachCompileCommand));
-                }
-
-                try {
-                    sb.append(FileUtils.readFile(Paths.get(workspaceDir, compilerLogPath).toString()));
-                } catch (SystemErrorException e) {
-                    throw new CompileErrorException(sb.toString() + "\n" + e.toString());
-                }
-
-                if (!SandboxResult.SUCCESS.equals(sandboxResultDTO.getResult())) {
-                    throw new CompileErrorException(sb.toString());
-                }
-            }
+            judgeLog += compileCode(spjCompileConfig, exeEnvs, compilerLogPath);
 
             log.info("Compiled");
-            judgeLog = sb.toString();
         } catch (SystemErrorException e) {
             throw new CompileErrorException(e);
         }
+    }
+
+    private String compileCode(JudgeTemplateConfigDTO.TemplateConfig.Compile compileConfig,
+                               String[] exeEnvs,
+                               String compilerLogPath) throws SystemErrorException, CompileErrorException {
+        StringBuilder sb = new StringBuilder();
+        for (String eachCompileCommand : compileConfig.getCommands()) {
+            String[] _commands = SPJSubmissionHandler.WHITESPACE_PATTERN.split(eachCompileCommand.trim());
+
+            Argument[] _args = ArrayUtils.toArray(
+                    new Argument(SandboxArgument.MAX_CPU_TIME, compileConfig.getMaxCpuTime()),
+                    new Argument(SandboxArgument.MAX_REAL_TIME, compileConfig.getMaxRealTime()),
+                    new Argument(SandboxArgument.MAX_MEMORY, compileConfig.getMaxMemory() * 1024L),
+                    new Argument(SandboxArgument.MAX_STACK, 128 * 1024 * 1024L),
+                    new Argument(SandboxArgument.MAX_OUTPUT_SIZE, 20 * 1024 * 1024), // 20MB
+                    new Argument(SandboxArgument.EXE_PATH, _commands[0]),
+                    new Argument(SandboxArgument.EXE_ARGS, Arrays.copyOfRange(_commands, 1, _commands.length)),
+                    new Argument(SandboxArgument.EXE_ENVS, exeEnvs),
+                    new Argument(SandboxArgument.INPUT_PATH, "/dev/null"),
+                    new Argument(SandboxArgument.OUTPUT_PATH, compilerLogPath)
+            );
+
+            SandboxResultDTO sandboxResultDTO = SandboxRunner.run(0, workspaceDir, _args);
+            if (sandboxResultDTO == null) {
+                throw new SystemErrorException(String.format("Can not launch sandbox for command \"%s\"", eachCompileCommand));
+            }
+
+            try {
+                sb.append(FileUtils.readFile(Paths.get(workspaceDir, compilerLogPath).toString()));
+            } catch (SystemErrorException e) {
+                throw new CompileErrorException(sb.toString() + "\n" + e.toString());
+            }
+
+            if (!SandboxResult.SUCCESS.equals(sandboxResultDTO.getResult())) {
+                throw new CompileErrorException(sb.toString());
+            }
+        }
+        return sb.toString();
     }
 
     private class SPJJudgeCommand implements Command {
