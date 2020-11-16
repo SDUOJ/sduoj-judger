@@ -112,7 +112,7 @@ public class AdvancedSubmissionHandler extends AbstractSubmissionHandler {
     @AllArgsConstructor
     private enum ExitCode {
         WA(111, SubmissionJudgeResult.WA),
-
+        CE(112, SubmissionJudgeResult.CE);
         ;
 
         int code;

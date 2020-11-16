@@ -33,6 +33,8 @@ import java.nio.file.Paths;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Optional;
+import java.util.regex.Matcher;
+import java.util.regex.Pattern;
 import java.util.stream.Collectors;
 import java.util.zip.ZipEntry;
 import java.util.zip.ZipInputStream;
@@ -267,5 +269,39 @@ public abstract class AbstractSubmissionHandler {
                 throw new SystemErrorException(String.format("Can not download checkpoints:\n%s", e));
             }
         }
+    }
+
+
+    public static final Pattern PATTERN_PROBLEM_CONFIG = Pattern.compile("(\\{problemTimeLimit\\}|\\{problemMemoryLimit\\})");
+    /**
+    * @Description 字符串中模板替换成题目配置
+    * support: {problemTimeLimit}, {problemMemoryLimit}
+    **/
+    protected String replacePatternToProblemInfo(String str) {
+        if (StringUtils.isBlank(str)) {
+            return str;
+        }
+        Matcher matcher = PATTERN_PROBLEM_CONFIG.matcher(str);
+        StringBuffer sb = new StringBuffer();
+        while (matcher.find()) {
+            // 值多的话换成 map
+            switch (matcher.group(1)) {
+                case "{problemTimeLimit}":
+                    matcher.appendReplacement(sb, problem.getTimeLimit().toString());
+                    break;
+                case "{problemMemoryLimit}":
+                    matcher.appendReplacement(sb, problem.getMemoryLimit().toString());
+                    break;
+            }
+        }
+        matcher.appendTail(sb);
+        return sb.toString();
+    }
+
+    protected String[] replacePatternToProblemInfo(String[] strs) {
+        for (int i = 0; i < strs.length; i++) {
+            strs[i] = replacePatternToProblemInfo(strs[i]);
+        }
+        return strs;
     }
 }
