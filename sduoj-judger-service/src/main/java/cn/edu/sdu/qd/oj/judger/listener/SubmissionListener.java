@@ -12,6 +12,9 @@ import cn.edu.sdu.qd.oj.judgetemplate.enums.JudgeTemplateTypeEnum;
 import cn.edu.sdu.qd.oj.submit.dto.SubmissionJudgeDTO;
 import cn.edu.sdu.qd.oj.submit.dto.SubmissionMessageDTO;
 import lombok.extern.slf4j.Slf4j;
+import org.springframework.amqp.rabbit.annotation.Exchange;
+import org.springframework.amqp.rabbit.annotation.Queue;
+import org.springframework.amqp.rabbit.annotation.QueueBinding;
 import org.springframework.amqp.rabbit.annotation.RabbitListener;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.context.properties.EnableConfigurationProperties;
@@ -35,7 +38,10 @@ public class SubmissionListener {
     @Autowired
     protected RabbitSender rabbitSender;
 
-    @RabbitListener(queues = "judge_queue")
+    @RabbitListener(bindings = @QueueBinding(
+            value = @Queue(value = "sduoj.submission.submit.judger", durable = "true"),
+            exchange = @Exchange(value = "sduoj.submission.submit", ignoreDeclarationExceptions = "true")
+    ))
     public void handleSubmissionMessage(SubmissionMessageDTO messageDTO) throws Throwable {
         log.info("submissionId {}, version {}", messageDTO.getSubmissionId(), messageDTO.getVersion());
         try {

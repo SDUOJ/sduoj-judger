@@ -21,7 +21,7 @@ public class RabbitSender {
     * @Description 发送单点评测结果
     **/
     public void sendOneJudgeResult(CheckpointResultMessageDTO messageDTO) {
-        send("sduoj.submission.exchange", "submission.checkpoint.push", messageDTO);
+        send("sduoj.checkpoint.finish", "", messageDTO);
     }
 
     private void send(String exchange, String routingKey, Object o) {
