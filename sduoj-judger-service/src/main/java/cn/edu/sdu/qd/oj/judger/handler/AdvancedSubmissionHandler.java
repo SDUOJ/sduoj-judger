@@ -82,7 +82,7 @@ public class AdvancedSubmissionHandler extends AbstractSubmissionHandler {
         // 发送 judging 的 websocket
         rabbitSender.sendOneJudgeResult(new CheckpointResultMessageDTO(submissionId, SubmissionJudgeResult.JUDGING.code));
 
-        SandboxResultDTO sandboxResult = SandboxRunner.run(0, workspaceDir, _args);
+        SandboxResultDTO sandboxResult = SandboxRunner.run(workspaceDir, _args);
         if (sandboxResult == null) {
             throw new SystemErrorException(String.format("Can not launch sandbox for command \"%s\"", jtPath));
         }

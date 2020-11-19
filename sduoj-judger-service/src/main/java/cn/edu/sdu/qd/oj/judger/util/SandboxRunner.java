@@ -1,5 +1,6 @@
 package cn.edu.sdu.qd.oj.judger.util;
 
+import cn.edu.sdu.qd.oj.judger.config.CpuConfig;
 import cn.edu.sdu.qd.oj.judger.exception.SystemErrorException;
 import cn.edu.sdu.qd.oj.sandbox.dto.Argument;
 import cn.edu.sdu.qd.oj.sandbox.dto.SandboxResultDTO;
@@ -13,6 +14,10 @@ import java.util.List;
 public class SandboxRunner {
 
     private static final String SANDBOX_PATH = "/usr/bin/sandbox";
+
+    public static SandboxResultDTO run(String cwd, Argument... args) throws SystemErrorException {
+        return run(CpuConfig.getCpuSet().iterator().next(),cwd, args);
+    }
 
     public static SandboxResultDTO run(int coreNo, String cwd, Argument... args) throws SystemErrorException {
         List<String> commandList = new ArrayList<>();

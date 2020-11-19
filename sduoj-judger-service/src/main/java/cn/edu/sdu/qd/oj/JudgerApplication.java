@@ -1,5 +1,6 @@
 package cn.edu.sdu.qd.oj;
 
+import cn.edu.sdu.qd.oj.judger.config.CpuConfig;
 import cn.edu.sdu.qd.oj.judger.config.PathConfig;
 import cn.edu.sdu.qd.oj.judger.util.ProcessUtils;
 import cn.edu.sdu.qd.oj.judger.util.FileUtils;
@@ -20,6 +21,7 @@ public class JudgerApplication {
     public static void main(String[] args) {
         judgeLinuxOS();
         initBaseDirectory();
+        initCpuAffinity();
         SpringApplication.run(JudgerApplication.class, args);
     }
 
@@ -45,6 +47,15 @@ public class JudgerApplication {
             FileUtils.createDir(PathConfig.ZIP_DIR);
             FileUtils.createDir(PathConfig.WORKSPACE_DIR);
             ProcessUtils.chmod(PathConfig.WORKSPACE_DIR, "711");
+        } catch (Throwable t) {
+            log.error("", t);
+            System.exit(-1);
+        }
+    }
+
+    private static void initCpuAffinity() {
+        try {
+            CpuConfig.initialize();
         } catch (Throwable t) {
             log.error("", t);
             System.exit(-1);
