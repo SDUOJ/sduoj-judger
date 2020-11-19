@@ -31,9 +31,8 @@ RUN ln -sf /usr/lib/jvm/java-8-openjdk-amd64/bin/java /usr/bin/java \
  && rm -rf /sduoj/sduoj-judger-master \
  && apt-get purge -y maven
 
-ENV CORE_NUM=1
 ENV NACOS_ADDR=nacos.oj.qd.sdu.edu.cn:8848
 ENV ACTIVE=prod
 
 WORKDIR /sduoj
-CMD java -jar sduoj-judger.jar --sduoj.judger.core-num=$CORE_NUM --sduoj.config.nacos-addr=$NACOS_ADDR --sduoj.config.active=$ACTIVE > /sduoj/sduoj.log
+CMD java -jar sduoj-judger.jar --sduoj.config.nacos-addr=$NACOS_ADDR --sduoj.config.active=$ACTIVE > /sduoj/sduoj.log

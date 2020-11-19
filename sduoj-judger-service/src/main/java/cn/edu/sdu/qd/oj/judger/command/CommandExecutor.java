@@ -1,8 +1,8 @@
 package cn.edu.sdu.qd.oj.judger.command;
 
+import cn.edu.sdu.qd.oj.judger.config.CpuConfig;
 import cn.edu.sdu.qd.oj.judger.dto.CommandExecuteResult;
 import lombok.extern.slf4j.Slf4j;
-import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Component;
 
 import java.util.Queue;
@@ -37,22 +37,19 @@ public class CommandExecutor {
         return threadPool.take().get();
     }
 
-    public CommandExecutor(@Value("${sduoj.judger.core-num}") int coreNum) {
+    public CommandExecutor() {
         // 初始化 cpu 池
-        cpuPool = new LinkedBlockingDeque<>(coreNum);
-        for (int i = 0; i < coreNum; i++) {
-            cpuPool.offer(i);
-        }
+        cpuPool = new LinkedBlockingDeque<>(CpuConfig.getCpuSet());
         // 初始化线程池
         threadPool = new ExecutorCompletionService<>(new ThreadPoolExecutor(
-                coreNum,
-                coreNum,
+                cpuPool.size(),
+                cpuPool.size(),
                 0,
                 TimeUnit.SECONDS,
                 new LinkedBlockingQueue<>(1024),
                 new ThreadPoolExecutor.CallerRunsPolicy())
         );
-        log.info("init threadPool {}", coreNum);
+        log.info("init threadPool {}", cpuPool.size());
     }
 
 

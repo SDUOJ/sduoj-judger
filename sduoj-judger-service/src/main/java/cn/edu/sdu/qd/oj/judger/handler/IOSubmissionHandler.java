@@ -164,7 +164,7 @@ public class IOSubmissionHandler extends AbstractSubmissionHandler {
                         new Argument(SandboxArgument.OUTPUT_PATH, compilerLogPath)
                 );
 
-                SandboxResultDTO sandboxResultDTO = SandboxRunner.run(0, workspaceDir, _args);
+                SandboxResultDTO sandboxResultDTO = SandboxRunner.run(workspaceDir, _args);
                 if (sandboxResultDTO == null) {
                     throw new SystemErrorException(String.format("Can not launch sandbox for command \"%s\"", eachCompileCommand));
                 }
