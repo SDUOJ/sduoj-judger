@@ -1,7 +1,7 @@
 package cn.edu.sdu.qd.oj.judger.handler;
 
+import cn.edu.sdu.qd.oj.common.util.CollectionUtils;
 import cn.edu.sdu.qd.oj.judger.command.Command;
-import cn.edu.sdu.qd.oj.judger.command.CommandExecutor;
 import cn.edu.sdu.qd.oj.judger.config.PathConfig;
 import cn.edu.sdu.qd.oj.judger.dto.CommandExecuteResult;
 import cn.edu.sdu.qd.oj.judger.exception.CompileErrorException;
@@ -21,13 +21,11 @@ import cn.edu.sdu.qd.oj.submit.enums.SubmissionJudgeResult;
 import com.alibaba.fastjson.JSON;
 import lombok.extern.slf4j.Slf4j;
 import org.apache.commons.lang3.ArrayUtils;
-import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Component;
 
 import java.nio.file.Paths;
 import java.util.*;
 import java.util.concurrent.ExecutionException;
-import java.util.regex.Pattern;
 import java.util.stream.Collectors;
 
 
@@ -35,19 +33,17 @@ import java.util.stream.Collectors;
 @Component
 public class IOSubmissionHandler extends AbstractSubmissionHandler {
 
-    private String judgeLog;
-    private static final Pattern WHITESPACE_PATTERN = Pattern.compile("\\s+");
-
-    @Autowired
-    private CommandExecutor commandExecutor;
-
-
     @Override
     public JudgeTemplateTypeEnum getSupportJudgeTemplateType() {
         return JudgeTemplateTypeEnum.IO;
     }
 
     protected SubmissionUpdateReqDTO start() throws CompileErrorException, SystemErrorException {
+        // 如果检查点为空，直接报 SE
+        if (CollectionUtils.isEmpty(checkpoints)) {
+            throw new SystemErrorException("No checkpoint files!!");
+        }
+
         // 评测基本信息
         long submissionId = submission.getSubmissionId();
         JudgeTemplateConfigDTO judgeTemplateConfigDTO = JSON.parseObject(judgeTemplate.getShellScript(), JudgeTemplateConfigDTO.class);
