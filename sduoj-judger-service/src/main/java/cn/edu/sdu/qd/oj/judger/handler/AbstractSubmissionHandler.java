@@ -4,6 +4,7 @@ import cn.edu.sdu.qd.oj.checkpoint.dto.CheckpointManageListDTO;
 import cn.edu.sdu.qd.oj.common.util.CollectionUtils;
 import cn.edu.sdu.qd.oj.dto.FileDownloadReqDTO;
 import cn.edu.sdu.qd.oj.judger.client.*;
+import cn.edu.sdu.qd.oj.judger.command.CommandExecutor;
 import cn.edu.sdu.qd.oj.judger.config.PathConfig;
 import cn.edu.sdu.qd.oj.judger.exception.CompileErrorException;
 import cn.edu.sdu.qd.oj.judger.exception.SystemErrorException;
@@ -66,6 +67,9 @@ public abstract class AbstractSubmissionHandler {
     @Autowired
     protected RabbitSender rabbitSender;
 
+    @Autowired
+    protected CommandExecutor commandExecutor;
+
     protected SubmissionJudgeDTO submission;
 
     protected JudgeTemplateDTO judgeTemplate;
@@ -78,6 +82,10 @@ public abstract class AbstractSubmissionHandler {
 
     protected List<CheckpointManageListDTO> checkpoints;
 
+    protected String judgeLog;
+
+    protected static final Pattern WHITESPACE_PATTERN = Pattern.compile("\\s+");
+
     public abstract JudgeTemplateTypeEnum getSupportJudgeTemplateType();
 
     /**
@@ -87,6 +95,16 @@ public abstract class AbstractSubmissionHandler {
     protected abstract SubmissionUpdateReqDTO start() throws CompileErrorException, SystemErrorException ;
 
     public void handle(SubmissionJudgeDTO submissionJudgeDTO, JudgeTemplateDTO judgeTemplateDTO) throws Throwable {
+        // 清空上次评测残留
+        this.submission = null;
+        this.judgeTemplate = null;
+        this.workspaceDir = null;
+        this.userOutputDir = null;
+        this.problem = null;
+        this.checkpoints = null;
+        this.judgeLog = null;
+
+
         this.submission = submissionJudgeDTO;
         this.judgeTemplate = judgeTemplateDTO;
         SubmissionUpdateReqDTO updateReqDTO = null;
@@ -234,6 +252,10 @@ public abstract class AbstractSubmissionHandler {
                     .orElse(Lists.newArrayList());
         } catch (Exception e) {
             throw new SystemErrorException(String.format("Can not query checkpoint:\n%s", e));
+        }
+        // 如果检查点为空，直接报 SE
+        if (CollectionUtils.isEmpty(checkpoints)) {
+            throw new SystemErrorException("No checkpoint files!!");
         }
         // 检查所有checkpoints，找出本地没有的检查点
         List<CheckpointManageListDTO> neededCheckpoint = checkpoints.stream()

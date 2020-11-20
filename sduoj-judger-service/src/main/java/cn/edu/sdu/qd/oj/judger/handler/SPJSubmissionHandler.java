@@ -1,7 +1,6 @@
 package cn.edu.sdu.qd.oj.judger.handler;
 
 import cn.edu.sdu.qd.oj.judger.command.Command;
-import cn.edu.sdu.qd.oj.judger.command.CommandExecutor;
 import cn.edu.sdu.qd.oj.judger.config.PathConfig;
 import cn.edu.sdu.qd.oj.judger.dto.CommandExecuteResult;
 import cn.edu.sdu.qd.oj.judger.exception.CompileErrorException;
@@ -22,26 +21,17 @@ import com.alibaba.fastjson.JSON;
 import lombok.AllArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.apache.commons.lang3.ArrayUtils;
-import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Component;
 
 import java.nio.file.Paths;
 import java.util.*;
 import java.util.concurrent.ExecutionException;
-import java.util.regex.Pattern;
 import java.util.stream.Collectors;
 
 
 @Slf4j
 @Component
 public class SPJSubmissionHandler extends AbstractSubmissionHandler {
-
-    private String judgeLog;
-    private static final Pattern WHITESPACE_PATTERN = Pattern.compile("\\s+");
-
-    @Autowired
-    private CommandExecutor commandExecutor;
-
 
     @Override
     public JudgeTemplateTypeEnum getSupportJudgeTemplateType() {
