@@ -253,10 +253,6 @@ public abstract class AbstractSubmissionHandler {
         } catch (Exception e) {
             throw new SystemErrorException(String.format("Can not query checkpoint:\n%s", e));
         }
-        // 如果检查点为空，直接报 SE
-        if (CollectionUtils.isEmpty(checkpoints)) {
-            throw new SystemErrorException("No checkpoint files!!");
-        }
         // 检查所有checkpoints，找出本地没有的检查点
         List<CheckpointManageListDTO> neededCheckpoint = checkpoints.stream()
                 .filter(o -> !localCheckpointManager.isCheckpointExist(o.getCheckpointId()))

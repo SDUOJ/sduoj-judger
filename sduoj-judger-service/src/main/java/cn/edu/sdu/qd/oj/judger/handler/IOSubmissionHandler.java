@@ -1,5 +1,6 @@
 package cn.edu.sdu.qd.oj.judger.handler;
 
+import cn.edu.sdu.qd.oj.common.util.CollectionUtils;
 import cn.edu.sdu.qd.oj.judger.command.Command;
 import cn.edu.sdu.qd.oj.judger.config.PathConfig;
 import cn.edu.sdu.qd.oj.judger.dto.CommandExecuteResult;
@@ -38,6 +39,11 @@ public class IOSubmissionHandler extends AbstractSubmissionHandler {
     }
 
     protected SubmissionUpdateReqDTO start() throws CompileErrorException, SystemErrorException {
+        // 如果检查点为空，直接报 SE
+        if (CollectionUtils.isEmpty(checkpoints)) {
+            throw new SystemErrorException("No checkpoint files!!");
+        }
+
         // 评测基本信息
         long submissionId = submission.getSubmissionId();
         JudgeTemplateConfigDTO judgeTemplateConfigDTO = JSON.parseObject(judgeTemplate.getShellScript(), JudgeTemplateConfigDTO.class);
