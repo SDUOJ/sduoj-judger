@@ -3,7 +3,7 @@ MAINTAINER SDUOJ-dev
 
 COPY docker/sources.list /etc/apt/sources.list
 COPY docker/mavenSettings.xml /usr/share/maven/conf/settings.xml
-COPY docker/testlib.h /testlib.h
+COPY docker/testlib /testlib.h
 
 RUN apt-get update \
  && apt-get install -y sudo git unzip wget libseccomp-dev libseccomp2 seccomp build-essential python3-pip python dosbox openjdk-8-jdk maven

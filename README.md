@@ -26,7 +26,7 @@ docker run -di \
 ```
 
 * Docker parms:
-    * `pids-limit`: the limit of process in container
+    * `--pids-limit`: the limit of process in container
     * `--cpuset-cpus`: the settings of cpu
     * `--cpu-shares`: the relative weight of cpu
     * `NACOS_ADDR`: the host of Nacos
