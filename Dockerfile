@@ -4,6 +4,7 @@ MAINTAINER SDUOJ-dev
 COPY docker/sources.list /etc/apt/sources.list
 COPY docker/mavenSettings.xml /usr/share/maven/conf/settings.xml
 COPY docker/testlib /testlib.h
+ADD https://github.com/ufoscout/docker-compose-wait/releases/download/2.7.3/wait /wait
 
 RUN apt-get update \
  && apt-get install -y sudo git unzip wget libseccomp-dev libseccomp2 seccomp build-essential python3-pip python dosbox openjdk-8-jdk maven
@@ -29,10 +30,12 @@ RUN ln -sf /usr/lib/jvm/java-8-openjdk-amd64/bin/java /usr/bin/java \
  && rm -rf ~/.m2 \
  && rm -rf /sduoj/sduoj-server-master \
  && rm -rf /sduoj/sduoj-judger-master \
- && apt-get purge -y maven
+ && apt-get purge -y maven \
+ && chmod +x /wait
 
 ENV NACOS_ADDR=nacos.oj.qd.sdu.edu.cn:8848
 ENV ACTIVE=prod
 
 WORKDIR /sduoj
-CMD java -jar sduoj-judger.jar --sduoj.config.nacos-addr=$NACOS_ADDR --sduoj.config.active=$ACTIVE > /sduoj/sduoj.log
+CMD /wait \
+ && java -jar sduoj-judger.jar --sduoj.config.nacos-addr=$NACOS_ADDR --sduoj.config.active=$ACTIVE > /sduoj/sduoj.log
