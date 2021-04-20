@@ -68,6 +68,7 @@ public class IOSubmissionHandler extends AbstractSubmissionHandler {
         // 题目配置：时间、空间、检查点分数
         int timeLimit = problem.getTimeLimit();
         int memoryLimit = problem.getMemoryLimit();
+        int outputLimit = problem.getMemoryLimit();
 
         SubmissionUpdateReqDTO result = SubmissionUpdateReqDTO.builder()
                 .submissionId(submissionId)
@@ -97,7 +98,7 @@ public class IOSubmissionHandler extends AbstractSubmissionHandler {
 
             Integer checkpointScore = checkpoints.get(i).getCheckpointScore();
 
-            commandExecutor.submit(new IOJudgeCommand(submissionId, i, checkpointScore, timeLimit, memoryLimit, inputPath, outputPath, answerPath, runConfig));
+            commandExecutor.submit(new IOJudgeCommand(submissionId, i, checkpointScore, timeLimit, memoryLimit, outputLimit, inputPath, outputPath, answerPath, runConfig));
         }
 
         // 收集评测结果
@@ -202,7 +203,7 @@ public class IOSubmissionHandler extends AbstractSubmissionHandler {
 
         private final Argument[] runCommand;
 
-        IOJudgeCommand(long submissionId, int caseNo, int score, int timeLimit, int memoryLimit, String inputPath,
+        IOJudgeCommand(long submissionId, int caseNo, int score, int timeLimit, int memoryLimit, int outputLimit,String inputPath,
                        String outputPath, String answerPath, JudgeTemplateConfigDTO.TemplateConfig.Run runConfig) throws SystemErrorException {
             this.submissionId = submissionId;
             this.caseNo = caseNo;
@@ -216,6 +217,7 @@ public class IOSubmissionHandler extends AbstractSubmissionHandler {
                     new Argument(SandboxArgument.MAX_CPU_TIME, timeLimit * runConfig.getMaxCpuTimeFactor()),
                     new Argument(SandboxArgument.MAX_REAL_TIME, timeLimit * runConfig.getMaxRealTimeFactor()),
                     new Argument(SandboxArgument.MAX_MEMORY, memoryLimit * runConfig.getMaxMemoryFactor() * 1024L),
+                    new Argument(SandboxArgument.MAX_OUTPUT_SIZE, outputLimit * runConfig.getMaxMemoryFactor() * 1024L),
                     new Argument(SandboxArgument.MAX_STACK, 128L * 1024 * 1024),
                     new Argument(SandboxArgument.EXE_PATH, _commands[0]),
                     new Argument(SandboxArgument.EXE_ARGS, Arrays.copyOfRange(_commands, 1, _commands.length)),

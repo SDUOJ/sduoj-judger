@@ -50,6 +50,7 @@ public class AdvancedSubmissionHandler extends AbstractSubmissionHandler {
         // 题目配置：时间、空间、检查点分数
         long submissionId = submission.getSubmissionId();
         int timeLimit = problem.getTimeLimit();
+        int outputLimit = problem.getMemoryLimit();//TODO:待修改
         int memoryLimit = problem.getMemoryLimit();
 
         String workspaceUserDir = Paths.get(workspaceDir, "user").toString();
@@ -80,6 +81,7 @@ public class AdvancedSubmissionHandler extends AbstractSubmissionHandler {
         Argument[] _args = ArrayUtils.toArray(
             new Argument(SandboxArgument.MAX_CPU_TIME, timeLimit),
             new Argument(SandboxArgument.MAX_REAL_TIME, timeLimit * 2),
+            new Argument(SandboxArgument.MAX_OUTPUT_SIZE, outputLimit * 1024L),
             new Argument(SandboxArgument.MAX_MEMORY, memoryLimit * 1024L),
             new Argument(SandboxArgument.EXE_PATH, "/bin/sh"),
             new Argument(SandboxArgument.EXE_ARGS, exeArgs),
