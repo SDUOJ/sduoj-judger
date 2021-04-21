@@ -30,6 +30,12 @@ import org.springframework.stereotype.Component;
 
 import java.nio.file.Paths;
 
+/**
+ * handle Advanced submission
+ *
+ * @author zhangt2333
+ * @author jeshrz
+ */
 @Component
 public class AdvancedSubmissionHandler extends AbstractSubmissionHandler {
 
@@ -77,17 +83,16 @@ public class AdvancedSubmissionHandler extends AbstractSubmissionHandler {
 
         String[] exeEnvs = System.getenv().entrySet().stream().map(entry -> entry.getKey() + "=" + entry.getValue()).toArray(String[]::new);
         String[] exeArgs = ArrayUtils.toArray("-c", jtPath);
-        Argument[] _args = ArrayUtils.toArray(
-            new Argument(SandboxArgument.MAX_CPU_TIME, timeLimit),
-            new Argument(SandboxArgument.MAX_REAL_TIME, timeLimit * 2),
-            new Argument(SandboxArgument.MAX_MEMORY, memoryLimit * 1024L),
-            new Argument(SandboxArgument.EXE_PATH, "/bin/sh"),
-            new Argument(SandboxArgument.EXE_ARGS, exeArgs),
-            new Argument(SandboxArgument.EXE_ENVS, exeEnvs),
-            new Argument(SandboxArgument.OUTPUT_PATH, "jt.log"),
-            new Argument(SandboxArgument.UID, 0),
-            new Argument(SandboxArgument.GID, 0)
-        );
+        Argument _args = Argument.build()
+                .add(SandboxArgument.MAX_CPU_TIME, timeLimit)
+                .add(SandboxArgument.MAX_REAL_TIME, timeLimit * 2)
+                .add(SandboxArgument.MAX_MEMORY, memoryLimit * 1024L)
+                .add(SandboxArgument.EXE_PATH, "/bin/sh")
+                .add(SandboxArgument.EXE_ARGS, exeArgs)
+                .add(SandboxArgument.EXE_ENVS, exeEnvs)
+                .add(SandboxArgument.OUTPUT_PATH, "jt.log")
+                .add(SandboxArgument.UID, 0)
+                .add(SandboxArgument.GID, 0);
 
         // 发送 judging 的 websocket
         rabbitSender.sendOneJudgeResult(new CheckpointResultMessageDTO(submissionId, SubmissionJudgeResult.JUDGING.code));
