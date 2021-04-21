@@ -31,7 +31,6 @@ import cn.edu.sdu.qd.oj.submit.enums.SubmissionJudgeResult;
 import com.alibaba.fastjson.JSON;
 import lombok.AllArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
-import org.apache.commons.lang3.ArrayUtils;
 import org.springframework.stereotype.Component;
 
 import java.nio.file.Paths;
@@ -40,6 +39,12 @@ import java.util.concurrent.ExecutionException;
 import java.util.stream.Collectors;
 
 
+/**
+ * handle SPJ submission
+ *
+ * @author jeshrz
+ * @author zhangt2333
+ */
 @Slf4j
 @Component
 public class SPJSubmissionHandler extends AbstractSubmissionHandler {
@@ -180,18 +185,17 @@ public class SPJSubmissionHandler extends AbstractSubmissionHandler {
         for (String eachCompileCommand : compileConfig.getCommands()) {
             String[] _commands = SPJSubmissionHandler.WHITESPACE_PATTERN.split(eachCompileCommand.trim());
 
-            Argument[] _args = ArrayUtils.toArray(
-                    new Argument(SandboxArgument.MAX_CPU_TIME, compileConfig.getMaxCpuTime()),
-                    new Argument(SandboxArgument.MAX_REAL_TIME, compileConfig.getMaxRealTime()),
-                    new Argument(SandboxArgument.MAX_MEMORY, compileConfig.getMaxMemory() * 1024L),
-                    new Argument(SandboxArgument.MAX_STACK, 128 * 1024 * 1024L),
-                    new Argument(SandboxArgument.MAX_OUTPUT_SIZE, 20 * 1024 * 1024), // 20MB
-                    new Argument(SandboxArgument.EXE_PATH, _commands[0]),
-                    new Argument(SandboxArgument.EXE_ARGS, Arrays.copyOfRange(_commands, 1, _commands.length)),
-                    new Argument(SandboxArgument.EXE_ENVS, exeEnvs),
-                    new Argument(SandboxArgument.INPUT_PATH, "/dev/null"),
-                    new Argument(SandboxArgument.OUTPUT_PATH, compilerLogPath)
-            );
+            Argument _args = Argument.build()
+                    .add(SandboxArgument.MAX_CPU_TIME, compileConfig.getMaxCpuTime())
+                    .add(SandboxArgument.MAX_REAL_TIME, compileConfig.getMaxRealTime())
+                    .add(SandboxArgument.MAX_MEMORY, compileConfig.getMaxMemory() * 1024L)
+                    .add(SandboxArgument.MAX_STACK, 128 * 1024 * 1024L)
+                    .add(SandboxArgument.MAX_OUTPUT_SIZE, 20 * 1024 * 1024) // 20MB
+                    .add(SandboxArgument.EXE_PATH, _commands[0])
+                    .add(SandboxArgument.EXE_ARGS, Arrays.copyOfRange(_commands, 1, _commands.length))
+                    .add(SandboxArgument.EXE_ENVS, exeEnvs)
+                    .add(SandboxArgument.INPUT_PATH, "/dev/null")
+                    .add(SandboxArgument.OUTPUT_PATH, compilerLogPath);
 
             SandboxResultDTO sandboxResultDTO = SandboxRunner.run(workspaceDir, _args);
             if (sandboxResultDTO == null) {
@@ -216,8 +220,8 @@ public class SPJSubmissionHandler extends AbstractSubmissionHandler {
         private final int caseNo;
         private final int score;
 
-        private final Argument[] runCommand;
-        private final Argument[] spjRunCommand;
+        private final Argument runCommand;
+        private final Argument spjRunCommand;
 
         SPJJudgeCommand(long submissionId, int caseNo, int score, int timeLimit, int memoryLimit, String inputPath,
                         String outputPath, String answerPath, JudgeTemplateConfigDTO.TemplateConfig.Run runConfig, JudgeTemplateConfigDTO.TemplateConfig.Run spjRunConfig) throws SystemErrorException {
@@ -226,19 +230,18 @@ public class SPJSubmissionHandler extends AbstractSubmissionHandler {
             this.score = score;
 
             String[] _commands = SPJSubmissionHandler.WHITESPACE_PATTERN.split(runConfig.getCommand().trim());
-            runCommand = ArrayUtils.toArray(
-                    new Argument(SandboxArgument.MAX_CPU_TIME, timeLimit * runConfig.getMaxCpuTimeFactor()),
-                    new Argument(SandboxArgument.MAX_REAL_TIME, timeLimit * runConfig.getMaxRealTimeFactor()),
-                    new Argument(SandboxArgument.MAX_MEMORY, memoryLimit * runConfig.getMaxMemoryFactor() * 1024L),
-                    new Argument(SandboxArgument.MAX_STACK, 128L * 1024 * 1024),
-                    new Argument(SandboxArgument.EXE_PATH, _commands[0]),
-                    new Argument(SandboxArgument.EXE_ARGS, Arrays.copyOfRange(_commands, 1, _commands.length)),
-                    new Argument(SandboxArgument.EXE_ENVS, runConfig.getEnvs()),
-                    new Argument(SandboxArgument.INPUT_PATH, inputPath),
-                    new Argument(SandboxArgument.OUTPUT_PATH, outputPath),
-                    new Argument(SandboxArgument.UID, PathConfig.NOBODY_UID),
-                    new Argument(SandboxArgument.GID, PathConfig.NOBODY_GID)
-            );
+            runCommand = Argument.build()
+                    .add(SandboxArgument.MAX_CPU_TIME, timeLimit * runConfig.getMaxCpuTimeFactor())
+                    .add(SandboxArgument.MAX_REAL_TIME, timeLimit * runConfig.getMaxRealTimeFactor())
+                    .add(SandboxArgument.MAX_MEMORY, memoryLimit * runConfig.getMaxMemoryFactor() * 1024L)
+                    .add(SandboxArgument.MAX_STACK, 128L * 1024 * 1024)
+                    .add(SandboxArgument.EXE_PATH, _commands[0])
+                    .add(SandboxArgument.EXE_ARGS, Arrays.copyOfRange(_commands, 1, _commands.length))
+                    .add(SandboxArgument.EXE_ENVS, runConfig.getEnvs())
+                    .add(SandboxArgument.INPUT_PATH, inputPath)
+                    .add(SandboxArgument.OUTPUT_PATH, outputPath)
+                    .add(SandboxArgument.UID, PathConfig.NOBODY_UID)
+                    .add(SandboxArgument.GID, PathConfig.NOBODY_GID);
 
             _commands = SPJSubmissionHandler.WHITESPACE_PATTERN.split(spjRunConfig.getCommand().trim());
             String exePath = _commands[0];
@@ -252,19 +255,18 @@ public class SPJSubmissionHandler extends AbstractSubmissionHandler {
                 exeArgs[i + 3] = _commands[i];
             }
 
-            spjRunCommand = ArrayUtils.toArray(
-                    new Argument(SandboxArgument.MAX_CPU_TIME, timeLimit * spjRunConfig.getMaxCpuTimeFactor()),
-                    new Argument(SandboxArgument.MAX_REAL_TIME, timeLimit * spjRunConfig.getMaxRealTimeFactor()),
-                    new Argument(SandboxArgument.MAX_MEMORY, memoryLimit * spjRunConfig.getMaxMemoryFactor() * 1024L),
-                    new Argument(SandboxArgument.MAX_STACK, 128L * 1024 * 1024),
-                    new Argument(SandboxArgument.EXE_PATH, exePath),
-                    new Argument(SandboxArgument.EXE_ARGS, exeArgs),
-                    new Argument(SandboxArgument.EXE_ENVS, spjRunConfig.getEnvs()),
-                    new Argument(SandboxArgument.INPUT_PATH, "/dev/null"),
-                    new Argument(SandboxArgument.OUTPUT_PATH, "/dev/null"),
-                    new Argument(SandboxArgument.UID, PathConfig.NOBODY_UID),
-                    new Argument(SandboxArgument.GID, PathConfig.NOBODY_GID)
-            );
+            spjRunCommand = Argument.build()
+                    .add(SandboxArgument.MAX_CPU_TIME, timeLimit * spjRunConfig.getMaxCpuTimeFactor())
+                    .add(SandboxArgument.MAX_REAL_TIME, timeLimit * spjRunConfig.getMaxRealTimeFactor())
+                    .add(SandboxArgument.MAX_MEMORY, memoryLimit * spjRunConfig.getMaxMemoryFactor() * 1024L)
+                    .add(SandboxArgument.MAX_STACK, 128L * 1024 * 1024)
+                    .add(SandboxArgument.EXE_PATH, exePath)
+                    .add(SandboxArgument.EXE_ARGS, exeArgs)
+                    .add(SandboxArgument.EXE_ENVS, spjRunConfig.getEnvs())
+                    .add(SandboxArgument.INPUT_PATH, "/dev/null")
+                    .add(SandboxArgument.OUTPUT_PATH, "/dev/null")
+                    .add(SandboxArgument.UID, PathConfig.NOBODY_UID)
+                    .add(SandboxArgument.GID, PathConfig.NOBODY_GID);
 
         }
 
