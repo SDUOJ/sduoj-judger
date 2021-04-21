@@ -14,7 +14,7 @@ import cn.edu.sdu.qd.oj.checkpoint.dto.CheckpointManageListDTO;
 import cn.edu.sdu.qd.oj.common.util.CollectionUtils;
 import cn.edu.sdu.qd.oj.dto.FileDownloadReqDTO;
 import cn.edu.sdu.qd.oj.judger.client.*;
-import cn.edu.sdu.qd.oj.judger.command.CommandExecutor;
+import cn.edu.sdu.qd.oj.judger.command.CpuAffinityThreadPool;
 import cn.edu.sdu.qd.oj.judger.config.PathConfig;
 import cn.edu.sdu.qd.oj.judger.exception.CompileErrorException;
 import cn.edu.sdu.qd.oj.judger.exception.SystemErrorException;
@@ -50,6 +50,11 @@ import java.util.stream.Collectors;
 import java.util.zip.ZipEntry;
 import java.util.zip.ZipInputStream;
 
+/**
+ * define default actions for submission handler
+ *
+ * @author zhangt2333
+ */
 @Slf4j
 public abstract class AbstractSubmissionHandler {
 
@@ -78,7 +83,7 @@ public abstract class AbstractSubmissionHandler {
     protected RabbitSender rabbitSender;
 
     @Autowired
-    protected CommandExecutor commandExecutor;
+    protected CpuAffinityThreadPool cpuAffinityThreadPool;
 
     protected SubmissionJudgeDTO submission;
 

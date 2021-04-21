@@ -10,8 +10,15 @@
 
 package cn.edu.sdu.qd.oj.judger.command;
 
-import cn.edu.sdu.qd.oj.judger.dto.CommandExecuteResult;
+import cn.edu.sdu.qd.oj.judger.dto.BaseDTO;
+import lombok.*;
 
-public interface Command {
-    CommandExecuteResult run(int coreNo);
+@Getter
+public class CommandResult<V> extends BaseDTO {
+
+    private final V result;
+
+    public CommandResult(V result) {
+        this.result = result;
+    }
 }

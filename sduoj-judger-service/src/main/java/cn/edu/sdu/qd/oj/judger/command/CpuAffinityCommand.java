@@ -8,16 +8,13 @@
  *      https://www.gnu.org/licenses/gpl-3.0.en.html
  */
 
-package cn.edu.sdu.qd.oj.judger.dto;
+package cn.edu.sdu.qd.oj.judger.command;
 
-import lombok.*;
-
-@Getter
-public class CommandExecuteResult<V> extends BaseDTO {
-
-    private final V result;
-
-    public CommandExecuteResult(V result) {
-        this.result = result;
-    }
+/**
+ * define the CPU-Affinity command action
+ *
+ * @author zhangt2333
+ */
+public interface CpuAffinityCommand {
+    CommandResult<?> run(int coreNo);
 }

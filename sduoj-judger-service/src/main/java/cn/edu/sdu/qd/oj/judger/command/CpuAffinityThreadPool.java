@@ -11,7 +11,6 @@
 package cn.edu.sdu.qd.oj.judger.command;
 
 import cn.edu.sdu.qd.oj.judger.config.CpuConfig;
-import cn.edu.sdu.qd.oj.judger.dto.CommandExecuteResult;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Component;
 
@@ -19,35 +18,36 @@ import java.util.Queue;
 import java.util.concurrent.*;
 
 /**
- * @Description 单核命令行执行者的调度器和管理器
- **/
-
+ * for the CPU-Affinity command scheduling and execution
+ *
+ * @author zhangt2333
+ */
 @Slf4j
 @Component
-public class CommandExecutor {
+public class CpuAffinityThreadPool {
 
     // CPU 池
     private final Queue<Integer> cpuPool;
 
     // 线程池
-    private final CompletionService<CommandExecuteResult> threadPool;
+    private final CompletionService<CommandResult> threadPool;
 
     /**
      * @Description 提交一个异步任务
      **/
-    public void submit(Command command) {
-        threadPool.submit(new CommandThread(command, cpuPool));
+    public void submit(CpuAffinityCommand cpuAffinityCommand) {
+        threadPool.submit(new CommandThread(cpuAffinityCommand, cpuPool));
     }
 
     /**
-     * @Description 获取一个任务的执行结果，顺序任意取决于任务完成顺序
+     * 获取一个任务的执行结果，顺序任意取决于任务完成顺序
      * @return cn.edu.sdu.qd.oj.judger.dto.CommandExecResult
      **/
-    public CommandExecuteResult take() throws InterruptedException, ExecutionException {
+    public CommandResult take() throws InterruptedException, ExecutionException {
         return threadPool.take().get();
     }
 
-    public CommandExecutor() {
+    public CpuAffinityThreadPool() {
         // 初始化 cpu 池
         cpuPool = new LinkedBlockingDeque<>(CpuConfig.getCpuSet());
         // 初始化线程池
@@ -63,27 +63,29 @@ public class CommandExecutor {
     }
 
 
-    private static class CommandThread implements Callable<CommandExecuteResult> {
+    private static class CommandThread implements Callable<CommandResult> {
 
-        private final Command command;
+        private final CpuAffinityCommand cpuAffinityCommand;
 
         private final Queue<Integer> cpuPool;
 
-        public CommandThread(Command command, Queue<Integer> cpuPool) {
-            this.command = command;
+        public CommandThread(CpuAffinityCommand cpuAffinityCommand, Queue<Integer> cpuPool) {
+            this.cpuAffinityCommand = cpuAffinityCommand;
             this.cpuPool = cpuPool;
         }
 
         @Override
-        public CommandExecuteResult call() throws Exception {
-            log.info("exec {}", command.toString());
+        public CommandResult<?> call() {
+            String cmd = cpuAffinityCommand.toString();
+            int cmdHash = System.identityHashCode(cmd);
+            log.info("cmd[{}] Running:\n{}", cmdHash, cmd);
             Integer coreNo = null;
             try {
                 coreNo = cpuPool.poll();
-                log.info("cpu consume {}", coreNo);
-                return command.run(coreNo != null ? coreNo : 0);
+                log.info("cmd[{}] consume CPU[{}]", cmdHash, coreNo);
+                return cpuAffinityCommand.run(coreNo != null ? coreNo : 0);
             } finally {
-                log.info("cpu release {}", coreNo);
+                log.info("cmd[{}] release CPU[{}]", cmdHash, coreNo);
                 if (coreNo != null) {
                     cpuPool.offer(coreNo);
                 }
