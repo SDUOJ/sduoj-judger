@@ -10,10 +10,12 @@
 
 package cn.edu.sdu.qd.oj.judger.util;
 
+import cn.edu.sdu.qd.oj.judger.command.CommandExecutor;
 import cn.edu.sdu.qd.oj.judger.exception.SystemErrorException;
 import lombok.extern.slf4j.Slf4j;
 import org.apache.commons.io.IOUtils;
 import org.apache.commons.lang.StringUtils;
+import org.springframework.beans.factory.annotation.Autowired;
 
 import java.io.File;
 import java.io.IOException;
@@ -23,8 +25,11 @@ import java.util.Optional;
 @Slf4j
 public class ProcessUtils {
 
+    @Autowired
+    static protected CommandExecutor commandExecutor;
+
     public static void chmod(String path, String mode) throws SystemErrorException {
-        cmdOnRootPath("sudo", "chmod", mode, path);
+        cmdOnRootPath( "sudo", "chmod", mode, path);
     }
 
     public static void chown(String path, String own) throws SystemErrorException {
@@ -46,13 +51,44 @@ public class ProcessUtils {
     /**
      * 运行一个外部命令，返回状态.若超过指定的超时时间，抛出TimeoutException
      */
-    public static ProcessStatus cmd(String pwd, final String... commands) throws SystemErrorException {
+    public static ProcessStatus cmd(int coreNo, String pwd, final String... commands) throws SystemErrorException {
         log.info("Run CommandLine\npwd: {}\ncommand: {}\n", pwd, String.join(" ", commands));
         Process process = null;
         Worker worker = null;
         try {
             process = new ProcessBuilder("/bin/sh", "-c", String.join(" ", commands))
                     .directory(Optional.ofNullable(pwd).filter(StringUtils::isNotBlank).map(File::new).orElse(null))
+                    .redirectErrorStream(true)
+                    .start();
+
+            worker = commandExecutor.getWork(coreNo);
+            worker.reset(process);
+            worker.start();
+            ProcessStatus ps = worker.getProcessStatus();
+            worker.join(120000);    /* 最多运行 120s */
+            if (ps.exitCode == ProcessStatus.CODE_STARTED) {
+                // not finished
+                worker.interrupt();
+                throw new SystemErrorException("Timeout");
+            } else {
+                return ps;
+            }
+        } catch (InterruptedException | IOException e) {
+            // canceled by other thread.
+            worker.interrupt();
+            throw new SystemErrorException("Canceled by other thread");
+        } finally {
+            process.destroy();
+        }
+    }
+
+    public static ProcessStatus cmdOnRootPath(final String... commands) throws SystemErrorException {
+        log.info("Run CommandLine\npwd: {}\ncommand: {}\n", "", String.join(" ", commands));
+        Process process = null;
+        Worker worker = null;
+        try {
+            process = new ProcessBuilder("/bin/sh", "-c", String.join(" ", commands))
+                    .directory(Optional.ofNullable("").filter(StringUtils::isNotBlank).map(File::new).orElse(null))
                     .redirectErrorStream(true)
                     .start();
 
@@ -76,22 +112,25 @@ public class ProcessUtils {
         }
     }
 
-    public static ProcessStatus cmdOnRootPath(final String... commands) throws SystemErrorException {
-        return ProcessUtils.cmd(null, commands);
-    }
+    public static class Worker extends Thread {
+        private Process process;
+        private ProcessStatus ps;
 
-    private static class Worker extends Thread {
-        private final Process process;
-        private final ProcessStatus ps;
-
-        private Worker(Process process) {
+        public Worker(Process process) {
             this.process = process;
             this.ps = new ProcessStatus();
         }
-
+        public Worker() {
+            this.process = null;
+            this.ps = new ProcessStatus();
+        }
+        public void reset(Process process) {
+            this.process = process;
+            this.ps = new ProcessStatus();
+        }
         public void run() {
             try {
-                InputStream is = process.getInputStream();
+                InputStream is = process.getInputStream();//获得运行结果
                 try {
                     ps.output = IOUtils.toString(is);
                 } catch (IOException ignore) {

@@ -12,9 +12,12 @@ package cn.edu.sdu.qd.oj.judger.command;
 
 import cn.edu.sdu.qd.oj.judger.config.CpuConfig;
 import cn.edu.sdu.qd.oj.judger.dto.CommandExecuteResult;
+import cn.edu.sdu.qd.oj.judger.util.ProcessUtils;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Component;
 
+import java.util.HashMap;
+import java.util.Map;
 import java.util.Queue;
 import java.util.concurrent.*;
 
@@ -26,14 +29,20 @@ import java.util.concurrent.*;
 @Component
 public class CommandExecutor {
 
-    // CPU 池
+    // CPU 池，是一个在这里面是一个阻塞队列
     private final Queue<Integer> cpuPool;
+
+    private Map<Integer, ProcessUtils.Worker> runPool = new HashMap<>();
 
     // 线程池
     private final CompletionService<CommandExecuteResult> threadPool;
 
+    public ProcessUtils.Worker getWork(int coreNo) {
+        return runPool.get(coreNo);
+    }
+
     /**
-     * @Description 提交一个异步任务
+     * @Description 提交一个异步任务,把提交任务时候的线程池复制给一个新的CommandThread，
      **/
     public void submit(Command command) {
         threadPool.submit(new CommandThread(command, cpuPool));
@@ -48,7 +57,7 @@ public class CommandExecutor {
     }
 
     public CommandExecutor() {
-        // 初始化 cpu 池
+        // 初始化 cpu 池,从本机配置文件中读取运行的核心都有哪些
         cpuPool = new LinkedBlockingDeque<>(CpuConfig.getCpuSet());
         // 初始化线程池
         threadPool = new ExecutorCompletionService<>(new ThreadPoolExecutor(
@@ -59,6 +68,9 @@ public class CommandExecutor {
                 new LinkedBlockingQueue<>(1024),
                 new ThreadPoolExecutor.CallerRunsPolicy())
         );
+        for (Integer q: cpuPool) {
+            runPool.put(q,new ProcessUtils.Worker());
+        }
         log.info("init threadPool {}", cpuPool.size());
     }
 
@@ -81,7 +93,8 @@ public class CommandExecutor {
             try {
                 coreNo = cpuPool.poll();
                 log.info("cpu consume {}", coreNo);
-                return command.run(coreNo != null ? coreNo : 0);
+                return command.run(coreNo != null ? coreNo : 0);//这里调用的command是外面一层包装的run函数，
+                // 是实际执行的方法，所以说CommandThread调用的是call方法，call方法调用的是内部的command任务的ran函数
             } finally {
                 log.info("cpu release {}", coreNo);
                 if (coreNo != null) {

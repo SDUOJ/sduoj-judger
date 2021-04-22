@@ -98,6 +98,7 @@ public class IOSubmissionHandler extends AbstractSubmissionHandler {
 
             Integer checkpointScore = checkpoints.get(i).getCheckpointScore();
 
+            //提交异步任务，IOJudgeCommand是command的继承，重写了run方法，实际上是自己的执行方法
             commandExecutor.submit(new IOJudgeCommand(submissionId, i, checkpointScore, timeLimit, memoryLimit, outputLimit, inputPath, outputPath, answerPath, runConfig));
         }
 
@@ -229,15 +230,15 @@ public class IOSubmissionHandler extends AbstractSubmissionHandler {
             );
         }
 
-        @Override
+        @Override//这个run是包装command的内部方法，使用CommandThread的call方法去使用，而CommandThread受线程池的调度
         public CommandExecuteResult<CheckpointResultMessageDTO> run(int coreNo) {
             CommandExecuteResult<CheckpointResultMessageDTO> commandExecuteResult = null;
             try {
-                SandboxResultDTO judgeResult = SandboxRunner.run(coreNo, workspaceDir, runCommand);
+                SandboxResultDTO judgeResult = SandboxRunner.run(coreNo, workspaceDir, runCommand);//运行沙盒获得运行结果
                 if (SandboxResult.SYSTEM_ERROR.equals(judgeResult.getResult())) {
                     throw new SystemErrorException(String.format("Sandbox Internal Error #%d, signal #%d", judgeResult.getError(), judgeResult.getSignal()));
                 } else if (SandboxResult.SUCCESS.equals(judgeResult.getResult())) {
-                    SubmissionJudgeResult result = check();
+                    SubmissionJudgeResult result = check(coreNo);//这里的ac是指程序在限制下成功运行了，下面进行文件比对，判断是AC还是WA
                     commandExecuteResult = new CommandExecuteResult<>(new CheckpointResultMessageDTO(
                             submissionId, caseNo, result.code,
                             SubmissionJudgeResult.AC.code == result.code ? score : 0, judgeResult.getCpuTime(), judgeResult.getMemory()
@@ -263,8 +264,8 @@ public class IOSubmissionHandler extends AbstractSubmissionHandler {
             return commandExecuteResult;
         }
 
-        private SubmissionJudgeResult check() throws SystemErrorException {
-            ProcessUtils.ProcessStatus processStatus = ProcessUtils.cmd(workspaceDir, "sudo", "diff", answerPath, outputPath, "--ignore-space-change", "--ignore-blank-lines");
+        private SubmissionJudgeResult check(int coreNo) throws SystemErrorException {
+            ProcessUtils.ProcessStatus processStatus = ProcessUtils.cmd(coreNo, workspaceDir, "sudo", "diff", answerPath, outputPath, "--ignore-space-change", "--ignore-blank-lines");
             return processStatus.exitCode == 0 ? SubmissionJudgeResult.AC : SubmissionJudgeResult.WA;
         }
     }

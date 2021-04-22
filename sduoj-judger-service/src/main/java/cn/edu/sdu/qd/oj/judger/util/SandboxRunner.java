@@ -54,7 +54,7 @@ public class SandboxRunner {
             }
         }
 
-        ProcessUtils.ProcessStatus processStatus = ProcessUtils.cmd(cwd, commandList.toArray(new String[0]));
+        ProcessUtils.ProcessStatus processStatus = ProcessUtils.cmd(coreNo, cwd, commandList.toArray(new String[0]));
         if (processStatus.exitCode != 0) {
             throw new SystemErrorException(String.format("Sandbox exits abnormally: %d", processStatus.exitCode));
         }
