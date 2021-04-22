@@ -21,6 +21,7 @@ public enum SandboxResult {
     MEMORY_LIMIT_EXCEEDED(3, "Memory Limit Exceeded", SubmissionJudgeResult.MLE),
     RUNTIME_ERROR(4, "Runtime Error", SubmissionJudgeResult.RE),
     SYSTEM_ERROR(5, "System Error", SubmissionJudgeResult.SE),
+    OUTPUT_LIMIT_EXCEEDED(6, "Output Limit Exceeded", SubmissionJudgeResult.RE)//待修改
     ;
 
     public int code;

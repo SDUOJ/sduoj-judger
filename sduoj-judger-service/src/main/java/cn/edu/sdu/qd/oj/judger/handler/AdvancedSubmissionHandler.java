@@ -57,6 +57,7 @@ public class AdvancedSubmissionHandler extends AbstractSubmissionHandler {
         long submissionId = submission.getSubmissionId();
         int timeLimit = problem.getTimeLimit();
         int memoryLimit = problem.getMemoryLimit();
+        int outputLimit = problem.getMemoryLimit();
 
         String workspaceUserDir = Paths.get(workspaceDir, "user").toString();
         String userCodePath = Paths.get(workspaceUserDir, "user.code").toString();
@@ -87,6 +88,7 @@ public class AdvancedSubmissionHandler extends AbstractSubmissionHandler {
                 .add(SandboxArgument.MAX_CPU_TIME, timeLimit)
                 .add(SandboxArgument.MAX_REAL_TIME, timeLimit * 2)
                 .add(SandboxArgument.MAX_MEMORY, memoryLimit * 1024L)
+                .add(SandboxArgument.MAX_OUTPUT_SIZE, outputLimit * 1024L)//单位是字节
                 .add(SandboxArgument.EXE_PATH, "/bin/sh")
                 .add(SandboxArgument.EXE_ARGS, exeArgs)
                 .add(SandboxArgument.EXE_ENVS, exeEnvs)
