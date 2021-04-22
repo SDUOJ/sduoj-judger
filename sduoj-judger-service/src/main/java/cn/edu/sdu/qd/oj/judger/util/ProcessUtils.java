@@ -43,10 +43,14 @@ public class ProcessUtils {
         }
     }
 
+    public static ProcessStatus cmd(String pwd, final String... commands) throws SystemErrorException {
+        return cmd(pwd, 120000, commands);
+    }
+
     /**
      * 运行一个外部命令，返回状态.若超过指定的超时时间，抛出TimeoutException
      */
-    public static ProcessStatus cmd(String pwd, final String... commands) throws SystemErrorException {
+    public static ProcessStatus cmd(String pwd, int timeout, final String... commands) throws SystemErrorException {
         log.info("Run CommandLine\npwd: {}\ncommand: {}\n", pwd, String.join(" ", commands));
         Process process = null;
         Worker worker = null;
@@ -59,7 +63,7 @@ public class ProcessUtils {
             worker = new Worker(process);
             worker.start();
             ProcessStatus ps = worker.getProcessStatus();
-            worker.join(120000);    /* 最多运行 120s */
+            worker.join(timeout);    /* 最多运行 120s */
             if (ps.exitCode == ProcessStatus.CODE_STARTED) {
                 // not finished
                 worker.interrupt();
@@ -109,7 +113,7 @@ public class ProcessUtils {
 
     public static class ProcessStatus {
         public static final int CODE_STARTED = -257;
-        public volatile int exitCode;
+        public volatile int exitCode = 1;
         public volatile String output;
     }
 }

@@ -264,7 +264,8 @@ public class IOSubmissionHandler extends AbstractSubmissionHandler {
         }
 
         private SubmissionJudgeResult check() throws SystemErrorException {
-            ProcessUtils.ProcessStatus processStatus = ProcessUtils.cmd(workspaceDir, "sudo", "diff", answerPath, outputPath, "--ignore-space-change", "--ignore-blank-lines");
+            ProcessUtils.ProcessStatus processStatus = ProcessUtils.cmd(workspaceDir, 6000,
+                "sudo", "diff", answerPath, outputPath, "--ignore-blank-lines", "--ignore-trailing-space", "--brief");
             return processStatus.exitCode == 0 ? SubmissionJudgeResult.AC : SubmissionJudgeResult.WA;
         }
     }

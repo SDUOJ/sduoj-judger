@@ -38,4 +38,4 @@ ENV ACTIVE=prod
 
 WORKDIR /sduoj
 CMD /wait \
- && java -jar sduoj-judger.jar --sduoj.config.nacos-addr=$NACOS_ADDR --sduoj.config.active=$ACTIVE > /sduoj/sduoj.log
+ && java -jar sduoj-judger.jar --sduoj.config.nacos-addr=$NACOS_ADDR --sduoj.config.active=$ACTIVE >> /sduoj/sduoj.log
