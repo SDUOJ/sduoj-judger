@@ -119,7 +119,7 @@ public class ProcessUtils {
 
     public static class ProcessStatus {
         public static final int CODE_STARTED = -257;
-        public volatile int exitCode = 1;
+        public volatile int exitCode = CODE_STARTED;
         public volatile String output;
     }
 }
