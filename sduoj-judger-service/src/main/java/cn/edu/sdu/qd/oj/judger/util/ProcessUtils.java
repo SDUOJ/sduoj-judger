@@ -63,7 +63,7 @@ public class ProcessUtils {
             worker = new Worker(process);
             worker.start();
             ProcessStatus ps = worker.getProcessStatus();
-            worker.join(timeout);    /* 最多运行 120s */
+            worker.join(timeout);
             if (ps.exitCode == ProcessStatus.CODE_STARTED) {
                 // not finished
                 worker.interrupt();
