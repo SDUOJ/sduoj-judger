@@ -76,9 +76,7 @@ public class CpuAffinityThreadPool {
 
         @Override
         public CommandResult<?> call() {
-            String cmd = cpuAffinityCommand.toString();
-            int cmdHash = System.identityHashCode(cmd);
-            log.info("cmd[{}] Running:\n{}", cmdHash, cmd);
+            int cmdHash = System.identityHashCode(cpuAffinityCommand);
             Integer coreNo = null;
             try {
                 coreNo = cpuPool.poll();
