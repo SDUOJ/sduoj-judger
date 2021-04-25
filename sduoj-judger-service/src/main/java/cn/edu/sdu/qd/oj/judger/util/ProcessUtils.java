@@ -20,6 +20,12 @@ import java.io.IOException;
 import java.io.InputStream;
 import java.util.Optional;
 
+/**
+ * some utils for running command in terminal
+ *
+ * @author jeshrz
+ * @author zhangt2333
+ */
 @Slf4j
 public class ProcessUtils {
 
