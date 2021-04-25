@@ -4,10 +4,10 @@ MAINTAINER SDUOJ-dev
 COPY docker/sources.list /etc/apt/sources.list
 COPY docker/mavenSettings.xml /usr/share/maven/conf/settings.xml
 COPY docker/testlib /testlib.h
-ADD https://github.com/ufoscout/docker-compose-wait/releases/download/2.7.3/wait /wait
+ADD https://github.com/SDUOJ/docker-compose-wait/releases/download/2.7.3/wait /wait
 
 RUN apt-get update \
- && apt-get install -y sudo git unzip wget libseccomp-dev libseccomp2 seccomp build-essential python3-pip python dosbox openjdk-8-jdk maven
+ && apt-get install -y sudo git unzip wget libseccomp-dev libseccomp2 seccomp build-essential python3-pip python dosbox vim dos2unix openjdk-8-jdk maven
 
 RUN git clone https://github.com/SDUOJ/sduoj-sandbox.git \
  && cd sduoj-sandbox \
