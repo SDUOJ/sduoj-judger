@@ -190,7 +190,7 @@ public class SPJSubmissionHandler extends AbstractSubmissionHandler {
                     .add(SandboxArgument.MAX_REAL_TIME, compileConfig.getMaxRealTime())
                     .add(SandboxArgument.MAX_MEMORY, compileConfig.getMaxMemory() * 1024L)
                     .add(SandboxArgument.MAX_STACK, 128 * 1024 * 1024L)
-                    .add(SandboxArgument.MAX_OUTPUT_SIZE, 20 * 1024 * 1024) // 20MB
+                    .add(SandboxArgument.MAX_OUTPUT_SIZE, 20 * 1024 * 1024L) // 20MB
                     .add(SandboxArgument.EXE_PATH, _commands[0])
                     .add(SandboxArgument.EXE_ARGS, Arrays.copyOfRange(_commands, 1, _commands.length))
                     .add(SandboxArgument.EXE_ENVS, exeEnvs)
