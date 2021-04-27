@@ -72,7 +72,7 @@ public class IOSubmissionHandler extends AbstractSubmissionHandler {
         // 题目配置：时间、空间、检查点分数
         int timeLimit = problem.getTimeLimit();
         int memoryLimit = problem.getMemoryLimit();
-        int outputLimit = problem.getMemoryLimit();//待修改
+        int outputLimit = problem.getOutputLimit();//待修改
 
         SubmissionUpdateReqDTO result = SubmissionUpdateReqDTO.builder()
                 .submissionId(submissionId)
@@ -167,7 +167,7 @@ public class IOSubmissionHandler extends AbstractSubmissionHandler {
                         .add(SandboxArgument.MAX_REAL_TIME, compileConfig.getMaxRealTime())
                         .add(SandboxArgument.MAX_MEMORY, compileConfig.getMaxMemory() * 1024L)
                         .add(SandboxArgument.MAX_STACK, 128 * 1024 * 1024L)
-                        .add(SandboxArgument.MAX_OUTPUT_SIZE, 20 * 1024 * 1024L) // 20MB
+                        .add(SandboxArgument.MAX_OUTPUT_SIZE, compileConfig.getMaxOutput() * 1024L) // 20MB
                         .add(SandboxArgument.EXE_PATH, _commands[0])
                         .add(SandboxArgument.EXE_ARGS, Arrays.copyOfRange(_commands, 1, _commands.length))
                         .add(SandboxArgument.EXE_ENVS, exeEnvs)
@@ -220,7 +220,7 @@ public class IOSubmissionHandler extends AbstractSubmissionHandler {
                     .add(SandboxArgument.MAX_CPU_TIME, timeLimit * runConfig.getMaxCpuTimeFactor())
                     .add(SandboxArgument.MAX_REAL_TIME, timeLimit * runConfig.getMaxRealTimeFactor())
                     .add(SandboxArgument.MAX_MEMORY, memoryLimit * runConfig.getMaxMemoryFactor() * 1024L)
-                    .add(SandboxArgument.MAX_OUTPUT_SIZE, outputLimit * runConfig.getMaxMemoryFactor() * 1024L) //待修改
+                    .add(SandboxArgument.MAX_OUTPUT_SIZE, outputLimit * runConfig.getMaxOutputFactor() * 1024L) //待修改
                     .add(SandboxArgument.MAX_STACK, 128L * 1024 * 1024)
                     .add(SandboxArgument.EXE_PATH, _commands[0])
                     .add(SandboxArgument.EXE_ARGS, Arrays.copyOfRange(_commands, 1, _commands.length))
