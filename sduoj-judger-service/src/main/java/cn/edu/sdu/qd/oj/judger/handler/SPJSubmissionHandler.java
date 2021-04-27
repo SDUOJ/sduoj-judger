@@ -191,7 +191,7 @@ public class SPJSubmissionHandler extends AbstractSubmissionHandler {
                     .add(SandboxArgument.MAX_REAL_TIME, compileConfig.getMaxRealTime())
                     .add(SandboxArgument.MAX_MEMORY, compileConfig.getMaxMemory() * 1024L)
                     .add(SandboxArgument.MAX_STACK, 128 * 1024 * 1024L)
-                    .add(SandboxArgument.MAX_OUTPUT_SIZE, compileConfig.getMaxOutput() * 1024L) // 20MB
+                    .add(SandboxArgument.MAX_OUTPUT_SIZE, 20 * 1024 * 1024L) // 20MB
                     .add(SandboxArgument.EXE_PATH, _commands[0])
                     .add(SandboxArgument.EXE_ARGS, Arrays.copyOfRange(_commands, 1, _commands.length))
                     .add(SandboxArgument.EXE_ENVS, exeEnvs)
@@ -235,7 +235,7 @@ public class SPJSubmissionHandler extends AbstractSubmissionHandler {
                     .add(SandboxArgument.MAX_CPU_TIME, timeLimit * runConfig.getMaxCpuTimeFactor())
                     .add(SandboxArgument.MAX_REAL_TIME, timeLimit * runConfig.getMaxRealTimeFactor())
                     .add(SandboxArgument.MAX_MEMORY, memoryLimit * runConfig.getMaxMemoryFactor() * 1024L)
-                    .add(SandboxArgument.MAX_OUTPUT_SIZE, outputLimit * runConfig.getMaxOutputFactor() * 1024L)
+                    .add(SandboxArgument.MAX_OUTPUT_SIZE, outputLimit * 1024 * 1024L)
                     .add(SandboxArgument.MAX_STACK, 128L * 1024 * 1024)
                     .add(SandboxArgument.EXE_PATH, _commands[0])
                     .add(SandboxArgument.EXE_ARGS, Arrays.copyOfRange(_commands, 1, _commands.length))
@@ -261,7 +261,7 @@ public class SPJSubmissionHandler extends AbstractSubmissionHandler {
                     .add(SandboxArgument.MAX_CPU_TIME, timeLimit * spjRunConfig.getMaxCpuTimeFactor())
                     .add(SandboxArgument.MAX_REAL_TIME, timeLimit * spjRunConfig.getMaxRealTimeFactor())
                     .add(SandboxArgument.MAX_MEMORY, memoryLimit * spjRunConfig.getMaxMemoryFactor() * 1024L)
-                    .add(SandboxArgument.MAX_OUTPUT_SIZE, outputLimit * spjRunConfig.getMaxOutputFactor() * 1024L)
+                    .add(SandboxArgument.MAX_OUTPUT_SIZE, outputLimit * 1 * 1024L)
                     .add(SandboxArgument.MAX_STACK, 128L * 1024 * 1024)
                     .add(SandboxArgument.EXE_PATH, exePath)
                     .add(SandboxArgument.EXE_ARGS, exeArgs)
