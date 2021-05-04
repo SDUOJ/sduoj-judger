@@ -1,6 +1,8 @@
 FROM ubuntu:18.04
 MAINTAINER SDUOJ-dev
 
+ENV LANG C.UTF-8
+
 COPY docker/sources.list /etc/apt/sources.list
 COPY docker/mavenSettings.xml /usr/share/maven/conf/settings.xml
 COPY docker/testlib /testlib.h
