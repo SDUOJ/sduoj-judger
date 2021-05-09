@@ -79,6 +79,7 @@ public class SPJSubmissionHandler extends AbstractSubmissionHandler {
         // 题目配置：时间、空间、检查点分数
         int timeLimit = problem.getTimeLimit();
         int memoryLimit = problem.getMemoryLimit();
+        int outputLimit = problem.getOutputLimit();
 
         SubmissionUpdateReqDTO result = SubmissionUpdateReqDTO.builder()
                 .submissionId(submissionId)
@@ -110,7 +111,7 @@ public class SPJSubmissionHandler extends AbstractSubmissionHandler {
 
             Integer checkpointScore = checkpoints.get(i).getCheckpointScore();
 
-            cpuAffinityThreadPool.submit(new SPJJudgeCpuAffinityCommand(submissionId, i, checkpointScore, timeLimit, memoryLimit, inputPath, outputPath, answerPath, runConfig, spjRunConfig));
+            cpuAffinityThreadPool.submit(new SPJJudgeCpuAffinityCommand(submissionId, i, checkpointScore, timeLimit, memoryLimit, outputLimit, inputPath, outputPath, answerPath, runConfig, spjRunConfig));
         }
 
         // 收集评测结果
@@ -190,7 +191,7 @@ public class SPJSubmissionHandler extends AbstractSubmissionHandler {
                     .add(SandboxArgument.MAX_REAL_TIME, compileConfig.getMaxRealTime())
                     .add(SandboxArgument.MAX_MEMORY, compileConfig.getMaxMemory() * 1024L)
                     .add(SandboxArgument.MAX_STACK, 128 * 1024 * 1024L)
-                    .add(SandboxArgument.MAX_OUTPUT_SIZE, 20 * 1024 * 1024) // 20MB
+                    .add(SandboxArgument.MAX_OUTPUT_SIZE, 20 * 1024 * 1024L) // 20MB
                     .add(SandboxArgument.EXE_PATH, _commands[0])
                     .add(SandboxArgument.EXE_ARGS, Arrays.copyOfRange(_commands, 1, _commands.length))
                     .add(SandboxArgument.EXE_ENVS, exeEnvs)
@@ -223,7 +224,7 @@ public class SPJSubmissionHandler extends AbstractSubmissionHandler {
         private final Argument runCommand;
         private final Argument spjRunCommand;
 
-        SPJJudgeCpuAffinityCommand(long submissionId, int caseNo, int score, int timeLimit, int memoryLimit, String inputPath,
+        SPJJudgeCpuAffinityCommand(long submissionId, int caseNo, int score, int timeLimit, int memoryLimit, int outputLimit, String inputPath,
                                    String outputPath, String answerPath, JudgeTemplateConfigDTO.TemplateConfig.Run runConfig, JudgeTemplateConfigDTO.TemplateConfig.Run spjRunConfig) throws SystemErrorException {
             this.submissionId = submissionId;
             this.caseNo = caseNo;
@@ -234,6 +235,7 @@ public class SPJSubmissionHandler extends AbstractSubmissionHandler {
                     .add(SandboxArgument.MAX_CPU_TIME, timeLimit * runConfig.getMaxCpuTimeFactor())
                     .add(SandboxArgument.MAX_REAL_TIME, timeLimit * runConfig.getMaxRealTimeFactor())
                     .add(SandboxArgument.MAX_MEMORY, memoryLimit * runConfig.getMaxMemoryFactor() * 1024L)
+                    .add(SandboxArgument.MAX_OUTPUT_SIZE, outputLimit * 1 * 1024L)
                     .add(SandboxArgument.MAX_STACK, 128L * 1024 * 1024)
                     .add(SandboxArgument.EXE_PATH, _commands[0])
                     .add(SandboxArgument.EXE_ARGS, Arrays.copyOfRange(_commands, 1, _commands.length))
@@ -259,6 +261,7 @@ public class SPJSubmissionHandler extends AbstractSubmissionHandler {
                     .add(SandboxArgument.MAX_CPU_TIME, timeLimit * spjRunConfig.getMaxCpuTimeFactor())
                     .add(SandboxArgument.MAX_REAL_TIME, timeLimit * spjRunConfig.getMaxRealTimeFactor())
                     .add(SandboxArgument.MAX_MEMORY, memoryLimit * spjRunConfig.getMaxMemoryFactor() * 1024L)
+                    .add(SandboxArgument.MAX_OUTPUT_SIZE, outputLimit * 1 * 1024L)
                     .add(SandboxArgument.MAX_STACK, 128L * 1024 * 1024)
                     .add(SandboxArgument.EXE_PATH, exePath)
                     .add(SandboxArgument.EXE_ARGS, exeArgs)

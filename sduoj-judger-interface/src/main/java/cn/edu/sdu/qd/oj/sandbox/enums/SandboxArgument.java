@@ -19,7 +19,7 @@ public enum SandboxArgument {
     MAX_MEMORY("max_memory", Long.class),
     MAX_STACK("max_stack", Long.class),
     MAX_PROCESS_NUMBER("max_process_number", Integer.class),
-    MAX_OUTPUT_SIZE("max_output_size", Integer.class),
+    MAX_OUTPUT_SIZE("max_output_size", Long.class),
     UID("uid", Integer.class),
     GID("gid", Integer.class),
 
