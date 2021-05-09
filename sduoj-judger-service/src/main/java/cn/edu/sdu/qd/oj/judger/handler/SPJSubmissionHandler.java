@@ -111,7 +111,7 @@ public class SPJSubmissionHandler extends AbstractSubmissionHandler {
 
             Integer checkpointScore = checkpoints.get(i).getCheckpointScore();
 
-            cpuAffinityThreadPool.submit(new SPJJudgeCpuAffinityCommand(submissionId, i, checkpointScore, timeLimit, memoryLimit, outputLimit,inputPath, outputPath, answerPath, runConfig, spjRunConfig));
+            cpuAffinityThreadPool.submit(new SPJJudgeCpuAffinityCommand(submissionId, i, checkpointScore, timeLimit, memoryLimit, outputLimit, inputPath, outputPath, answerPath, runConfig, spjRunConfig));
         }
 
         // 收集评测结果
@@ -224,7 +224,7 @@ public class SPJSubmissionHandler extends AbstractSubmissionHandler {
         private final Argument runCommand;
         private final Argument spjRunCommand;
 
-        SPJJudgeCpuAffinityCommand(long submissionId, int caseNo, int score, int timeLimit, int memoryLimit, int outputLimit , String inputPath,
+        SPJJudgeCpuAffinityCommand(long submissionId, int caseNo, int score, int timeLimit, int memoryLimit, int outputLimit, String inputPath,
                                    String outputPath, String answerPath, JudgeTemplateConfigDTO.TemplateConfig.Run runConfig, JudgeTemplateConfigDTO.TemplateConfig.Run spjRunConfig) throws SystemErrorException {
             this.submissionId = submissionId;
             this.caseNo = caseNo;
