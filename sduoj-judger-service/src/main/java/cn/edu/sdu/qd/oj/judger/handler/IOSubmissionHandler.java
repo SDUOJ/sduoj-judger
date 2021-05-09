@@ -72,7 +72,7 @@ public class IOSubmissionHandler extends AbstractSubmissionHandler {
         // 题目配置：时间、空间、检查点分数
         int timeLimit = problem.getTimeLimit();
         int memoryLimit = problem.getMemoryLimit();
-        int outputLimit = problem.getOutputLimit();//待修改
+        int outputLimit = problem.getOutputLimit();
 
         SubmissionUpdateReqDTO result = SubmissionUpdateReqDTO.builder()
                 .submissionId(submissionId)
