@@ -245,9 +245,15 @@ public class IOSubmissionHandler extends AbstractSubmissionHandler {
                             SubmissionJudgeResult.AC.code == result.code ? score : 0, judgeResult.getCpuTime(), judgeResult.getMemory()
                     ));
                 } else {
+                    int time = judgeResult.getCpuTime();
+                    if (SandboxResult.CPU_TIME_LIMIT_EXCEEDED.equals(judgeResult.getResult())
+                            || SandboxResult.REAL_TIME_LIMIT_EXCEEDED.equals(judgeResult.getResult())) {
+                        time = Math.max(judgeResult.getCpuTime(), judgeResult.getRealTime());
+                    }
+
                     commandResult = new CommandResult<>(new CheckpointResultMessageDTO(
                             submissionId, caseNo, SandboxResult.of(judgeResult.getResult()).submissionJudgeResult.code,
-                            0, judgeResult.getCpuTime(), judgeResult.getMemory()
+                            0, time, judgeResult.getMemory()
                     ));
                 }
             } catch (SystemErrorException e) {
