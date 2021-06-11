@@ -6,6 +6,7 @@ ENV LANG C.UTF-8
 COPY docker/sources.list /etc/apt/sources.list
 COPY docker/mavenSettings.xml /usr/share/maven/conf/settings.xml
 COPY docker/testlib /testlib.h
+COPY docker/checkers/ /checkers/
 ADD https://github.com/SDUOJ/docker-compose-wait/releases/download/2.7.3/wait /wait
 
 RUN apt-get update \
