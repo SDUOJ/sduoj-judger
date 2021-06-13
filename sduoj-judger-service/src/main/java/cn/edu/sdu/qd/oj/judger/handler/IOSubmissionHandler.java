@@ -21,6 +21,7 @@ import cn.edu.sdu.qd.oj.judger.util.ProcessUtils;
 import cn.edu.sdu.qd.oj.judger.util.SandboxRunner;
 import cn.edu.sdu.qd.oj.judgetemplate.dto.JudgeTemplateConfigDTO;
 import cn.edu.sdu.qd.oj.judgetemplate.enums.JudgeTemplateTypeEnum;
+import cn.edu.sdu.qd.oj.problem.dto.ProblemCheckerConfigDTO;
 import cn.edu.sdu.qd.oj.sandbox.dto.Argument;
 import cn.edu.sdu.qd.oj.sandbox.dto.SandboxResultDTO;
 import cn.edu.sdu.qd.oj.sandbox.enums.SandboxArgument;
@@ -29,6 +30,7 @@ import cn.edu.sdu.qd.oj.submit.dto.CheckpointResultMessageDTO;
 import cn.edu.sdu.qd.oj.submit.dto.SubmissionUpdateReqDTO;
 import cn.edu.sdu.qd.oj.submit.enums.SubmissionJudgeResult;
 import com.alibaba.fastjson.JSON;
+import lombok.AllArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Component;
 
@@ -56,6 +58,31 @@ public class IOSubmissionHandler extends AbstractSubmissionHandler {
         // 如果检查点为空，直接报 SE
         if (CollectionUtils.isEmpty(checkpoints)) {
             throw new SystemErrorException("No checkpoint files!!");
+        }
+
+        // 编译 checker
+        ProblemCheckerConfigDTO checkerConfigDTO = problem.getCheckerConfig();
+        JudgeTemplateConfigDTO.TemplateConfig.Run customCheckerRunConfig = null;
+        if (localCheckerManager.isCheckerSourceFilenameExist(checkerConfigDTO.getSource())) {
+            if (!localCheckerManager.isCheckerExist(checkerConfigDTO.getSource())) {
+                localCheckerManager.compilePredefinedChecker(checkerConfigDTO.getSource());
+            }
+            checkerConfigDTO.setSource(checkerConfigDTO.getSource().substring(0, checkerConfigDTO.getSource().indexOf('.')));
+            customCheckerRunConfig = JudgeTemplateConfigDTO.TemplateConfig.Run
+                    .builder()
+                    .command(Paths.get(PathConfig.CHECKER_DIR, checkerConfigDTO.getSource()).toString())
+                    .maxCpuTimeFactor(2)
+                    .maxRealTimeFactor(2)
+                    .seccompRule("general")
+                    .build();
+        } else {
+            // custom checker 代码写入文件并编译
+            JudgeTemplateConfigDTO.TemplateConfig configDTO = checkerConfigDTO.getSpj();
+            JudgeTemplateConfigDTO.TemplateConfig.Compile spjCompileConfig = configDTO.getCompile();
+            customCheckerRunConfig = configDTO.getRun();
+            customCheckerRunConfig.setCommand(replacePatternToProblemInfo(customCheckerRunConfig.getCommand()));
+            FileUtils.writeFile(Paths.get(PathConfig.CHECKER_DIR, spjCompileConfig.getSrcName()).toString(), checkerConfigDTO.getSource());
+            compile(spjCompileConfig);
         }
 
         // 评测基本信息
@@ -102,7 +129,8 @@ public class IOSubmissionHandler extends AbstractSubmissionHandler {
 
             Integer checkpointScore = checkpoints.get(i).getCheckpointScore();
 
-            cpuAffinityThreadPool.submit(new IOJudgeCpuAffinityCommand(submissionId, i, checkpointScore, timeLimit, memoryLimit, outputLimit, inputPath, outputPath, answerPath, runConfig));
+            cpuAffinityThreadPool.submit(new IOJudgeCpuAffinityCommand(submissionId, i, checkpointScore, timeLimit,
+                    memoryLimit, outputLimit, inputPath, outputPath, answerPath, runConfig, customCheckerRunConfig));
         }
 
         // 收集评测结果
@@ -205,16 +233,19 @@ public class IOSubmissionHandler extends AbstractSubmissionHandler {
         private final String answerPath;
 
         private final Argument runCommand;
+        private final Argument customCheckerRunCommand;
 
-        IOJudgeCpuAffinityCommand(long submissionId, int caseNo, int score, int timeLimit, int memoryLimit, int outputLimit, String inputPath,
-                                  String outputPath, String answerPath, JudgeTemplateConfigDTO.TemplateConfig.Run runConfig) throws SystemErrorException {
+        IOJudgeCpuAffinityCommand(long submissionId, int caseNo, int score, int timeLimit, int memoryLimit, int outputLimit,
+                                  String inputPath, String outputPath, String answerPath,
+                                  JudgeTemplateConfigDTO.TemplateConfig.Run runConfig,
+                                  JudgeTemplateConfigDTO.TemplateConfig.Run customCheckerConfig) throws SystemErrorException {
             this.submissionId = submissionId;
             this.caseNo = caseNo;
             this.score = score;
             this.outputPath = outputPath;
             this.answerPath = answerPath;
 
-            String[] _commands = IOSubmissionHandler.WHITESPACE_PATTERN.split(runConfig.getCommand().trim());
+            String[] _commands = WHITESPACE_PATTERN.split(runConfig.getCommand().trim());
 
             runCommand = Argument.build()
                     .add(SandboxArgument.MAX_CPU_TIME, timeLimit * runConfig.getMaxCpuTimeFactor())
@@ -229,6 +260,32 @@ public class IOSubmissionHandler extends AbstractSubmissionHandler {
                     .add(SandboxArgument.OUTPUT_PATH, outputPath)
                     .add(SandboxArgument.UID, PathConfig.NOBODY_UID)
                     .add(SandboxArgument.GID, PathConfig.NOBODY_GID);
+
+
+            _commands = WHITESPACE_PATTERN.split(customCheckerConfig.getCommand().trim());
+            // exeArgs 的格式为 <input-file> <output-file> <answer-file> <report-file> [<-appes>]
+            String[] exeArgs = new String[4 + _commands.length - 1];
+            exeArgs[0] = inputPath;
+            exeArgs[1] = outputPath;
+            exeArgs[2] = answerPath;
+            exeArgs[3] = "checker.out";
+            for (int i = 1, n = _commands.length; i < n; i++) {
+                exeArgs[i + 3] = _commands[i];
+            }
+
+            customCheckerRunCommand = Argument.build()
+                    .add(SandboxArgument.MAX_CPU_TIME, timeLimit * customCheckerConfig.getMaxCpuTimeFactor())
+                    .add(SandboxArgument.MAX_REAL_TIME, timeLimit * customCheckerConfig.getMaxRealTimeFactor())
+                    .add(SandboxArgument.MAX_MEMORY, memoryLimit * customCheckerConfig.getMaxMemoryFactor() * 1024L)
+                    .add(SandboxArgument.MAX_OUTPUT_SIZE, outputLimit * 1 * 1024L)
+                    .add(SandboxArgument.MAX_STACK, 128L * 1024 * 1024)
+                    .add(SandboxArgument.EXE_PATH, _commands[0])
+                    .add(SandboxArgument.EXE_ARGS, exeArgs)
+                    .add(SandboxArgument.EXE_ENVS, customCheckerConfig.getEnvs())
+                    .add(SandboxArgument.INPUT_PATH, "/dev/null")
+                    .add(SandboxArgument.OUTPUT_PATH, "/dev/null")
+                    .add(SandboxArgument.UID, PathConfig.NOBODY_UID)
+                    .add(SandboxArgument.GID, PathConfig.NOBODY_GID);
         }
 
         @Override
@@ -239,7 +296,7 @@ public class IOSubmissionHandler extends AbstractSubmissionHandler {
                 if (SandboxResult.SYSTEM_ERROR.equals(judgeResult.getResult())) {
                     throw new SystemErrorException(String.format("Sandbox Internal Error #%d, signal #%d", judgeResult.getError(), judgeResult.getSignal()));
                 } else if (SandboxResult.SUCCESS.equals(judgeResult.getResult())) {
-                    SubmissionJudgeResult result = check();
+                    SubmissionJudgeResult result = check(coreNo);
                     commandResult = new CommandResult<>(new CheckpointResultMessageDTO(
                             submissionId, caseNo, result.code,
                             SubmissionJudgeResult.AC.code == result.code ? score : 0, judgeResult.getCpuTime(), judgeResult.getMemory()
@@ -275,6 +332,48 @@ public class IOSubmissionHandler extends AbstractSubmissionHandler {
             ProcessUtils.ProcessStatus processStatus = ProcessUtils.cmd(workspaceDir, 6000,
                 "sudo", "diff", answerPath, outputPath, "--ignore-blank-lines", "--ignore-trailing-space", "--brief");
             return processStatus.exitCode == 0 ? SubmissionJudgeResult.AC : SubmissionJudgeResult.WA;
+        }
+
+        private SubmissionJudgeResult check(int coreNo) {
+            try {
+                SandboxResultDTO judgeResult = SandboxRunner.run(coreNo, workspaceDir, customCheckerRunCommand);
+                if (SandboxResult.SYSTEM_ERROR.equals(judgeResult.getResult())) {
+                    throw new SystemErrorException(String.format("While special judging, Sandbox Internal Error #%d, signal #%d occurred", judgeResult.getError(), judgeResult.getSignal()));
+                } else if (SandboxResult.SUCCESS.equals(judgeResult.getResult())) {
+                    return SubmissionJudgeResult.AC;
+                } else if (SandboxResult.RUNTIME_ERROR.equals(judgeResult.getResult())) {
+                    return ExitCode.getSubmissionResultCode(judgeResult.getExitCode());
+                }
+            } catch (SystemErrorException e) {
+                log.warn("", e);
+            } catch (Exception e) {
+                log.warn("", e);
+                throw e;
+            }
+            return SubmissionJudgeResult.SE;
+        }
+    }
+
+    @AllArgsConstructor
+    private enum ExitCode {
+        WA(1, SubmissionJudgeResult.WA),
+        PE(2, SubmissionJudgeResult.PR),
+        FAIL(3, SubmissionJudgeResult.WA),
+        DIRT(4, SubmissionJudgeResult.WA),
+        POINTS(7, SubmissionJudgeResult.WA),
+        UNEXPECTED_EOF(8, SubmissionJudgeResult.WA),
+        ;
+
+        int code;
+        SubmissionJudgeResult submissionJudgeResult;
+
+        public static SubmissionJudgeResult getSubmissionResultCode(int exitCode) throws SystemErrorException {
+            for (ExitCode ec : ExitCode.values()) {
+                if (ec.code == exitCode) {
+                    return ec.submissionJudgeResult;
+                }
+            }
+            throw new SystemErrorException(String.format("Unexpected exit code %d in SPJ mode", exitCode));
         }
     }
 }

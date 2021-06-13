@@ -18,6 +18,7 @@ import cn.edu.sdu.qd.oj.judger.command.CpuAffinityThreadPool;
 import cn.edu.sdu.qd.oj.judger.config.PathConfig;
 import cn.edu.sdu.qd.oj.judger.exception.CompileErrorException;
 import cn.edu.sdu.qd.oj.judger.exception.SystemErrorException;
+import cn.edu.sdu.qd.oj.judger.manager.LocalCheckerManager;
 import cn.edu.sdu.qd.oj.judger.manager.LocalCheckpointManager;
 import cn.edu.sdu.qd.oj.judger.manager.LocalZipManager;
 import cn.edu.sdu.qd.oj.judger.sender.RabbitSender;
@@ -78,6 +79,9 @@ public abstract class AbstractSubmissionHandler {
 
     @Autowired
     protected LocalZipManager localZipManager;
+
+    @Autowired
+    protected LocalCheckerManager localCheckerManager;
 
     @Autowired
     protected RabbitSender rabbitSender;
@@ -149,6 +153,7 @@ public abstract class AbstractSubmissionHandler {
                     .judgeLog(e.getMessage())
                     .build();
         } catch (SystemErrorException | OutOfMemoryError e) {
+            log.error("", e);
             updateReqDTO = SubmissionUpdateReqDTO.builder()
                     .submissionId(submission.getSubmissionId())
                     .judgeResult(SubmissionJudgeResult.SE.code)
