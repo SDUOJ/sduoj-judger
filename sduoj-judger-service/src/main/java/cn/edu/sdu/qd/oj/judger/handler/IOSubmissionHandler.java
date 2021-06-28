@@ -81,7 +81,7 @@ public class IOSubmissionHandler extends AbstractSubmissionHandler {
             JudgeTemplateConfigDTO.TemplateConfig.Compile spjCompileConfig = configDTO.getCompile();
             customCheckerRunConfig = configDTO.getRun();
             customCheckerRunConfig.setCommand(replacePatternToProblemInfo(customCheckerRunConfig.getCommand()));
-            FileUtils.writeFile(Paths.get(PathConfig.CHECKER_DIR, spjCompileConfig.getSrcName()).toString(), checkerConfigDTO.getSource());
+            FileUtils.writeFile(Paths.get(workspaceDir, spjCompileConfig.getSrcName()).toString(), checkerConfigDTO.getSource());
             compile(spjCompileConfig);
         }
 
