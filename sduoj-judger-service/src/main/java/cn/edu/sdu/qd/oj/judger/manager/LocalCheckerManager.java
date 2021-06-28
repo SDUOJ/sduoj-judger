@@ -58,8 +58,11 @@ public class LocalCheckerManager implements CommandLineRunner {
     }
 
     public void addCheckpoint(String checker) {
-        synchronized (checkers) {
-            checkers.add(checker);
+        if (checkerSources.contains(checker)) {
+            checker = checker.substring(0, checker.indexOf('.'));
+        }
+        synchronized (this.checkers) {
+            this.checkers.add(checker);
         }
     }
 
@@ -72,5 +75,6 @@ public class LocalCheckerManager implements CommandLineRunner {
         if (processStatus.exitCode != 0) {
             throw new CompileErrorException("checker compile error! please contract admin!");
         }
+        addCheckpoint(checkerSourceFilename);
     }
 }
