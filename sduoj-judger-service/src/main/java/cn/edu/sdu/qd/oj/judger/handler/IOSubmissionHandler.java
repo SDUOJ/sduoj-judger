@@ -245,7 +245,7 @@ public class IOSubmissionHandler extends AbstractSubmissionHandler {
             this.outputPath = outputPath;
             this.answerPath = answerPath;
 
-            String[] _commands = WHITESPACE_PATTERN.split(runConfig.getCommand().trim());
+            String[] commands = WHITESPACE_PATTERN.split(runConfig.getCommand().trim());
 
             runCommand = Argument.build()
                     .add(SandboxArgument.MAX_CPU_TIME, timeLimit * runConfig.getMaxCpuTimeFactor())
@@ -253,8 +253,8 @@ public class IOSubmissionHandler extends AbstractSubmissionHandler {
                     .add(SandboxArgument.MAX_MEMORY, memoryLimit * runConfig.getMaxMemoryFactor() * 1024L)
                     .add(SandboxArgument.MAX_OUTPUT_SIZE, outputLimit * 1024L)
                     .add(SandboxArgument.MAX_STACK, 128L * 1024 * 1024)
-                    .add(SandboxArgument.EXE_PATH, _commands[0])
-                    .add(SandboxArgument.EXE_ARGS, Arrays.copyOfRange(_commands, 1, _commands.length))
+                    .add(SandboxArgument.EXE_PATH, commands[0])
+                    .add(SandboxArgument.EXE_ARGS, Arrays.copyOfRange(commands, 1, commands.length))
                     .add(SandboxArgument.EXE_ENVS, runConfig.getEnvs())
                     .add(SandboxArgument.INPUT_PATH, inputPath)
                     .add(SandboxArgument.OUTPUT_PATH, outputPath)
@@ -262,15 +262,15 @@ public class IOSubmissionHandler extends AbstractSubmissionHandler {
                     .add(SandboxArgument.GID, PathConfig.NOBODY_GID);
 
 
-            _commands = WHITESPACE_PATTERN.split(customCheckerConfig.getCommand().trim());
+            commands = WHITESPACE_PATTERN.split(customCheckerConfig.getCommand().trim());
             // exeArgs 的格式为 <input-file> <output-file> <answer-file> <report-file> [<-appes>]
-            String[] exeArgs = new String[4 + _commands.length - 1];
+            String[] exeArgs = new String[4 + commands.length - 1];
             exeArgs[0] = inputPath;
             exeArgs[1] = outputPath;
             exeArgs[2] = answerPath;
             exeArgs[3] = "checker.out";
-            for (int i = 1, n = _commands.length; i < n; i++) {
-                exeArgs[i + 3] = _commands[i];
+            for (int i = 1, n = commands.length; i < n; i++) {
+                exeArgs[i + 3] = commands[i];
             }
 
             customCheckerRunCommand = Argument.build()
@@ -279,7 +279,7 @@ public class IOSubmissionHandler extends AbstractSubmissionHandler {
                     .add(SandboxArgument.MAX_MEMORY, memoryLimit * customCheckerConfig.getMaxMemoryFactor() * 1024L)
                     .add(SandboxArgument.MAX_OUTPUT_SIZE, outputLimit * 1 * 1024L)
                     .add(SandboxArgument.MAX_STACK, 128L * 1024 * 1024)
-                    .add(SandboxArgument.EXE_PATH, _commands[0])
+                    .add(SandboxArgument.EXE_PATH, commands[0])
                     .add(SandboxArgument.EXE_ARGS, exeArgs)
                     .add(SandboxArgument.EXE_ENVS, customCheckerConfig.getEnvs())
                     .add(SandboxArgument.INPUT_PATH, "/dev/null")
