@@ -47,6 +47,7 @@ import java.util.stream.Collectors;
  */
 @Slf4j
 @Component
+@Deprecated
 public class SPJSubmissionHandler extends AbstractSubmissionHandler {
 
     @Override

@@ -18,6 +18,7 @@ import cn.edu.sdu.qd.oj.judger.command.CpuAffinityThreadPool;
 import cn.edu.sdu.qd.oj.judger.config.PathConfig;
 import cn.edu.sdu.qd.oj.judger.exception.CompileErrorException;
 import cn.edu.sdu.qd.oj.judger.exception.SystemErrorException;
+import cn.edu.sdu.qd.oj.judger.manager.LocalCheckerManager;
 import cn.edu.sdu.qd.oj.judger.manager.LocalCheckpointManager;
 import cn.edu.sdu.qd.oj.judger.manager.LocalZipManager;
 import cn.edu.sdu.qd.oj.judger.sender.RabbitSender;
@@ -25,6 +26,7 @@ import cn.edu.sdu.qd.oj.judger.util.ProcessUtils;
 import cn.edu.sdu.qd.oj.judger.util.FileUtils;
 import cn.edu.sdu.qd.oj.judgetemplate.dto.JudgeTemplateDTO;
 import cn.edu.sdu.qd.oj.judgetemplate.enums.JudgeTemplateTypeEnum;
+import cn.edu.sdu.qd.oj.problem.dto.ProblemFunctionTemplateDTO;
 import cn.edu.sdu.qd.oj.problem.dto.ProblemJudgerDTO;
 import cn.edu.sdu.qd.oj.submit.dto.CheckpointResultMessageDTO;
 import cn.edu.sdu.qd.oj.submit.dto.SubmissionJudgeDTO;
@@ -43,6 +45,7 @@ import java.io.File;
 import java.nio.file.Paths;
 import java.util.ArrayList;
 import java.util.List;
+import java.util.Objects;
 import java.util.Optional;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
@@ -78,6 +81,9 @@ public abstract class AbstractSubmissionHandler {
 
     @Autowired
     protected LocalZipManager localZipManager;
+
+    @Autowired
+    protected LocalCheckerManager localCheckerManager;
 
     @Autowired
     protected RabbitSender rabbitSender;
@@ -134,6 +140,8 @@ public abstract class AbstractSubmissionHandler {
             initializeProblem();
             // 下载检查点
             initializeCheckpoint();
+            // 处理 function template
+            handleFunctionTemplate();
             // 调用子类实现的评测逻辑
             updateReqDTO = this.start();
 
@@ -149,6 +157,7 @@ public abstract class AbstractSubmissionHandler {
                     .judgeLog(e.getMessage())
                     .build();
         } catch (SystemErrorException | OutOfMemoryError e) {
+            log.error("", e);
             updateReqDTO = SubmissionUpdateReqDTO.builder()
                     .submissionId(submission.getSubmissionId())
                     .judgeResult(SubmissionJudgeResult.SE.code)
@@ -199,6 +208,20 @@ public abstract class AbstractSubmissionHandler {
                 }
             }
         }
+    }
+
+    /**
+     * 将functionTempate和用户代码拼接，成为真正要测的代码
+     */
+    private void handleFunctionTemplate() {
+        Long judgeTemplateId = judgeTemplate.getId();
+        problem.getFunctionTemplates()
+               .stream()
+               .filter(ft -> Objects.equals(ft.getJudgeTemplateId(), judgeTemplateId))
+               .findFirst()
+               .ifPresent(ft -> {
+                   submission.setCode(ft.getFunctionTemplate() + "\n" + submission.getCode());
+               });
     }
 
     private void initializeWorkspace() throws SystemErrorException {

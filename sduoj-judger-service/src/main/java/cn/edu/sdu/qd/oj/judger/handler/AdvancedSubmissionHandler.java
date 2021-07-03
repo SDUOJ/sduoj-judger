@@ -115,12 +115,19 @@ public class AdvancedSubmissionHandler extends AbstractSubmissionHandler {
         if (sr == SandboxResult.RUNTIME_ERROR) {
             judgeResult = ExitCode.getSubmissionResultCode(sandboxResult.getExitCode());
         }
+
+        // 判断超时并配置超时时间
+        int usedTime = sandboxResult.getCpuTime();
+        if (SubmissionJudgeResult.TLE.equals(judgeResult)) {
+            usedTime = Math.max(usedTime, sandboxResult.getRealTime());
+        }
+
         // 拼装结果
         return SubmissionUpdateReqDTO.builder()
                 .submissionId(submissionId)
                 .judgeResult(judgeResult)
                 .judgeScore(SandboxResult.SUCCESS.equals(sandboxResult.getResult()) ? 100 : 0)
-                .usedTime(sandboxResult.getCpuTime())
+                .usedTime(usedTime)
                 .usedMemory(sandboxResult.getMemory())
                 .judgeLog(judgeLog)
                 .build();
