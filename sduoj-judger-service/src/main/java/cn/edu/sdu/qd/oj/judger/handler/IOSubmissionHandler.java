@@ -276,7 +276,7 @@ public class IOSubmissionHandler extends AbstractSubmissionHandler {
             customCheckerRunCommand = Argument.build()
                     .add(SandboxArgument.MAX_CPU_TIME, timeLimit * customCheckerConfig.getMaxCpuTimeFactor())
                     .add(SandboxArgument.MAX_REAL_TIME, timeLimit * customCheckerConfig.getMaxRealTimeFactor())
-                    .add(SandboxArgument.MAX_MEMORY, memoryLimit * customCheckerConfig.getMaxMemoryFactor() * 1024L)
+                    .add(SandboxArgument.MAX_MEMORY, Math.max(64 * 1024 * 1024L, memoryLimit * customCheckerConfig.getMaxMemoryFactor() * 1024L))
                     .add(SandboxArgument.MAX_OUTPUT_SIZE, outputLimit * 1 * 1024L)
                     .add(SandboxArgument.MAX_STACK, 128L * 1024 * 1024)
                     .add(SandboxArgument.EXE_PATH, commands[0])
