@@ -55,13 +55,17 @@ public class IOSubmissionHandler extends AbstractSubmissionHandler {
     }
 
     protected SubmissionUpdateReqDTO start() throws CompileErrorException, SystemErrorException {
-        // 如果检查点为空，直接报 SE
+        // 检查测试数据不为空
         if (CollectionUtils.isEmpty(checkpoints)) {
-            throw new SystemErrorException("No checkpoint files!!");
+            throw new SystemErrorException("No checkpoint files in this problem, please contact the Administrator or TA");
+        }
+        // 检查 checkerConfig 不为空
+        ProblemCheckerConfigDTO checkerConfigDTO = problem.getCheckerConfig();
+        if (checkerConfigDTO == null) {
+            throw new SystemErrorException("No checker config in this problem, please contact the Administrator or TA");
         }
 
         // 编译 checker
-        ProblemCheckerConfigDTO checkerConfigDTO = problem.getCheckerConfig();
         JudgeTemplateConfigDTO.TemplateConfig.Run customCheckerRunConfig = null;
         if (localCheckerManager.isCheckerSourceFilenameExist(checkerConfigDTO.getSource())) {
             if (!localCheckerManager.isCheckerExist(checkerConfigDTO.getSource())) {
