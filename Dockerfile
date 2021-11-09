@@ -13,7 +13,7 @@ RUN mkdir /sduoj \
  && chmod +x /wait
 
 RUN apt-get update \
- && apt-get install -y make=4.1-9.1ubuntu1   dosbox=0.74-4.3   cmake=3.10.2-1ubuntu2.18.04.1 \
+ && apt-get install -y make=4.1-9.1ubuntu1   dosbox=0.74-4.3   cmake \
                        sudo git unzip wget libseccomp-dev libseccomp2 seccomp build-essential \
                        python3-pip python vim dos2unix openjdk-8-jdk maven
 
