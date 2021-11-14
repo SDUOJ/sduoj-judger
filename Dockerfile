@@ -39,16 +39,14 @@ RUN wget -O /sduoj/server.zip https://codeload.github.com/SDUOJ/sduoj-server/zip
 
 # compile and install sduoj-server
 RUN cd /sduoj/dockerWorkspace/sduoj-server* \
- && mvn install -Dmaven.test.skip=true
-
+ && mvn install -Dmaven.test.skip=true \
 # compile sduoj-judger
-RUN cd /sduoj/dockerWorkspace/sduoj-judger* \
+ && cd /sduoj/dockerWorkspace/sduoj-judger* \
  && chmod +x ./gradlew \
  && ./gradlew build \
- && mv ./sduoj-judger-service/build/libs/sduoj-judger.jar /sduoj/sduoj-judger.jar
-
+ && mv ./sduoj-judger-service/build/libs/sduoj-judger.jar /sduoj/sduoj-judger.jar \
 # clean
-RUN rm -rf ~/.m2 \
+ && rm -rf ~/.m2 \
  && rm -rf ~/.gradle \
  && rm -rf /sduoj/dockerWorkspace \
  && apt-get purge -y maven
