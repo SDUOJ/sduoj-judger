@@ -33,8 +33,8 @@ RUN ln -sf /usr/lib/jvm/java-8-openjdk-amd64/bin/java /usr/bin/java \
  && cd /sduoj/sduoj-server-master \
  && mvn install -Dmaven.test.skip=true \
  && cd /sduoj/sduoj-judger-master \
- && mvn package -Dmaven.test.skip=true \
- && mv sduoj-judger-service/target/sduoj-judger.jar ../sduoj-judger.jar \
+ && ./gradlew build \
+ && mv sduoj-judger-service/build/libs/sduoj-judger.jar ../sduoj-judger.jar \
  && rm -rf ~/.m2 \
  && rm -rf /sduoj/sduoj-server-master \
  && rm -rf /sduoj/sduoj-judger-master \
