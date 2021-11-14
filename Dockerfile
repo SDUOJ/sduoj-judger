@@ -15,7 +15,7 @@ RUN mkdir /sduoj \
 # install OS softwares
 RUN apt-get update \
  && apt-get install -qq -y \
-                    make=4.1-9.1ubuntu1   dosbox=0.74-4.3  maven=3.6.3 cmake \
+                    make=4.1-9.1ubuntu1   dosbox=0.74-4.3 cmake \
                     sudo git unzip wget libseccomp-dev libseccomp2 seccomp build-essential \
                     python3-pip python vim dos2unix openjdk-8-jdk \
  && mkdir /usr/share/maven/conf/logging \
@@ -40,9 +40,10 @@ RUN wget -q -O /sduoj/server.zip https://codeload.github.com/SDUOJ/sduoj-server/
 
 # compile and install sduoj-server
 RUN cd /sduoj/dockerWorkspace/sduoj-server* \
- && mvn --version \
- && mvn --help \
- && mvn install --no-transfer-progress --batch-mode -Dmaven.test.skip=true \
+ && chmod +x ./mvnw \
+ && ./mvnw --version \
+ && ./mvnw --help \
+ && ./mvnw install --no-transfer-progress --batch-mode -Dmaven.test.skip=true \
 # compile sduoj-judger
  && cd /sduoj/dockerWorkspace/sduoj-judger* \
  && chmod +x ./gradlew \
