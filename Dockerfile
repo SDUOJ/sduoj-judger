@@ -12,7 +12,7 @@ ADD https://github.com/SDUOJ/docker-compose-wait/releases/download/2.7.3/wait /w
 RUN mkdir /sduoj \
  && chmod +x /wait
 
-# install OS software
+# install OS softwares
 RUN apt-get update \
  && apt-get install -y make=4.1-9.1ubuntu1   dosbox=0.74-4.3   cmake \
                        sudo git unzip wget libseccomp-dev libseccomp2 seccomp build-essential \
@@ -23,8 +23,9 @@ RUN apt-get update \
 
 # compile and install sduoj-sandbox
 RUN wget -O /sduoj/sandbox.zip https://codeload.github.com/SDUOJ/sduoj-sandbox/zip/master \
- && unzip -o -q -d /sduoj /sduoj/sandbox.zip \
- && cd /sduoj/sduoj-sandbox-master \
+ && unzip -o -q -d /sduoj/dockerWorkspace /sduoj/sandbox.zip \
+ && rm /sduoj/sandbox.zip \
+ && cd /sduoj/dockerWorkspace/sduoj-sandbox* \
  && make \
  && make install
 
@@ -33,7 +34,8 @@ RUN wget -O /sduoj/server.zip https://codeload.github.com/SDUOJ/sduoj-server/zip
  && wget -O /sduoj/judger.zip https://codeload.github.com/SDUOJ/sduoj-judger/zip/migrate-maven-to-gradle \
  && unzip -o -q -d /sduoj/dockerWorkspace /sduoj/server.zip \
  && unzip -o -q -d /sduoj/dockerWorkspace /sduoj/judger.zip \
- && rm /sduoj/*.zip
+ && rm /sduoj/server.zip \
+ && rm /sduoj/judger.zip
 
 # compile and install sduoj-server
 RUN cd /sduoj/dockerWorkspace/sduoj-server* \
