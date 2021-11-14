@@ -26,7 +26,7 @@ RUN wget -O /sduoj/sandbox.zip https://codeload.github.com/SDUOJ/sduoj-sandbox/z
 RUN ln -sf /usr/lib/jvm/java-8-openjdk-amd64/bin/java /usr/bin/java \
  && ln -sf /usr/lib/jvm/java-8-openjdk-amd64/bin/javac /usr/bin/javac \
  && wget -O /sduoj/server.zip https://codeload.github.com/SDUOJ/sduoj-server/zip/master \
- && wget -O /sduoj/judger.zip https://codeload.github.com/SDUOJ/sduoj-judger/zip/master \
+ && wget -O /sduoj/judger.zip https://codeload.github.com/SDUOJ/sduoj-judger/zip/migrate-maven-to-gradle \
  && unzip -o -q -d /sduoj /sduoj/server.zip \
  && unzip -o -q -d /sduoj /sduoj/judger.zip \
  && mkdir /usr/share/maven/conf/logging \
