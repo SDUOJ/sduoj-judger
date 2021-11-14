@@ -22,7 +22,7 @@ RUN apt-get update \
  && ln -sf /usr/lib/jvm/java-8-openjdk-amd64/bin/javac /usr/bin/javac
 
 # compile and install sduoj-sandbox
-RUN wget -O /sduoj/sandbox.zip https://codeload.github.com/SDUOJ/sduoj-sandbox/zip/master \
+RUN wget -q -O /sduoj/sandbox.zip https://codeload.github.com/SDUOJ/sduoj-sandbox/zip/master \
  && unzip -o -q -d /sduoj/dockerWorkspace /sduoj/sandbox.zip \
  && rm /sduoj/sandbox.zip \
  && cd /sduoj/dockerWorkspace/sduoj-sandbox* \
@@ -30,8 +30,8 @@ RUN wget -O /sduoj/sandbox.zip https://codeload.github.com/SDUOJ/sduoj-sandbox/z
  && make install
 
 # download source code
-RUN wget -O /sduoj/server.zip https://codeload.github.com/SDUOJ/sduoj-server/zip/master \
- && wget -O /sduoj/judger.zip https://codeload.github.com/SDUOJ/sduoj-judger/zip/migrate-maven-to-gradle \
+RUN wget -q -O /sduoj/server.zip https://codeload.github.com/SDUOJ/sduoj-server/zip/master \
+ && wget -q -O /sduoj/judger.zip https://codeload.github.com/SDUOJ/sduoj-judger/zip/migrate-maven-to-gradle \
  && unzip -o -q -d /sduoj/dockerWorkspace /sduoj/server.zip \
  && unzip -o -q -d /sduoj/dockerWorkspace /sduoj/judger.zip \
  && rm /sduoj/server.zip \
