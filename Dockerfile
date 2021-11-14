@@ -15,9 +15,9 @@ RUN mkdir /sduoj \
 # install OS softwares
 RUN apt-get update \
  && apt-get install -qq -y \
-                    make=4.1-9.1ubuntu1   dosbox=0.74-4.3   cmake \
+                    make=4.1-9.1ubuntu1   dosbox=0.74-4.3  maven=3.6.3 cmake \
                     sudo git unzip wget libseccomp-dev libseccomp2 seccomp build-essential \
-                    python3-pip python vim dos2unix openjdk-8-jdk maven \
+                    python3-pip python vim dos2unix openjdk-8-jdk \
  && mkdir /usr/share/maven/conf/logging \
  && ln -sf /usr/lib/jvm/java-8-openjdk-amd64/bin/java /usr/bin/java \
  && ln -sf /usr/lib/jvm/java-8-openjdk-amd64/bin/javac /usr/bin/javac
