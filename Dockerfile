@@ -39,6 +39,8 @@ RUN wget -q -O /sduoj/server.zip https://codeload.github.com/SDUOJ/sduoj-server/
 
 # compile and install sduoj-server
 RUN cd /sduoj/dockerWorkspace/sduoj-server* \
+ && mvn --version \
+ && mvn --help \
  && mvn install --no-transfer-progress --batch-mode -Dmaven.test.skip=true \
 # compile sduoj-judger
  && cd /sduoj/dockerWorkspace/sduoj-judger* \
