@@ -41,6 +41,7 @@ RUN cd /sduoj/dockerWorkspace/sduoj-server* \
 
 # compile sduoj-judger
 RUN cd /sduoj/dockerWorkspace/sduoj-judger* \
+ && chmod +x ./gradlew \
  && ./gradlew build \
  && mv ./sduoj-judger-service/build/libs/sduoj-judger.jar /sduoj/sduoj-judger.jar
 
