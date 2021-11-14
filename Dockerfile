@@ -31,11 +31,13 @@ RUN ln -sf /usr/lib/jvm/java-8-openjdk-amd64/bin/java /usr/bin/java \
  && unzip -o -q -d /sduoj /sduoj/judger.zip \
  && mkdir /usr/share/maven/conf/logging \
  && cd /sduoj/sduoj-server-master \
- && mvn install -Dmaven.test.skip=true \
- && cd /sduoj/sduoj-judger-master \
+ && mvn install -Dmaven.test.skip=true
+
+RUN cd /sduoj/sduoj-judger-master \
  && ./gradlew build \
  && mv sduoj-judger-service/build/libs/sduoj-judger.jar ../sduoj-judger.jar \
  && rm -rf ~/.m2 \
+ && rm -rf ~/.gradle \
  && rm -rf /sduoj/sduoj-server-master \
  && rm -rf /sduoj/sduoj-judger-master \
  && apt-get purge -y maven
