@@ -41,7 +41,11 @@ RUN wget -q -O /sduoj/server.zip https://codeload.github.com/SDUOJ/sduoj-server/
 # compile and install sduoj-server
 RUN cd /sduoj/dockerWorkspace/sduoj-server* \
  && chmod +x ./mvnw \
- && ./mvnw install --no-transfer-progress --batch-mode -Dmaven.test.skip=true \
+ && ./mvnw install \
+           --projects sduoj-submit-interface \
+           --no-transfer-progress \
+           --batch-mode \
+           -Dmaven.test.skip=true \
 # compile sduoj-judger
  && cd /sduoj/dockerWorkspace/sduoj-judger* \
  && chmod +x ./gradlew \
