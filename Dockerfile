@@ -42,14 +42,14 @@ RUN wget -q -O /sduoj/server.zip https://codeload.github.com/SDUOJ/sduoj-server/
 RUN cd /sduoj/dockerWorkspace/sduoj-server* \
  && chmod +x ./mvnw \
  && ./mvnw install \
-           --projects sduoj-submit/sduoj-submit-interface, \
-                      sduoj-problem/sduoj-problem-interface, \
+           --projects sduoj-submit/sduoj-submit-interface,\
+                      sduoj-problem/sduoj-problem-interface,\
                       sduoj-filesys/sduoj-filesys-interface \
            --also-make \
            --no-transfer-progress \
            --batch-mode \
            -Dmaven.test.skip=true \
-           -T `nproc` c\
+           -T `nproc`\
 # compile sduoj-judger
  && cd /sduoj/dockerWorkspace/sduoj-judger* \
  && chmod +x ./gradlew \
