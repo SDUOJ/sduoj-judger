@@ -41,8 +41,6 @@ RUN wget -q -O /sduoj/server.zip https://codeload.github.com/SDUOJ/sduoj-server/
 # compile and install sduoj-server
 RUN cd /sduoj/dockerWorkspace/sduoj-server* \
  && chmod +x ./mvnw \
- && ./mvnw --version \
- && ./mvnw --help \
  && ./mvnw install --no-transfer-progress --batch-mode -Dmaven.test.skip=true \
 # compile sduoj-judger
  && cd /sduoj/dockerWorkspace/sduoj-judger* \
@@ -52,8 +50,7 @@ RUN cd /sduoj/dockerWorkspace/sduoj-server* \
 # clean
  && rm -rf ~/.m2 \
  && rm -rf ~/.gradle \
- && rm -rf /sduoj/dockerWorkspace \
- && apt-get purge -y maven
+ && rm -rf /sduoj/dockerWorkspace
 
 ENV NACOS_ADDR=nacos.oj.qd.sdu.edu.cn:8848
 ENV ACTIVE=prod
