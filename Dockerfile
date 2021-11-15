@@ -42,7 +42,7 @@ RUN wget -q -O /sduoj/server.zip https://codeload.github.com/SDUOJ/sduoj-server/
 RUN cd /sduoj/dockerWorkspace/sduoj-server* \
  && chmod +x ./mvnw \
  && ./mvnw install \
-           --projects sduoj-submit-interface \
+           --projects sduoj-submit/sduoj-submit-interface \
            --no-transfer-progress \
            --batch-mode \
            -Dmaven.test.skip=true \
