@@ -47,6 +47,7 @@ RUN cd /sduoj/dockerWorkspace/sduoj-server* \
            --no-transfer-progress \
            --batch-mode \
            -Dmaven.test.skip=true \
+           -T `nproc` \
 # compile sduoj-judger
  && cd /sduoj/dockerWorkspace/sduoj-judger* \
  && chmod +x ./gradlew \
