@@ -43,6 +43,7 @@ RUN cd /sduoj/dockerWorkspace/sduoj-server* \
  && chmod +x ./mvnw \
  && ./mvnw install \
            --projects sduoj-submit/sduoj-submit-interface \
+           --also-make \
            --no-transfer-progress \
            --batch-mode \
            -Dmaven.test.skip=true \
