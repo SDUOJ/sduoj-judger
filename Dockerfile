@@ -24,9 +24,9 @@ RUN apt-get update \
 
 # compile and install sduoj-sandbox
 RUN wget -q -O /sduoj/sandbox.zip https://codeload.github.com/SDUOJ/sduoj-sandbox/zip/master \
- && unzip -o -q -d /sduoj/dockerWorkspace /sduoj/sandbox.zip \
+ && unzip -o -q -d /sduoj /sduoj/sandbox.zip \
  && rm /sduoj/sandbox.zip \
- && cd /sduoj/dockerWorkspace/sduoj-sandbox* \
+ && cd /sduoj/sduoj-sandbox* \
  && make \
  && make install
 
