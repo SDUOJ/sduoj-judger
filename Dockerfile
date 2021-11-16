@@ -32,7 +32,7 @@ RUN wget -q -O /sduoj/sandbox.zip https://codeload.github.com/SDUOJ/sduoj-sandbo
 
 # download source code
 RUN wget -q -O /sduoj/server.zip https://codeload.github.com/SDUOJ/sduoj-server/zip/master \
- && wget -q -O /sduoj/judger.zip https://codeload.github.com/SDUOJ/sduoj-judger/zip/migrate-maven-to-gradle \
+ && wget -q -O /sduoj/judger.zip https://codeload.github.com/SDUOJ/sduoj-judger/zip/master \
  && unzip -o -q -d /sduoj/dockerWorkspace /sduoj/server.zip \
  && unzip -o -q -d /sduoj/dockerWorkspace /sduoj/judger.zip \
  && rm /sduoj/server.zip \
