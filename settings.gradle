@@ -1,0 +1,2 @@
+rootProject.name = 'sduoj-judger'
+include ':sduoj-judger-interface', ':sduoj-judger-service'
