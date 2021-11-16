@@ -30,6 +30,7 @@ jobs:
       - name: Install if cache not hit
         if: steps.cache-sduoj-server-interface.outputs.cache-hit != 'true'
         run: |
+          chmod +x ./mvnw
           ./mvnw install \
               --projects sduoj-submit/sduoj-submit-interface \
               --projects sduoj-problem/sduoj-problem-interface \
@@ -40,4 +41,6 @@ jobs:
               -Dmaven.test.skip=true \
 
       - uses: actions/checkout@v2
-      - run: ./gradlew build
+      - run: |
+          chmod +x ./gradlew
+          ./gradlew build
