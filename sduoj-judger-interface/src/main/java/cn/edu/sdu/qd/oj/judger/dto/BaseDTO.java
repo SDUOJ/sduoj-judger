@@ -18,12 +18,9 @@ import org.apache.commons.lang3.builder.ToStringBuilder;
 import java.io.Serializable;
 
 /**
- * @ClassName BaseDTO
- * @Description TODO
- * @Author zhangt2333
- * @Date 2020/9/7 16:26
- * @Version V1.0
- **/
+ * BaseDTO
+ * @author zhangt2333
+ */
 
 public class BaseDTO implements Serializable, Cloneable {
     @Override
