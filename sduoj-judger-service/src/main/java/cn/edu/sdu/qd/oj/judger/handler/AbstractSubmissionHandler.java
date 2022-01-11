@@ -1,11 +1,11 @@
 /*
- * Copyright 2020-2021 the original author or authors.
+ * Copyright 2020-2022 the original author or authors.
  *
- * Licensed under the General Public License, Version 3.0 (the "License");
+ * Licensed under the Affero General Public License, Version 3.0 (the "License");
  * you may not use this file except in compliance with the License.
  * You may obtain a copy of the License at
  *
- *      https://www.gnu.org/licenses/gpl-3.0.en.html
+ *      https://www.gnu.org/licenses/agpl-3.0.en.html
  */
 
 package cn.edu.sdu.qd.oj.judger.handler;
@@ -13,7 +13,11 @@ package cn.edu.sdu.qd.oj.judger.handler;
 import cn.edu.sdu.qd.oj.checkpoint.dto.CheckpointManageListDTO;
 import cn.edu.sdu.qd.oj.common.util.CollectionUtils;
 import cn.edu.sdu.qd.oj.dto.FileDownloadReqDTO;
-import cn.edu.sdu.qd.oj.judger.client.*;
+import cn.edu.sdu.qd.oj.judger.client.CheckpointClient;
+import cn.edu.sdu.qd.oj.judger.client.FilesysClient;
+import cn.edu.sdu.qd.oj.judger.client.JudgeTemplateClient;
+import cn.edu.sdu.qd.oj.judger.client.ProblemClient;
+import cn.edu.sdu.qd.oj.judger.client.SubmissionClient;
 import cn.edu.sdu.qd.oj.judger.command.CpuAffinityThreadPool;
 import cn.edu.sdu.qd.oj.judger.config.PathConfig;
 import cn.edu.sdu.qd.oj.judger.exception.CompileErrorException;
@@ -22,11 +26,10 @@ import cn.edu.sdu.qd.oj.judger.manager.LocalCheckerManager;
 import cn.edu.sdu.qd.oj.judger.manager.LocalCheckpointManager;
 import cn.edu.sdu.qd.oj.judger.manager.LocalZipManager;
 import cn.edu.sdu.qd.oj.judger.sender.RabbitSender;
-import cn.edu.sdu.qd.oj.judger.util.ProcessUtils;
 import cn.edu.sdu.qd.oj.judger.util.FileUtils;
+import cn.edu.sdu.qd.oj.judger.util.ProcessUtils;
 import cn.edu.sdu.qd.oj.judgetemplate.dto.JudgeTemplateDTO;
 import cn.edu.sdu.qd.oj.judgetemplate.enums.JudgeTemplateTypeEnum;
-import cn.edu.sdu.qd.oj.problem.dto.ProblemFunctionTemplateDTO;
 import cn.edu.sdu.qd.oj.problem.dto.ProblemJudgerDTO;
 import cn.edu.sdu.qd.oj.submit.dto.CheckpointResultMessageDTO;
 import cn.edu.sdu.qd.oj.submit.dto.SubmissionJudgeDTO;
