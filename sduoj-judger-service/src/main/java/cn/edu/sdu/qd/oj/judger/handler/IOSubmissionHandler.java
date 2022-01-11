@@ -11,9 +11,9 @@
 package cn.edu.sdu.qd.oj.judger.handler;
 
 import cn.edu.sdu.qd.oj.common.util.CollectionUtils;
+import cn.edu.sdu.qd.oj.judger.command.CommandResult;
 import cn.edu.sdu.qd.oj.judger.command.CpuAffinityCommand;
 import cn.edu.sdu.qd.oj.judger.config.PathConfig;
-import cn.edu.sdu.qd.oj.judger.command.CommandResult;
 import cn.edu.sdu.qd.oj.judger.exception.CompileErrorException;
 import cn.edu.sdu.qd.oj.judger.exception.SystemErrorException;
 import cn.edu.sdu.qd.oj.judger.util.FileUtils;
@@ -35,7 +35,10 @@ import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Component;
 
 import java.nio.file.Paths;
-import java.util.*;
+import java.util.ArrayList;
+import java.util.Arrays;
+import java.util.Comparator;
+import java.util.List;
 import java.util.concurrent.ExecutionException;
 import java.util.stream.Collectors;
 

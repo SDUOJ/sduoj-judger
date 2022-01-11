@@ -11,7 +11,7 @@
 package cn.edu.sdu.qd.oj.judger.command;
 
 import cn.edu.sdu.qd.oj.judger.dto.BaseDTO;
-import lombok.*;
+import lombok.Getter;
 
 @Getter
 public class CommandResult<V> extends BaseDTO {
