@@ -80,7 +80,6 @@ public class IOSubmissionHandler extends AbstractSubmissionHandler {
                     .command(Paths.get(PathConfig.CHECKER_DIR, checkerConfigDTO.getSource()).toString())
                     .maxCpuTimeFactor(2)
                     .maxRealTimeFactor(2)
-                    .seccompRule("general")
                     .build();
         } else {
             // custom checker 代码写入文件并编译
@@ -265,6 +264,7 @@ public class IOSubmissionHandler extends AbstractSubmissionHandler {
                     .add(SandboxArgument.EXE_ENVS, runConfig.getEnvs())
                     .add(SandboxArgument.INPUT_PATH, inputPath)
                     .add(SandboxArgument.OUTPUT_PATH, outputPath)
+                    .add(SandboxArgument.SECCOMP_RULES, runConfig.getSeccompRule())
                     .add(SandboxArgument.UID, PathConfig.NOBODY_UID)
                     .add(SandboxArgument.GID, PathConfig.NOBODY_GID);
 
@@ -291,6 +291,7 @@ public class IOSubmissionHandler extends AbstractSubmissionHandler {
                     .add(SandboxArgument.EXE_ENVS, customCheckerConfig.getEnvs())
                     .add(SandboxArgument.INPUT_PATH, "/dev/null")
                     .add(SandboxArgument.OUTPUT_PATH, "/dev/null")
+                    .add(SandboxArgument.SECCOMP_RULES, customCheckerConfig.getSeccompRule())
                     .add(SandboxArgument.UID, PathConfig.NOBODY_UID)
                     .add(SandboxArgument.GID, PathConfig.NOBODY_GID);
         }

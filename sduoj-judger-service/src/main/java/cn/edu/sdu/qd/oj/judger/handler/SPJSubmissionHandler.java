@@ -246,6 +246,7 @@ public class SPJSubmissionHandler extends AbstractSubmissionHandler {
                     .add(SandboxArgument.EXE_ENVS, runConfig.getEnvs())
                     .add(SandboxArgument.INPUT_PATH, inputPath)
                     .add(SandboxArgument.OUTPUT_PATH, outputPath)
+                    .add(SandboxArgument.SECCOMP_RULES, runConfig.getSeccompRule())
                     .add(SandboxArgument.UID, PathConfig.NOBODY_UID)
                     .add(SandboxArgument.GID, PathConfig.NOBODY_GID);
 
@@ -272,6 +273,7 @@ public class SPJSubmissionHandler extends AbstractSubmissionHandler {
                     .add(SandboxArgument.EXE_ENVS, spjRunConfig.getEnvs())
                     .add(SandboxArgument.INPUT_PATH, "/dev/null")
                     .add(SandboxArgument.OUTPUT_PATH, "/dev/null")
+                    .add(SandboxArgument.SECCOMP_RULES, spjRunConfig.getSeccompRule())
                     .add(SandboxArgument.UID, PathConfig.NOBODY_UID)
                     .add(SandboxArgument.GID, PathConfig.NOBODY_GID);
 
