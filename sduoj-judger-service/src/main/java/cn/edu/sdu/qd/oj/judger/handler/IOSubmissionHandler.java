@@ -77,7 +77,6 @@ public class IOSubmissionHandler extends AbstractSubmissionHandler {
                     .command(Paths.get(PathConfig.CHECKER_DIR, checkerConfigDTO.getSource()).toString())
                     .maxCpuTimeFactor(2)
                     .maxRealTimeFactor(2)
-                    .seccompRule("general")
                     .build();
         } else {
             // custom checker 代码写入文件并编译
