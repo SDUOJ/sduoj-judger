@@ -1,6 +1,5 @@
 plugins {
     id("cn.edu.sdu.qd.oj.judger.java-conventions")
-    id("org.springframework.boot") version Versions.springBoot
 }
 
 dependencies {
@@ -31,7 +30,3 @@ dependencies {
 }
 
 description = "sduoj-judger-service"
-
-tasks.bootJar {
-    archiveName = "sduoj-judger.jar"
-}

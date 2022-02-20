@@ -1,6 +1,5 @@
 plugins {
     id("cn.edu.sdu.qd.oj.judger.java-conventions")
-    id("maven-publish")
 }
 
 dependencies {
@@ -12,12 +11,6 @@ dependencies {
     /* 3-rd party dependency */
     api("org.apache.commons:commons-lang3:${Versions.commonsLang3}")
     api("com.fasterxml.jackson.core:jackson-databind:${Versions.jackson}")
-}
-
-publishing {
-    publications.create<MavenPublication>("maven") {
-        artifact(tasks.jar)
-    }
 }
 
 description = "sduoj-judger-interface"

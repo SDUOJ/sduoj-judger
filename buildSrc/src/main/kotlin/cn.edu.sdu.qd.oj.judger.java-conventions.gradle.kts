@@ -4,6 +4,8 @@
 
 plugins {
     `java-library`
+    `maven-publish`
+    id("org.springframework.boot")
     id("io.spring.dependency-management")
 }
 
@@ -30,9 +32,34 @@ dependencies {
 
 dependencyManagement {
     imports {
-        mavenBom("org.springframework.boot:spring-boot-dependencies:${Versions.springBoot}")
         mavenBom("org.springframework.cloud:spring-cloud-dependencies:${Versions.springCloud}")
         mavenBom("com.alibaba.cloud:spring-cloud-alibaba-dependencies:${Versions.springCloudAlibaba}")
+    }
+}
+
+allprojects {
+    val projectName = this.name
+    val isService = projectName.contains(Regex("-(service)$"))
+    if (isService) {
+        tasks.bootJar {
+            enabled = true
+            archiveName = projectName.replace("-service", "") + ".jar"
+        }
+        tasks.jar {
+            enabled = false
+        }
+    } else {
+        tasks.bootJar {
+            enabled = false
+        }
+        tasks.jar {
+            enabled = true
+        }
+        publishing {
+            publications.create<MavenPublication>("maven") {
+                artifact(tasks.jar)
+            }
+        }
     }
 }
 
