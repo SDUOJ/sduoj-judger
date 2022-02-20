@@ -17,11 +17,10 @@ java.targetCompatibility = JavaVersion.VERSION_1_8
 
 
 repositories {
+    maven { url = uri("https://maven.aliyun.com/repository/public/") }
+    maven { url = uri("https://maven.aliyun.com/repository/spring/") }
     mavenLocal()
-    mavenCentral()
-    maven {
-        url = uri("https://repo.maven.apache.org/maven2/")
-    }
+//    mavenCentral()
 }
 
 dependencies {
