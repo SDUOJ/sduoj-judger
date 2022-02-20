@@ -32,7 +32,7 @@ jobs:
         if: steps.cache-sduoj-server-interface.outputs.cache-hit != 'true'
         run: |
           chmod +x ./gradlew
-          ./gradlew publishToMavenLocal
+          ./gradlew publishToMavenLocal -x test
 
       - uses: actions/checkout@v2
 
