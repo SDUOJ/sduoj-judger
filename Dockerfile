@@ -5,7 +5,6 @@ ENV LANG C.UTF-8
 
 COPY docker/sources.list /etc/apt/sources.list
 COPY docker/testlib /testlib.h
-COPY docker/checkers/ /checkers/
 
 ADD https://github.com/SDUOJ/docker-compose-wait/releases/download/2.7.3/wait /wait
 RUN mkdir -p /sduoj/dockerWorkspace \
@@ -29,8 +28,8 @@ RUN wget -q -O /sduoj/sandbox.zip https://codeload.github.com/SDUOJ/sduoj-sandbo
  && make install
 
 # download source code
-RUN wget -q -O /sduoj/server.zip https://codeload.github.com/SDUOJ/sduoj-server/zip/master \
- && wget -q -O /sduoj/judger.zip https://codeload.github.com/SDUOJ/sduoj-judger/zip/master \
+RUN wget -q -O /sduoj/server.zip https://codeload.github.com/SDUOJ/sduoj-server/zip/stable \
+ && wget -q -O /sduoj/judger.zip https://codeload.github.com/SDUOJ/sduoj-judger/zip/stable \
  && unzip -o -q -d /sduoj/dockerWorkspace /sduoj/server.zip \
  && unzip -o -q -d /sduoj/dockerWorkspace /sduoj/judger.zip \
  && rm /sduoj/server.zip \
