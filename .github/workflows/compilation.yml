@@ -1,9 +1,10 @@
-name: CI
+name: Compilation
 
 on:
   pull_request:
     branches: 
       - master
+  workflow_dispatch: # add manually button
 
 jobs:
   build:
@@ -24,23 +25,17 @@ jobs:
         uses: actions/cache@v2
         with:
           path: ~/.m2/repository
-          key: ${{ runner.os }}-m2-${{ hashFiles('**/*.java') }}-${{ hashFiles('**/pom.xml') }}
-          restore-keys: ${{ runner.os }}-m2
+          key: ${{ runner.os }}-m2-${{ hashFiles('**/*.java') }}-${{ hashFiles('**/*.gradle.kts') }}
+          restore-keys: ${{ runner.os }}-m2-${{ hashFiles('**/*.java') }}-${{ hashFiles('**/*.gradle.kts') }}
 
-      - name: Install if cache not hit
+      - name: PublishToMavenLocal if not hit cache
         if: steps.cache-sduoj-server-interface.outputs.cache-hit != 'true'
         run: |
-          chmod +x ./mvnw
-          ./mvnw install \
-              --projects sduoj-submit/sduoj-submit-interface \
-              --projects sduoj-problem/sduoj-problem-interface \
-              --projects sduoj-filesys/sduoj-filesys-interface \
-              --also-make \
-              --no-transfer-progress \
-              --batch-mode \
-              -Dmaven.test.skip=true \
+          chmod +x ./gradlew
+          ./gradlew publishToMavenLocal -x test
 
       - uses: actions/checkout@v2
+
       - run: |
           chmod +x ./gradlew
           ./gradlew build
