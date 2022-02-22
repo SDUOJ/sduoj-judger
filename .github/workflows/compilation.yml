@@ -37,6 +37,10 @@ jobs:
           chmod +x ./gradlew
           ./gradlew publishToMavenLocal -x test
 
+      - run: |
+          tree ~/.m2
+          tree ~/.gradle
+
       - uses: actions/checkout@v2
 
       - name: Gradle Build
