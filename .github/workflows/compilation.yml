@@ -40,4 +40,4 @@ jobs:
       - name: Gradle Build
         run: |
           chmod +x ./gradlew
-          ./gradlew build
+          ./gradlew build --scan
