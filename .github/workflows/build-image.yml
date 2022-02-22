@@ -24,9 +24,11 @@ jobs:
         id: cache-sduoj-server-interface
         uses: actions/cache@v2
         with:
-          path: ~/.gradle
-          key: ${{ runner.os }}-gradle-${{ hashFiles('**/*.java') }}-${{ hashFiles('**/*.gradle*') }}
-          restore-keys: ${{ runner.os }}-gradle-${{ hashFiles('**/*.java') }}-${{ hashFiles('**/*.gradle*') }}
+          path: |
+            ~/.m2
+            ~/.gradle
+          key: ${{ runner.os }}-m2-${{ hashFiles('**/*.java') }}-${{ hashFiles('**/*.gradle*') }}
+          restore-keys: ${{ runner.os }}-m2-${{ hashFiles('**/*.java') }}-${{ hashFiles('**/*.gradle*') }}
 
       - name: PublishToMavenLocal if not hit cache
         if: steps.cache-sduoj-server-interface.outputs.cache-hit != 'true'
