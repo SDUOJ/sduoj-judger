@@ -37,7 +37,8 @@ jobs:
           chmod +x ./gradlew
           ./gradlew publishToMavenLocal -x test
 
-      - run: |
+      - name: tree files
+        run: |
           tree ~/.m2
           tree ~/.gradle
 
