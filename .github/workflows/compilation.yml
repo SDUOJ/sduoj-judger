@@ -7,7 +7,7 @@ on:
   workflow_dispatch: # add manually button
 
 jobs:
-  build:
+  compilation:
     runs-on: ubuntu-latest
 
     steps:
