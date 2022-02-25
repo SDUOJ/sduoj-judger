@@ -55,7 +55,7 @@ RUN cd /sduoj/dockerWorkspace/sduoj-server* \
  && rm -rf ~/.gradle \
  && rm -rf /sduoj/dockerWorkspace
 
-ENV NACOS_ADDR=nacos.oj.qd.sdu.edu.cn:8848
+ENV NACOS_ADDR=127.0.0.1:8848
 ENV ACTIVE=prod
 
 WORKDIR /sduoj
