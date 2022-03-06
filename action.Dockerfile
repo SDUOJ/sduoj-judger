@@ -13,11 +13,9 @@ RUN mkdir -p /sduoj/dockerWorkspace \
  && chmod +x /wait
 
 # install JDKs
-ENV JAVA_HOME=/opt/java/openjdk JAVA_VERSION=8
-COPY --from=eclipse-temurin:$JAVA_VERSION $JAVA_HOME $JAVA_HOME$JAVA_VERSION
-ENV JAVA_HOME=/opt/java/openjdk JAVA_VERSION=17
-COPY --from=eclipse-temurin:$JAVA_VERSION $JAVA_HOME $JAVA_HOME$JAVA_VERSION
-
+ENV JAVA_HOME=/opt/java/openjdk
+COPY --from=eclipse-temurin:8 $JAVA_HOME ${JAVA_HOME}8
+COPY --from=eclipse-temurin:17 $JAVA_HOME ${JAVA_HOME}17
 # set the default JDK to JDK8
 ENV PATH="${JAVA_HOME}8/bin:${PATH}"
 
