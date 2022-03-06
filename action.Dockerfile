@@ -12,14 +12,21 @@ ADD https://github.com/SDUOJ/docker-compose-wait/releases/download/2.7.3/wait /w
 RUN mkdir -p /sduoj/dockerWorkspace \
  && chmod +x /wait
 
+# install JDKs
+ENV JAVA_HOME=/opt/java/openjdk JAVA_VERSION=8
+COPY --from=eclipse-temurin:$JAVA_VERSION $JAVA_HOME $JAVA_HOME$JAVA_VERSION
+ENV JAVA_HOME=/opt/java/openjdk JAVA_VERSION=17
+COPY --from=eclipse-temurin:$JAVA_VERSION $JAVA_HOME $JAVA_HOME$JAVA_VERSION
+
+# set the default JDK to JDK8
+ENV PATH="${JAVA_HOME}8/bin:${PATH}"
+
 # install OS softwares
 RUN apt-get update \
  && apt-get install -qq -y \
                     make=4.1-9.1ubuntu1   dosbox=0.74-4.3 cmake \
                     sudo git unzip wget libseccomp-dev libseccomp2 seccomp build-essential \
-                    python3-pip python vim dos2unix openjdk-8-jdk \
- && ln -sf /usr/lib/jvm/java-8-openjdk-amd64/bin/java /usr/bin/java \
- && ln -sf /usr/lib/jvm/java-8-openjdk-amd64/bin/javac /usr/bin/javac
+                    python3-pip python vim dos2unix
 
 # compile and install sduoj-sandbox
 RUN wget -q -O /sduoj/sandbox.zip https://codeload.github.com/SDUOJ/sduoj-sandbox/zip/master \
