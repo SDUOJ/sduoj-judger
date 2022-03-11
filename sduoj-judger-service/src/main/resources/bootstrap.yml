@@ -7,8 +7,6 @@ sduoj:
 spring:
   application:
     name: ${sduoj.config.application-name}
-  main:
-    allow-bean-definition-overriding: true
   cloud:
     nacos:
       config:
