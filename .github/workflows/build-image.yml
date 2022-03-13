@@ -3,7 +3,7 @@ name: Build and push Docker images
 on:
   push:
     branches:
-      - zhangt2333/fix
+      - master
   workflow_dispatch: # add manually button
 
 jobs:
