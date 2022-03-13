@@ -51,7 +51,7 @@ allprojects {
     if (isService) {
         tasks.bootJar {
             enabled = true
-            archiveName = projectName.replace("-service", "") + ".jar"
+            archiveFileName.set(projectName.replace("-service", "") + ".jar")
         }
         tasks.jar {
             enabled = false
