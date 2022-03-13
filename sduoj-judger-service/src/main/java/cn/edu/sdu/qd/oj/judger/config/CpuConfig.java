@@ -30,8 +30,8 @@ public class CpuConfig {
     private static Set<Integer> cpuSet;
 
     private static final String[] CPUSET_PATHS = new String[]{
-            "/sys/fs/cgroup/cpuset/cpuset.cpus",
-            "/sys/fs/cgroup/cpuset.cpus"
+        "/sys/fs/cgroup/cpuset/cpuset.cpus",
+        "/sys/fs/cgroup/cpuset.cpus"
     };
 
     public static void initialize() {
