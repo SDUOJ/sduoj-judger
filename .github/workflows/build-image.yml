@@ -3,7 +3,7 @@ name: Build and push Docker images
 on:
   push:
     branches:
-      - master
+      - stable
   workflow_dispatch: # add manually button
 
 jobs:
@@ -63,4 +63,4 @@ jobs:
           file: action.Dockerfile
           platforms: linux/amd64 #,linux/arm64
           push: true
-          tags: registry.cn-beijing.aliyuncs.com/pre-sduoj/sduoj-judger:latest
+          tags: registry.cn-beijing.aliyuncs.com/sduoj/sduoj-judger:latest
