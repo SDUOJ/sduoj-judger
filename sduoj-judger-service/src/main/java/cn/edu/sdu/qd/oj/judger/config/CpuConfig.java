@@ -12,11 +12,13 @@ package cn.edu.sdu.qd.oj.judger.config;
 
 
 import cn.edu.sdu.qd.oj.common.util.CollectionUtils;
+import cn.edu.sdu.qd.oj.judger.exception.SystemErrorException;
 import cn.edu.sdu.qd.oj.judger.util.FileUtils;
 import lombok.Getter;
 import lombok.extern.slf4j.Slf4j;
-import org.apache.commons.lang.StringUtils;
+import org.apache.commons.lang3.StringUtils;
 
+import java.io.FileNotFoundException;
 import java.util.HashSet;
 import java.util.Set;
 import java.util.stream.IntStream;
@@ -25,18 +27,41 @@ import java.util.stream.IntStream;
 public class CpuConfig {
 
     @Getter
-    private static Set<Integer> cpuSet;   //     "/sys/fs/cgroup/cpuset/cpuset.cpus"
+    private static Set<Integer> cpuSet;
 
-    public static void initialize() throws Throwable {
-        String cpuSetString = FileUtils.readFile("/sys/fs/cgroup/cpuset/cpuset.cpus"); // 读出来是形如 '0-1,3-5' 之类的串，需要处理
-        log.info("CpuConfig Read CpuSet: {}", cpuSetString);
-        cpuSet = handleCpuSetString(cpuSetString);
-        log.info("CpuConfig Initialize: {}", cpuSet);
+    private static final String[] CPUSET_PATHS = new String[]{
+        "/sys/fs/cgroup/cpuset/cpuset.cpus",
+        "/sys/fs/cgroup/cpuset.cpus"
+    };
+
+    public static void initialize() {
+        for (String cpuSetPath : CPUSET_PATHS) {
+            if (initialize(cpuSetPath)) {
+                return;
+            }
+        }
+        throw new RuntimeException("cpuset.cpus init failed");
+    }
+
+    public static boolean initialize(String cpuSetPath) {
+        try {
+            log.info("Reading cpuset.cpus from {}", cpuSetPath);
+            String cpuSet = FileUtils.readFile(cpuSetPath); // 读出来是形如 '0-1,3-5' 之类的串，需要处理
+            log.info("CpuConfig Read CpuSet: {}", cpuSet);
+            CpuConfig.cpuSet = handleCpuSetString(cpuSet);
+            log.info("CpuConfig Initialize: {}", CpuConfig.cpuSet);
+            return true;
+        } catch (SystemErrorException e) {
+            if (e.getCause() instanceof FileNotFoundException) {
+                log.warn("{} nou found", cpuSetPath);
+            }
+        }
+        return false;
     }
 
     /**
-    * @Description 处理形如 '0-1,3-5' 的串，转换成集合
-    **/
+     * 处理形如 '0-1,3-5' 的串，转换成集合
+     */
     private static Set<Integer> handleCpuSetString(String cpuSetString) {
         Set<Integer> set = new HashSet<>();
         for (String str : cpuSetString.split(",")) {
