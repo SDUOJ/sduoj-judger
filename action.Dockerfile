@@ -6,7 +6,6 @@ ENV LANG C.UTF-8
 COPY sduoj-judger-service/build/libs/ /sduoj/
 # COPY docker/sources.list /etc/apt/sources.list
 COPY docker/testlib /testlib.h
-COPY docker/checkers/ /checkers/
 
 ADD https://github.com/SDUOJ/docker-compose-wait/releases/download/2.7.3/wait /wait
 RUN mkdir -p /sduoj/dockerWorkspace \
