@@ -19,6 +19,15 @@ java.targetCompatibility = JavaVersion.VERSION_1_8
 repositories {
     mavenLocal()
     mavenCentral()
+    System.getenv("GITHUB_TOKEN")?.let { GITHUB_TOKEN ->
+        maven {
+            url = uri("https://maven.pkg.github.com/SDUOJ/sduoj-server")
+            credentials {
+                username = System.getenv("GITHUB_REPOSITORY")
+                password = GITHUB_TOKEN
+            }
+        }
+    }
 //    maven { url = uri("https://maven.aliyun.com/repository/public/") }
 //    maven { url = uri("https://maven.aliyun.com/repository/spring/") }
 }
