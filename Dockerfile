@@ -30,7 +30,7 @@ RUN apt-get update -qq \
 # ---------------------------------------------
 FROM continuumio/miniconda3 as py-builder
 
-RUN for PYTHON_VERSION in 3.6 3.11; do \
+RUN for PYTHON_VERSION in 3.11; do \
         conda create --prefix /opt/python/${PYTHON_VERSION} python=${PYTHON_VERSION} -y -q \
      && /opt/python/${PYTHON_VERSION}/bin/python -m pip install --upgrade pip \
     ; done
@@ -51,8 +51,7 @@ COPY --from=sduoj/docker-compose-wait:latest /wait /wait
 # install Python(s)
 COPY --from=py-builder /opt/python/ /opt/python/
 RUN ln -s /opt/python/3.11/bin/python /usr/bin/python3 \
- && ln -s /opt/python/3.11/bin/python /usr/bin/python3.11 \
- && ln -s /opt/python/3.6/bin/python /usr/bin/python3.6
+ && ln -s /opt/python/3.11/bin/python /usr/bin/python3.11
 
 # install JDK(s)
 ENV JAVA_HOME=/opt/java/openjdk
@@ -69,6 +68,9 @@ RUN wget -q -O /sduoj/sandbox.zip https://codeload.github.com/SDUOJ/sduoj-sandbo
  && cd /sduoj/sduoj-sandbox* \
  && make \
  && make install
+
+# install softwares for pascal-oj
+RUN python3 -m pip install pyyaml
 
 ENV NACOS_ADDR=127.0.0.1:8848
 ENV ACTIVE=prod
