@@ -12,7 +12,7 @@ package cn.edu.sdu.qd.oj.judger.handler;
 
 import cn.edu.sdu.qd.oj.checkpoint.dto.CheckpointManageListDTO;
 import cn.edu.sdu.qd.oj.common.util.CollectionUtils;
-import cn.edu.sdu.qd.oj.dto.FileDownloadReqDTO;
+import cn.edu.sdu.qd.oj.filesys.dto.FileDownloadReqDTO;
 import cn.edu.sdu.qd.oj.judger.client.CheckpointClient;
 import cn.edu.sdu.qd.oj.judger.client.FilesysClient;
 import cn.edu.sdu.qd.oj.judger.client.JudgeTemplateClient;
