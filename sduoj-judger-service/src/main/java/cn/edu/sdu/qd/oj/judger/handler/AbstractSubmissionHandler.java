@@ -244,7 +244,10 @@ public abstract class AbstractSubmissionHandler {
     private void releaseWorkspace() throws SystemErrorException {
         try {
             ProcessUtils.chmod(workspaceDir + "/*", "711");
-            // TODO: 考虑删除文件
+            // clears the workspace of non-rejudged submission to save storage
+            if (submission.getVersion() == 0) {
+                ProcessUtils.deleteWorkspaceDir(workspaceDir);
+            }
         } catch (Exception e) {
             throw new SystemErrorException("Can not release workspace:\n" + e.toString());
         }
