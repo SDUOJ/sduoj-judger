@@ -8,11 +8,11 @@
  *      https://www.gnu.org/licenses/agpl-3.0.en.html
  */
 
-package cn.edu.sdu.qd.oj.judger.client;
+package cn.edu.sdu.qd.oj.common.rpc.client;
 
-import cn.edu.sdu.qd.oj.submit.api.SubmissionApi;
+import cn.edu.sdu.qd.oj.problem.api.ProblemApi;
 import org.springframework.cloud.openfeign.FeignClient;
 
-@FeignClient(value = SubmissionApi.SERVICE_NAME, qualifier = "SubmissionClient")
-public interface SubmissionClient extends SubmissionApi {
+@FeignClient(value = ProblemApi.SERVICE_NAME)
+public interface ProblemClient extends ProblemApi {
 }

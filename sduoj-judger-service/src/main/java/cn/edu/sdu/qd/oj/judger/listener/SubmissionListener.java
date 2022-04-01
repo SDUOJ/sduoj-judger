@@ -10,8 +10,8 @@
 
 package cn.edu.sdu.qd.oj.judger.listener;
 
-import cn.edu.sdu.qd.oj.judger.client.JudgeTemplateClient;
-import cn.edu.sdu.qd.oj.judger.client.SubmissionClient;
+import cn.edu.sdu.qd.oj.common.rpc.client.JudgeTemplateClient;
+import cn.edu.sdu.qd.oj.common.rpc.client.SubmissionClient;
 import cn.edu.sdu.qd.oj.judger.exception.SystemErrorException;
 import cn.edu.sdu.qd.oj.judger.handler.AbstractSubmissionHandler;
 import cn.edu.sdu.qd.oj.judger.manager.SubmissionHandlerManager;

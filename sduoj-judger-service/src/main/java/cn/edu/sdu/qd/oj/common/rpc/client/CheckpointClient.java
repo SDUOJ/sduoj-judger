@@ -8,11 +8,11 @@
  *      https://www.gnu.org/licenses/agpl-3.0.en.html
  */
 
-package cn.edu.sdu.qd.oj.judger.client;
+package cn.edu.sdu.qd.oj.common.rpc.client;
 
-import cn.edu.sdu.qd.oj.problem.api.ProblemApi;
+import cn.edu.sdu.qd.oj.checkpoint.api.CheckpointApi;
 import org.springframework.cloud.openfeign.FeignClient;
 
-@FeignClient(value = ProblemApi.SERVICE_NAME, qualifier = "ProblemClient")
-public interface ProblemClient extends ProblemApi {
+@FeignClient(value = CheckpointApi.SERVICE_NAME)
+public interface CheckpointClient extends CheckpointApi {
 }
