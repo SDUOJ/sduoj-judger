@@ -8,8 +8,9 @@
  *      https://www.gnu.org/licenses/agpl-3.0.en.html
  */
 
-package cn.edu.sdu.qd.oj;
+package cn.edu.sdu.qd.oj.judger;
 
+import cn.edu.sdu.qd.oj.common.rpc.EnableRpcModule;
 import cn.edu.sdu.qd.oj.judger.config.CpuConfig;
 import cn.edu.sdu.qd.oj.judger.config.PathConfig;
 import cn.edu.sdu.qd.oj.judger.util.FileUtils;
@@ -18,14 +19,13 @@ import lombok.extern.slf4j.Slf4j;
 import org.springframework.boot.SpringApplication;
 import org.springframework.boot.autoconfigure.SpringBootApplication;
 import org.springframework.cloud.client.discovery.EnableDiscoveryClient;
-import org.springframework.cloud.openfeign.EnableFeignClients;
 
 import java.util.Properties;
 
 @Slf4j
-@SpringBootApplication
+@EnableRpcModule
 @EnableDiscoveryClient
-@EnableFeignClients
+@SpringBootApplication
 public class JudgerApplication {
 
     public static void main(String[] args) {

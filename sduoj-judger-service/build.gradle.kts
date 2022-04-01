@@ -7,6 +7,7 @@ dependencies {
     implementation(project(":sduoj-judger-interface"))
     implementation("cn.edu.sdu.qd.oj.common:sduoj-common-entity:${Versions.sduoj}")
     implementation("cn.edu.sdu.qd.oj.common:sduoj-common-util:${Versions.sduoj}")
+    implementation("cn.edu.sdu.qd.oj.common:sduoj-common-rpc:${Versions.sduoj}")
 
     /* 2-nd party dependency */
     implementation("cn.edu.sdu.qd.oj.problem:sduoj-problem-interface:${Versions.sduoj}")

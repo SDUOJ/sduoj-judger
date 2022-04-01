@@ -8,11 +8,11 @@
  *      https://www.gnu.org/licenses/agpl-3.0.en.html
  */
 
-package cn.edu.sdu.qd.oj.judger.client;
+package cn.edu.sdu.qd.oj.common.rpc.client;
 
 import cn.edu.sdu.qd.oj.filesys.api.FilesysApi;
 import org.springframework.cloud.openfeign.FeignClient;
 
-@FeignClient(value = FilesysApi.SERVICE_NAME, qualifier = "FilesysClient")
+@FeignClient(value = FilesysApi.SERVICE_NAME)
 public interface FilesysClient extends FilesysApi {
 }
