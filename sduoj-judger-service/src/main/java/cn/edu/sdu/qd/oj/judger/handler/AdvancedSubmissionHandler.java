@@ -20,7 +20,7 @@ import cn.edu.sdu.qd.oj.sandbox.dto.Argument;
 import cn.edu.sdu.qd.oj.sandbox.dto.SandboxResultDTO;
 import cn.edu.sdu.qd.oj.sandbox.enums.SandboxArgument;
 import cn.edu.sdu.qd.oj.sandbox.enums.SandboxResult;
-import cn.edu.sdu.qd.oj.submit.dto.CheckpointResultMessageDTO;
+import cn.edu.sdu.qd.oj.submit.api.message.CheckpointResultMsgDTO;
 import cn.edu.sdu.qd.oj.submit.dto.SubmissionUpdateReqDTO;
 import cn.edu.sdu.qd.oj.submit.enums.SubmissionJudgeResult;
 import lombok.AllArgsConstructor;
@@ -97,7 +97,7 @@ public class AdvancedSubmissionHandler extends AbstractSubmissionHandler {
                 .add(SandboxArgument.GID, 0);
 
         // 发送 judging 的 websocket
-        rabbitSender.sendOneJudgeResult(new CheckpointResultMessageDTO(submissionId, SubmissionJudgeResult.JUDGING.code));
+        rabbitSender.sendOneJudgeResult(new CheckpointResultMsgDTO(submissionId, SubmissionJudgeResult.JUDGING.code));
 
         SandboxResultDTO sandboxResult = SandboxRunner.run(workspaceDir, _args);
         if (sandboxResult == null) {

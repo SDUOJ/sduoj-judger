@@ -10,10 +10,9 @@
 
 package cn.edu.sdu.qd.oj.judger.sender;
 
-import cn.edu.sdu.qd.oj.submit.dto.CheckpointResultMessageDTO;
+import cn.edu.sdu.qd.oj.common.mq.util.RabbitSenderUtils;
+import cn.edu.sdu.qd.oj.submit.api.message.CheckpointResultMsgDTO;
 import lombok.extern.slf4j.Slf4j;
-import org.springframework.amqp.AmqpException;
-import org.springframework.amqp.rabbit.core.RabbitTemplate;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Component;
 
@@ -25,30 +24,12 @@ import org.springframework.stereotype.Component;
 public class RabbitSender {
 
     @Autowired
-    private RabbitTemplate rabbitTemplate;
+    private RabbitSenderUtils rabbitSenderUtils;
 
     /**
-    * @Description 发送单点评测结果
-    **/
-    public void sendOneJudgeResult(CheckpointResultMessageDTO messageDTO) {
-        send("sduoj.checkpoint.finish", "", messageDTO);
-    }
-
-    private void send(String exchange, String routingKey, Object o) {
-        for (int i = 0; i < 5; i++) {
-            try {
-                this.rabbitTemplate.convertAndSend(exchange, routingKey, o);
-                break;
-            } catch (AmqpException e) {
-                log.warn("sendOneJudgeResult", e);
-                try {
-                    Thread.sleep(i * 2000L);
-                } catch (Throwable ignore) {
-                }
-            } catch (Exception e) {
-                log.error("sendOneJudgeResult", e);
-                break;
-            }
-        }
+     * 发送单点评测结果
+     */
+    public void sendOneJudgeResult(CheckpointResultMsgDTO messageDTO) {
+        rabbitSenderUtils.send(CheckpointResultMsgDTO.ROUTING_KEY, messageDTO);
     }
 }

@@ -25,7 +25,7 @@ import cn.edu.sdu.qd.oj.sandbox.dto.Argument;
 import cn.edu.sdu.qd.oj.sandbox.dto.SandboxResultDTO;
 import cn.edu.sdu.qd.oj.sandbox.enums.SandboxArgument;
 import cn.edu.sdu.qd.oj.sandbox.enums.SandboxResult;
-import cn.edu.sdu.qd.oj.submit.dto.CheckpointResultMessageDTO;
+import cn.edu.sdu.qd.oj.submit.api.message.CheckpointResultMsgDTO;
 import cn.edu.sdu.qd.oj.submit.dto.SubmissionUpdateReqDTO;
 import cn.edu.sdu.qd.oj.submit.enums.SubmissionJudgeResult;
 import com.alibaba.fastjson.JSON;
@@ -93,7 +93,7 @@ public class SPJSubmissionHandler extends AbstractSubmissionHandler {
                 .build();
 
         // 发送 compiling 的 websocket
-        rabbitSender.sendOneJudgeResult(new CheckpointResultMessageDTO(submissionId, SubmissionJudgeResult.COMPILING.code));
+        rabbitSender.sendOneJudgeResult(new CheckpointResultMsgDTO(submissionId, SubmissionJudgeResult.COMPILING.code));
 
         // 解压spj支持文件
         ProcessUtils.unzip(Paths.get(PathConfig.ZIP_DIR, judgeTemplate.getZipFileId() + ".zip").toString(), workspaceDir);
@@ -104,7 +104,7 @@ public class SPJSubmissionHandler extends AbstractSubmissionHandler {
         compile(compileConfig, spjCompileConfig);
 
         // 发送 judging 的 websocket
-        rabbitSender.sendOneJudgeResult(new CheckpointResultMessageDTO(submissionId, SubmissionJudgeResult.JUDGING.code));
+        rabbitSender.sendOneJudgeResult(new CheckpointResultMsgDTO(submissionId, SubmissionJudgeResult.JUDGING.code));
 
         // 提交评测任务到线程池
         for (int i = 0, checkpointNum = checkpoints.size(); i < checkpointNum; ++i) {
@@ -123,14 +123,14 @@ public class SPJSubmissionHandler extends AbstractSubmissionHandler {
         int maxUsedMemory = 0;
         int judgeScore = 0;
         SubmissionJudgeResult judgeResult = SubmissionJudgeResult.AC;
-        List<CheckpointResultMessageDTO> checkpointResults = new ArrayList<>();
+        List<CheckpointResultMsgDTO> checkpointResults = new ArrayList<>();
         for (int i = 0, checkpointNum = checkpoints.size(); i < checkpointNum; ++i) {
             try {
                 // 阻塞等待任一 checkpoint 测完
-                CommandResult<CheckpointResultMessageDTO> executeResult = cpuAffinityThreadPool.take();
+                CommandResult<CheckpointResultMsgDTO> executeResult = cpuAffinityThreadPool.take();
 
                 // 取出结果发送一个 checkpoint 的结果
-                CheckpointResultMessageDTO checkpointResultMessageDTO = executeResult.getResult();
+                CheckpointResultMsgDTO checkpointResultMessageDTO = executeResult.getResult();
                 rabbitSender.sendOneJudgeResult(checkpointResultMessageDTO);
                 checkpointResults.add(checkpointResultMessageDTO);
 
@@ -147,9 +147,9 @@ public class SPJSubmissionHandler extends AbstractSubmissionHandler {
         }
 
         // 组装最终评测结果
-        checkpointResults.sort(Comparator.comparingInt(CheckpointResultMessageDTO::getCheckpointIndex));
+        checkpointResults.sort(Comparator.comparingInt(CheckpointResultMsgDTO::getCheckpointIndex));
         result.setCheckpointResults(checkpointResults.stream()
-                .map(CheckpointResultMessageDTO::toEachCheckpointResult)
+                .map(CheckpointResultMsgDTO::toEachCheckpointResult)
                 .collect(Collectors.toList()));
         result.setJudgeResult(judgeResult.code);
         result.setJudgeScore(judgeScore);
@@ -280,20 +280,20 @@ public class SPJSubmissionHandler extends AbstractSubmissionHandler {
         }
 
         @Override
-        public CommandResult<CheckpointResultMessageDTO> run(int coreNo) {
-            CommandResult<CheckpointResultMessageDTO> commandResult = null;
+        public CommandResult<CheckpointResultMsgDTO> run(int coreNo) {
+            CommandResult<CheckpointResultMsgDTO> commandResult = null;
             try {
                 SandboxResultDTO judgeResult = SandboxRunner.run(coreNo, workspaceDir, runCommand);
                 if (SandboxResult.SYSTEM_ERROR.equals(judgeResult.getResult())) {
                     throw new SystemErrorException(String.format("Sandbox Internal Error #%d, signal #%d", judgeResult.getError(), judgeResult.getSignal()));
                 } else if (SandboxResult.SUCCESS.equals(judgeResult.getResult())) {
                     SubmissionJudgeResult result = check(coreNo);
-                    commandResult = new CommandResult<>(new CheckpointResultMessageDTO(
+                    commandResult = new CommandResult<>(new CheckpointResultMsgDTO(
                             submissionId, caseNo, result.code,
                             SubmissionJudgeResult.AC.code == result.code ? score : 0, judgeResult.getCpuTime(), judgeResult.getMemory()
                     ));
                 } else {
-                    commandResult = new CommandResult<>(new CheckpointResultMessageDTO(
+                    commandResult = new CommandResult<>(new CheckpointResultMsgDTO(
                             submissionId, caseNo, SandboxResult.of(judgeResult.getResult()).submissionJudgeResult.code,
                             0, judgeResult.getCpuTime(), judgeResult.getMemory()
                     ));
@@ -301,7 +301,7 @@ public class SPJSubmissionHandler extends AbstractSubmissionHandler {
             } catch (SystemErrorException e) {
                 log.warn("", e);
                 judgeLog += e + "\n";
-                commandResult = new CommandResult<>(new CheckpointResultMessageDTO(
+                commandResult = new CommandResult<>(new CheckpointResultMsgDTO(
                         submissionId, caseNo, SubmissionJudgeResult.SE.code,
                         0, 0, 0
                 ));

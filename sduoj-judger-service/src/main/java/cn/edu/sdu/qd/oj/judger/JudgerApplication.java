@@ -10,6 +10,7 @@
 
 package cn.edu.sdu.qd.oj.judger;
 
+import cn.edu.sdu.qd.oj.common.mq.EnableMqModule;
 import cn.edu.sdu.qd.oj.common.rpc.EnableRpcModule;
 import cn.edu.sdu.qd.oj.judger.config.CpuConfig;
 import cn.edu.sdu.qd.oj.judger.config.PathConfig;
@@ -23,6 +24,7 @@ import org.springframework.cloud.client.discovery.EnableDiscoveryClient;
 import java.util.Properties;
 
 @Slf4j
+@EnableMqModule
 @EnableRpcModule
 @EnableDiscoveryClient
 @SpringBootApplication

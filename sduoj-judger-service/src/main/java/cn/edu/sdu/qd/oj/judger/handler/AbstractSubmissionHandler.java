@@ -31,7 +31,7 @@ import cn.edu.sdu.qd.oj.judger.util.ProcessUtils;
 import cn.edu.sdu.qd.oj.judgetemplate.dto.JudgeTemplateDTO;
 import cn.edu.sdu.qd.oj.judgetemplate.enums.JudgeTemplateTypeEnum;
 import cn.edu.sdu.qd.oj.problem.dto.ProblemJudgerDTO;
-import cn.edu.sdu.qd.oj.submit.dto.CheckpointResultMessageDTO;
+import cn.edu.sdu.qd.oj.submit.api.message.CheckpointResultMsgDTO;
 import cn.edu.sdu.qd.oj.submit.dto.SubmissionJudgeDTO;
 import cn.edu.sdu.qd.oj.submit.dto.SubmissionUpdateReqDTO;
 import cn.edu.sdu.qd.oj.submit.enums.SubmissionJudgeResult;
@@ -189,7 +189,7 @@ public abstract class AbstractSubmissionHandler {
                     submissionClient.update(updateReqDTO);
 
                     // 发送 end 的 websocket
-                    CheckpointResultMessageDTO messageDTO = new CheckpointResultMessageDTO(
+                    CheckpointResultMsgDTO messageDTO = new CheckpointResultMsgDTO(
                             updateReqDTO.getSubmissionId(),
                             SubmissionJudgeResult.END.code,
                             updateReqDTO.getJudgeResult(),

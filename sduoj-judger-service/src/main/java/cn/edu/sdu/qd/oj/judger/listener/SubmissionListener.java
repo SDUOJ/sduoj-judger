@@ -12,6 +12,7 @@ package cn.edu.sdu.qd.oj.judger.listener;
 
 import cn.edu.sdu.qd.oj.common.rpc.client.JudgeTemplateClient;
 import cn.edu.sdu.qd.oj.common.rpc.client.SubmissionClient;
+import cn.edu.sdu.qd.oj.judger.config.JudgerMqManager;
 import cn.edu.sdu.qd.oj.judger.exception.SystemErrorException;
 import cn.edu.sdu.qd.oj.judger.handler.AbstractSubmissionHandler;
 import cn.edu.sdu.qd.oj.judger.manager.SubmissionHandlerManager;
@@ -19,12 +20,9 @@ import cn.edu.sdu.qd.oj.judger.property.JudgerProperty;
 import cn.edu.sdu.qd.oj.judger.sender.RabbitSender;
 import cn.edu.sdu.qd.oj.judgetemplate.dto.JudgeTemplateDTO;
 import cn.edu.sdu.qd.oj.judgetemplate.enums.JudgeTemplateTypeEnum;
+import cn.edu.sdu.qd.oj.submit.api.message.SubmissionWaitingMsgDTO;
 import cn.edu.sdu.qd.oj.submit.dto.SubmissionJudgeDTO;
-import cn.edu.sdu.qd.oj.submit.dto.SubmissionMessageDTO;
 import lombok.extern.slf4j.Slf4j;
-import org.springframework.amqp.rabbit.annotation.Exchange;
-import org.springframework.amqp.rabbit.annotation.Queue;
-import org.springframework.amqp.rabbit.annotation.QueueBinding;
 import org.springframework.amqp.rabbit.annotation.RabbitListener;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.context.properties.EnableConfigurationProperties;
@@ -48,11 +46,8 @@ public class SubmissionListener {
     @Autowired
     protected RabbitSender rabbitSender;
 
-    @RabbitListener(bindings = @QueueBinding(
-            value = @Queue(value = "sduoj.submission.submit.judger", durable = "true"),
-            exchange = @Exchange(value = "sduoj.submission.submit", ignoreDeclarationExceptions = "true")
-    ))
-    public void handleSubmissionMessage(SubmissionMessageDTO messageDTO) throws Throwable {
+    @RabbitListener(queues = JudgerMqManager.SUBMISSION_QUEUE_NAME)
+    public void handleSubmissionMessage(SubmissionWaitingMsgDTO messageDTO) throws Throwable {
         log.info("submissionId {}, version {}", messageDTO.getSubmissionId(), messageDTO.getVersion());
         try {
             // 查询提交
