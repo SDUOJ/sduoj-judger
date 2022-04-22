@@ -1,7 +1,13 @@
 FROM ubuntu:18.04
 MAINTAINER SDUOJ-Team
 
+# fix encoding
 ENV LANG C.UTF-8
+
+# fix timezone issue
+ENV TZ Asia/Shanghai
+# suppress the interactive prompt from tzdata
+ENV DEBIAN_FRONTEND=noninteractive
 
 COPY sduoj-judger-service/build/libs/ /sduoj/
 # COPY docker/sources.list /etc/apt/sources.list
@@ -24,7 +30,7 @@ ENV PATH="${JAVA_HOME}/bin:${PATH}"
 RUN apt-get update \
  && apt-get install -qq -y \
                     make=4.1-9.1ubuntu1   dosbox=0.74-4.3 cmake \
-                    sudo git unzip wget libseccomp-dev libseccomp2 seccomp build-essential \
+                    tzdata sudo git unzip wget libseccomp-dev libseccomp2 seccomp build-essential \
                     python3-pip python vim dos2unix
 
 # compile and install sduoj-sandbox
