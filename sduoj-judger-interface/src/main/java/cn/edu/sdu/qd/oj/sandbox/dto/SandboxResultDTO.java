@@ -25,13 +25,13 @@ import lombok.Setter;
 public class SandboxResultDTO {
     private int cpuTime;
     private int realTime;
-    private int memory;
+    private long memory;
     private int signal;
     private int exitCode;
     private int error;
     private int result;
 
     public int getMemory() {
-        return memory / 1024;
+        return (int) (memory / 1024);
     }
 }
