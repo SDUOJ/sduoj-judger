@@ -10,7 +10,7 @@
 
 package cn.edu.sdu.qd.oj.common.rpc.client;
 
-import cn.edu.sdu.qd.oj.submit.api.SubmissionApi;
+import cn.edu.sdu.qd.oj.submission.api.SubmissionApi;
 import org.springframework.cloud.openfeign.FeignClient;
 
 @FeignClient(value = SubmissionApi.SERVICE_NAME)

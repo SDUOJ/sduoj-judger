@@ -10,7 +10,7 @@
 
 package cn.edu.sdu.qd.oj.sandbox.enums;
 
-import cn.edu.sdu.qd.oj.submit.enums.SubmissionJudgeResult;
+import cn.edu.sdu.qd.oj.submission.enums.SubmissionJudgeResult;
 import lombok.AllArgsConstructor;
 
 @AllArgsConstructor

@@ -11,7 +11,7 @@
 package cn.edu.sdu.qd.oj.judger.sender;
 
 import cn.edu.sdu.qd.oj.common.mq.util.RabbitSenderUtils;
-import cn.edu.sdu.qd.oj.submit.api.message.CheckpointResultMsgDTO;
+import cn.edu.sdu.qd.oj.submission.api.message.CheckpointResultMsgDTO;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Component;

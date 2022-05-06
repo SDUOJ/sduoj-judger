@@ -11,8 +11,6 @@ dependencies {
     implementation("cn.edu.sdu.qd.oj.common:sduoj-common-mq:${Versions.sduoj}")
 
     /* 2-nd party dependency */
-    implementation("cn.edu.sdu.qd.oj.problem:sduoj-problem-interface:${Versions.sduoj}")
-    implementation("cn.edu.sdu.qd.oj.submit:sduoj-submit-interface:${Versions.sduoj}")
     implementation("cn.edu.sdu.qd.oj.filesys:sduoj-filesys-interface:${Versions.sduoj}")
 
     /* 3-rd party dependency */
