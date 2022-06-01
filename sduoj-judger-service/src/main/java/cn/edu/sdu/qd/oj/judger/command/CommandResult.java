@@ -10,7 +10,7 @@
 
 package cn.edu.sdu.qd.oj.judger.command;
 
-import cn.edu.sdu.qd.oj.judger.dto.BaseDTO;
+import cn.edu.sdu.qd.oj.common.entity.BaseDTO;
 import lombok.Getter;
 
 @Getter

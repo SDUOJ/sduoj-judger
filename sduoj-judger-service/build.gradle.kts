@@ -18,10 +18,6 @@ dependencies {
     implementation("org.springframework.boot:spring-boot-starter-actuator")
     implementation("org.springframework.boot:spring-boot-starter")
     implementation("org.springframework.boot:spring-boot-configuration-processor")
-    implementation("com.google.guava:guava:${Versions.guava}")
-    implementation("org.aspectj:aspectjrt:${Versions.aspectj}")
-    implementation("org.apache.httpcomponents:fluent-hc:${Versions.httpclient}")
-    implementation("org.apache.httpcomponents:httpclient:${Versions.httpclient}")
 }
 
 description = "sduoj-judger-service"
