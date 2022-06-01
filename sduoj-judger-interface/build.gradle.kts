@@ -4,6 +4,7 @@ plugins {
 
 dependencies {
     /* 1-st party dependency */
+    api("cn.edu.sdu.qd.oj.common:sduoj-common-entity:${Versions.sduoj}")
 
     /* 2-nd party dependency */
     api("cn.edu.sdu.qd.oj.problem:sduoj-problem-interface:${Versions.sduoj}")

@@ -6,7 +6,6 @@ object Versions {
 
     val lombok = "1.18.12"
     val commonsLang3 = "3.11"
-    val fastjson = "1.2.73"
     val aspectj = "1.9.5"
     val guava = "29.0-jre"
     val slf4j = "1.7.30"

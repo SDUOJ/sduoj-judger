@@ -11,6 +11,7 @@
 package cn.edu.sdu.qd.oj.judger.handler;
 
 import cn.edu.sdu.qd.oj.common.util.CollectionUtils;
+import cn.edu.sdu.qd.oj.common.util.JsonUtils;
 import cn.edu.sdu.qd.oj.judger.command.CommandResult;
 import cn.edu.sdu.qd.oj.judger.command.CpuAffinityCommand;
 import cn.edu.sdu.qd.oj.judger.config.PathConfig;
@@ -29,7 +30,6 @@ import cn.edu.sdu.qd.oj.sandbox.enums.SandboxResult;
 import cn.edu.sdu.qd.oj.submission.api.message.CheckpointResultMsgDTO;
 import cn.edu.sdu.qd.oj.submission.dto.SubmissionUpdateReqDTO;
 import cn.edu.sdu.qd.oj.submission.enums.SubmissionJudgeResult;
-import com.alibaba.fastjson.JSON;
 import lombok.AllArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Component;
@@ -93,7 +93,7 @@ public class IOSubmissionHandler extends AbstractSubmissionHandler {
 
         // 评测基本信息
         long submissionId = submission.getSubmissionId();
-        JudgeTemplateConfigDTO judgeTemplateConfigDTO = JSON.parseObject(judgeTemplate.getShellScript(), JudgeTemplateConfigDTO.class);
+        JudgeTemplateConfigDTO judgeTemplateConfigDTO = JsonUtils.toObject(judgeTemplate.getShellScript(), JudgeTemplateConfigDTO.class);
         // 编译选项
         JudgeTemplateConfigDTO.TemplateConfig.Compile compileConfig = judgeTemplateConfigDTO.getUser().getCompile();
         // 运行选项

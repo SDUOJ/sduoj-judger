@@ -10,11 +10,11 @@
 
 package cn.edu.sdu.qd.oj.judger.util;
 
+import cn.edu.sdu.qd.oj.common.util.JsonUtils;
 import cn.edu.sdu.qd.oj.judger.config.CpuConfig;
 import cn.edu.sdu.qd.oj.judger.exception.SystemErrorException;
 import cn.edu.sdu.qd.oj.sandbox.dto.Argument;
 import cn.edu.sdu.qd.oj.sandbox.dto.SandboxResultDTO;
-import com.alibaba.fastjson.JSON;
 import com.google.common.collect.Lists;
 import lombok.extern.slf4j.Slf4j;
 
@@ -50,6 +50,6 @@ public class SandboxRunner {
         if (processStatus.exitCode != 0) {
             throw new SystemErrorException(String.format("Sandbox exits abnormally: %d", processStatus.exitCode));
         }
-        return JSON.parseObject(processStatus.output, SandboxResultDTO.class);
+        return JsonUtils.toObject(processStatus.output, SandboxResultDTO.class);
     }
 }
