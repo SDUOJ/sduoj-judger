@@ -13,7 +13,7 @@ package cn.edu.sdu.qd.oj.judger.util;
 import cn.edu.sdu.qd.oj.judger.exception.SystemErrorException;
 import lombok.extern.slf4j.Slf4j;
 import org.apache.commons.io.IOUtils;
-import org.apache.commons.lang.StringUtils;
+import org.apache.commons.lang3.StringUtils;
 
 import java.io.File;
 import java.io.IOException;

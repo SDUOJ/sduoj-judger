@@ -1,8 +1,8 @@
 object Versions {
     val sduoj = "0.1.0-SNAPSHOT"
 
-    val springCloud = "Greenwich.SR5"
-    val springCloudAlibaba = "2.1.2.RELEASE"
+    val springCloud = "2021.0.3"
+    val springCloudAlibaba = "2021.0.1.0"
 
     val lombok = "1.18.12"
     val commonsLang3 = "3.11"
