@@ -67,8 +67,10 @@ ENV ACTIVE=prod
 
 WORKDIR /sduoj
 
-CMD /wait \
- && java -jar sduoj-judger.jar \
-         --sduoj.config.nacos-addr=$NACOS_ADDR \
-         --sduoj.config.active=$ACTIVE \
-         >> /sduoj/sduoj.log
+ENTRYPOINT /wait                                                 \
+ && JAVA_OPT="${JAVA_OPT} -jar sduoj-judger.jar"                 \
+ && JAVA_OPT="${JAVA_OPT} --sduoj.config.active=$ACTIVE"         \
+ && JAVA_OPT="${JAVA_OPT} --sduoj.config.nacos-addr=$NACOS_ADDR" \
+ && echo "SDUOJ is starting, you can check the '/sduoj.log'"     \
+ && echo "Run: java ${JAVA_OPT}"                                 \
+ && exec java ${JAVA_OPT} >> /sduoj/sduoj.log 2>&1
