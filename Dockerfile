@@ -6,9 +6,10 @@ ENV LANG C.UTF-8
 COPY docker/sources.list /etc/apt/sources.list
 COPY docker/testlib /testlib.h
 
-ADD https://github.com/SDUOJ/docker-compose-wait/releases/download/2.7.3/wait /wait
-RUN mkdir -p /sduoj/dockerWorkspace \
- && chmod +x /wait
+# download docker-compose-wait
+COPY --from=sduoj/docker-compose-wait:latest /wait /wait
+
+RUN mkdir -p /sduoj/dockerWorkspace
 
 # install JDKs
 ENV JAVA_HOME=/opt/java/openjdk
