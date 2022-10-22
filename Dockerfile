@@ -9,13 +9,13 @@ ENV TZ Asia/Shanghai
 # suppress the interactive prompt from tzdata
 ENV DEBIAN_FRONTEND=noninteractive
 
-COPY docker/sources.list /etc/apt/sources.list
+COPY sduoj-judger-service/build/libs/ /sduoj/
+# COPY docker/sources.list /etc/apt/sources.list
 COPY docker/testlib /testlib.h
 COPY docker/checkers/ /checkers/
 
-ADD https://github.com/SDUOJ/docker-compose-wait/releases/download/2.7.3/wait /wait
-RUN mkdir -p /sduoj/dockerWorkspace \
- && chmod +x /wait
+# download docker-compose-wait
+COPY --from=sduoj/docker-compose-wait:latest /wait /wait
 
 # install JDKs
 ENV JAVA_HOME=/opt/java/openjdk
@@ -39,28 +39,6 @@ RUN wget -q -O /sduoj/sandbox.zip https://codeload.github.com/SDUOJ/sduoj-sandbo
  && cd /sduoj/sduoj-sandbox* \
  && make \
  && make install
-
-# download source code
-RUN wget -q -O /sduoj/server.zip https://codeload.github.com/SDUOJ/sduoj-server/zip/master \
- && wget -q -O /sduoj/judger.zip https://codeload.github.com/SDUOJ/sduoj-judger/zip/master \
- && unzip -o -q -d /sduoj/dockerWorkspace /sduoj/server.zip \
- && unzip -o -q -d /sduoj/dockerWorkspace /sduoj/judger.zip \
- && rm /sduoj/server.zip \
- && rm /sduoj/judger.zip
-
-# compile and install sduoj-server
-RUN cd /sduoj/dockerWorkspace/sduoj-server* \
- && chmod +x ./gradlew \
- && ./gradlew publishToMavenLocal -x test \
-# compile sduoj-judger
- && cd /sduoj/dockerWorkspace/sduoj-judger* \
- && chmod +x ./gradlew \
- && ./gradlew build \
- && mv ./sduoj-judger-service/build/libs/sduoj-judger.jar /sduoj/sduoj-judger.jar \
-# clean
- && rm -rf ~/.m2 \
- && rm -rf ~/.gradle \
- && rm -rf /sduoj/dockerWorkspace
 
 ENV NACOS_ADDR=127.0.0.1:8848
 ENV ACTIVE=prod
