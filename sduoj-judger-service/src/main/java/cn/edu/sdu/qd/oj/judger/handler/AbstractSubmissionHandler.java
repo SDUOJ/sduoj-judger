@@ -63,7 +63,12 @@ import java.util.zip.ZipInputStream;
 @Slf4j
 public abstract class AbstractSubmissionHandler {
 
-    protected static final int MAX_JUDGE_LOG = 60 * 1024;
+    /**
+     * 记得执行
+     * ALTER TABLE `oj_submission`
+     * MODIFY COLUMN `s_judge_log`  mediumtext CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci NULL COMMENT '评测结果文案, 展示到前台' AFTER `s_code_length`;
+     */
+    protected static final int MAX_JUDGE_LOG = 1024 * 1024;
 
     @Autowired
     protected JudgeTemplateClient judgeTemplateClient;
