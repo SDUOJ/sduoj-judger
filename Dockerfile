@@ -29,7 +29,7 @@ ENV PATH="${JAVA_HOME}/bin:${PATH}"
 RUN apt-get update \
  && apt-get install -qq -y \
                     make=4.1-9.1ubuntu1   dosbox=0.74-4.3 cmake \
-                    tzdata sudo git unzip wget libseccomp-dev libseccomp2 seccomp build-essential \
+                    tzdata sudo git unzip wget host libseccomp-dev libseccomp2 seccomp build-essential \
                     python3-pip python vim dos2unix
 
 # compile and install sduoj-sandbox
@@ -42,13 +42,14 @@ RUN wget -q -O /sduoj/sandbox.zip https://codeload.github.com/SDUOJ/sduoj-sandbo
 
 ENV NACOS_ADDR=127.0.0.1:8848
 ENV ACTIVE=prod
+ENV CPU_PER_JUDGER=1
 
 WORKDIR /sduoj
 
-ENTRYPOINT /wait                                                 \
- && JAVA_OPT="${JAVA_OPT} -jar sduoj-judger.jar"                 \
- && JAVA_OPT="${JAVA_OPT} --sduoj.config.active=$ACTIVE"         \
- && JAVA_OPT="${JAVA_OPT} --sduoj.config.nacos-addr=$NACOS_ADDR" \
- && echo "SDUOJ is starting, you can check the '/sduoj.log'"     \
- && echo "Run: java ${JAVA_OPT}"                                 \
+ENTRYPOINT /wait                                                   \
+ && JAVA_OPT="${JAVA_OPT} -jar sduoj-judger.jar"                   \
+ && JAVA_OPT="${JAVA_OPT} --sduoj.config.active=$ACTIVE"           \
+ && JAVA_OPT="${JAVA_OPT} --sduoj.config.nacos-addr=$NACOS_ADDR"   \
+ && echo "SDUOJ is starting, you can check the '/sduoj/sduoj.log'" \
+ && echo "Run: java ${JAVA_OPT}"                                   \
  && exec java ${JAVA_OPT} >> /sduoj/sduoj.log 2>&1

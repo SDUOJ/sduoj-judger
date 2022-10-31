@@ -336,12 +336,6 @@ public class IOSubmissionHandler extends AbstractSubmissionHandler {
             return commandResult;
         }
 
-        private SubmissionJudgeResult check() throws SystemErrorException {
-            ProcessUtils.ProcessStatus processStatus = ProcessUtils.cmd(workspaceDir, 6000,
-                "sudo", "diff", answerPath, outputPath, "--ignore-blank-lines", "--ignore-trailing-space", "--brief");
-            return processStatus.exitCode == 0 ? SubmissionJudgeResult.AC : SubmissionJudgeResult.WA;
-        }
-
         private SubmissionJudgeResult check(int coreNo) {
             try {
                 SandboxResultDTO judgeResult = SandboxRunner.run(coreNo, workspaceDir, customCheckerRunCommand);

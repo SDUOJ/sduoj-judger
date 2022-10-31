@@ -13,6 +13,7 @@ package cn.edu.sdu.qd.oj.judger;
 import cn.edu.sdu.qd.oj.common.mq.EnableMqModule;
 import cn.edu.sdu.qd.oj.common.rpc.EnableRpcModule;
 import cn.edu.sdu.qd.oj.judger.config.CpuConfig;
+import cn.edu.sdu.qd.oj.judger.config.DockerContainers;
 import cn.edu.sdu.qd.oj.judger.config.PathConfig;
 import cn.edu.sdu.qd.oj.judger.util.FileUtils;
 import cn.edu.sdu.qd.oj.judger.util.ProcessUtils;
@@ -67,6 +68,8 @@ public class JudgerApplication {
 
     private static void initCpuAffinity() {
         try {
+            log.info("Container {} '{}' is running", DockerContainers.getContainerId(),
+                    DockerContainers.getContainerName());
             CpuConfig.initialize();
         } catch (Throwable t) {
             log.error("", t);

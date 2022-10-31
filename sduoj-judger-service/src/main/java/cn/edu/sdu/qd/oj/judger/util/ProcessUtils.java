@@ -50,18 +50,20 @@ public class ProcessUtils {
     }
 
     public static ProcessStatus cmd(String pwd, final String... commands) throws SystemErrorException {
-        return cmd(pwd, 120000, commands);
+        return cmd(pwd, 600, commands);
     }
 
     /**
      * 运行一个外部命令，返回状态.若超过指定的超时时间，抛出TimeoutException
      */
-    public static ProcessStatus cmd(String pwd, int timeout, final String... commands) throws SystemErrorException {
-        log.info("Run CommandLine\npwd: {}\ncommand: {}\n", pwd, String.join(" ", commands));
+    public static ProcessStatus cmd(String pwd, int timeoutInSecond, final String... commands) throws SystemErrorException {
+        String command = String.join(" ", commands);
+
+        log.info("Run CommandLine\npwd: {}\ncommand: {}\n", pwd, command);
         Process process = null;
         Worker worker = null;
         try {
-            process = new ProcessBuilder("/bin/sh", "-c", String.join(" ", commands))
+            process = new ProcessBuilder("/bin/sh", "-c", command)
                     .directory(Optional.ofNullable(pwd).filter(StringUtils::isNotBlank).map(File::new).orElse(null))
                     .redirectErrorStream(true)
                     .start();
@@ -69,7 +71,7 @@ public class ProcessUtils {
             worker = new Worker(process);
             worker.start();
             ProcessStatus ps = worker.getProcessStatus();
-            worker.join(timeout);
+            worker.join(timeoutInSecond * 1000L);
             if (ps.exitCode == ProcessStatus.CODE_STARTED) {
                 // not finished
                 worker.interrupt();
