@@ -56,7 +56,7 @@ public class DockerContainers {
             // use DNS to get the container name
             Set<String> containerNames = new HashSet<>();
             for (String containerIp : getContainerIps()) {
-                ProcessUtils.CommandResult result = ShellUtils.execCmd("host", containerIp);
+                ProcessUtils.CommandResult result = ShellUtils.execCmd("host", '"' + containerIp + '"');
                 if (result.exitCode != 0) {
                     throw new RuntimeException("Get host failed, command output: "
                             + result.stdout + "\n" + result.stderr);

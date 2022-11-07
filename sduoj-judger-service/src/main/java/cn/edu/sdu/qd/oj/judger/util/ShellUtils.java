@@ -103,9 +103,7 @@ public final class ShellUtils extends ProcessUtils {
                                         @Nullable final File workingDirectory,
                                         final long timeout,
                                         final TimeUnit unit) {
-        String command = commands.stream()
-                                 .map(s -> "\"" + s + "\"")
-                                 .collect(Collectors.joining(" "));
+        String command = String.join(" ", commands);
         log.info("Run command: {}", command);
 
         List<String> finalCommands = new ArrayList<>(3);
