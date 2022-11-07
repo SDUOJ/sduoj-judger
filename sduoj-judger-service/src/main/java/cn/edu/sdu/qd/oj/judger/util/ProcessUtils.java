@@ -10,118 +10,94 @@
 
 package cn.edu.sdu.qd.oj.judger.util;
 
-import cn.edu.sdu.qd.oj.judger.exception.SystemErrorException;
 import lombok.extern.slf4j.Slf4j;
 import org.apache.commons.io.IOUtils;
-import org.apache.commons.lang3.StringUtils;
 
+import javax.annotation.Nullable;
 import java.io.File;
-import java.io.IOException;
-import java.io.InputStream;
-import java.util.Optional;
+import java.nio.charset.StandardCharsets;
+import java.util.List;
+import java.util.Map;
+import java.util.concurrent.TimeUnit;
 
 /**
- * some utils for running command in terminal
+ * Some utils for running command in Terminal.
  *
- * @author jeshrz
  * @author zhangt2333
+ * @see ShellUtils
  */
 @Slf4j
 public class ProcessUtils {
 
-    public static void chmod(String path, String mode) throws SystemErrorException {
-        cmdOnRootPath("sudo", "chmod", mode, path);
-    }
-
-    public static void chown(String path, String own) throws SystemErrorException {
-        cmdOnRootPath("sudo", "chown", own, path);
-    }
-
-    public static void unzip(String zipFilePath, String targetDirPath) throws SystemErrorException {
-        cmdOnRootPath("sudo", "unzip", "-o", "-q", "-d", targetDirPath, zipFilePath);
-    }
-
-    public static void deleteWorkspaceDir(String path) throws SystemErrorException {
-        if (path.startsWith("/workspace/")) {
-            cmdOnRootPath("sudo", "rm", "-rf", path);
-        } else {
-            log.warn("deleteDir {}", path);
-        }
-    }
-
-    public static ProcessStatus cmd(String pwd, final String... commands) throws SystemErrorException {
-        return cmd(pwd, 600, commands);
+    protected ProcessUtils() {
     }
 
     /**
-     * 运行一个外部命令，返回状态.若超过指定的超时时间，抛出TimeoutException
+     * 当前线程会同步等待对应执行命令的进程结束
      */
-    public static ProcessStatus cmd(String pwd, int timeoutInSecond, final String... commands) throws SystemErrorException {
-        String command = String.join(" ", commands);
-
-        log.info("Run CommandLine\npwd: {}\ncommand: {}\n", pwd, command);
+    protected static CommandResult execCmd(final List<String> commands,
+                                           @Nullable final Map<String, String> environment,
+                                           @Nullable final File workingDirectory,
+                                           final long timeout,
+                                           final TimeUnit unit) {
+        // construct arguments
+        ProcessBuilder builder = new ProcessBuilder();
+        builder.command(commands);
+        if (environment != null) {
+            Map<String, String> env = builder.environment();
+            env.clear();
+            env.putAll(environment);
+        }
+        if (workingDirectory != null) {
+            builder.directory(workingDirectory);
+        }
+        // run
         Process process = null;
-        Worker worker = null;
+        int exitCode = 1;
+        String stdout = null;
+        String stderr = null;
         try {
-            process = new ProcessBuilder("/bin/sh", "-c", command)
-                    .directory(Optional.ofNullable(pwd).filter(StringUtils::isNotBlank).map(File::new).orElse(null))
-                    .redirectErrorStream(true)
-                    .start();
-
-            worker = new Worker(process);
-            worker.start();
-            ProcessStatus ps = worker.getProcessStatus();
-            worker.join(timeoutInSecond * 1000L);
-            if (ps.exitCode == ProcessStatus.CODE_STARTED) {
-                // not finished
-                worker.interrupt();
-                throw new SystemErrorException("Timeout");
+            process = builder.start();
+            if (timeout == 0) {
+                process.waitFor();
             } else {
-                return ps;
+                process.waitFor(timeout, unit);
             }
-        } catch (InterruptedException | IOException e) {
-            // canceled by other thread.
-            worker.interrupt();
-            throw new SystemErrorException("Canceled by other thread");
+            if (!process.isAlive()) {
+                exitCode = process.exitValue();
+            }
+            stdout = IOUtils.toString(process.getInputStream(), StandardCharsets.UTF_8);
+            stderr = IOUtils.toString(process.getErrorStream(), StandardCharsets.UTF_8);
+        } catch (Exception e) {
+            log.error("", e);
         } finally {
-            process.destroy();
-        }
-    }
-
-    public static ProcessStatus cmdOnRootPath(final String... commands) throws SystemErrorException {
-        return ProcessUtils.cmd(null, commands);
-    }
-
-    private static class Worker extends Thread {
-        private final Process process;
-        private final ProcessStatus ps;
-
-        private Worker(Process process) {
-            this.process = process;
-            this.ps = new ProcessStatus();
-        }
-
-        public void run() {
-            try {
-                InputStream is = process.getInputStream();
-                try {
-                    ps.output = IOUtils.toString(is);
-                } catch (IOException ignore) {
-                }
-                ps.exitCode = process.waitFor();
-            } catch (InterruptedException e) {
-                Thread.currentThread().interrupt();
+            if (process != null) {
+                process.destroyForcibly();
             }
         }
-
-        public ProcessStatus getProcessStatus() {
-            return this.ps;
-        }
+        return new CommandResult(exitCode, stdout, stderr);
     }
 
-    public static class ProcessStatus {
-        public static final int CODE_STARTED = -257;
-        public volatile int exitCode = 1;
-        public volatile String output;
+    public static class CommandResult {
+        public static final int PROCESS_NOT_FINISHED = -257;
+
+        public final int exitCode;
+        public final String stdout;
+        public final String stderr;
+
+        CommandResult(int exitCode, String stdout, String stderr) {
+            this.exitCode = exitCode;
+            this.stdout = stdout == null ? "" : stdout;
+            this.stderr = stderr == null ? "" : stderr;
+        }
+
+        @Override
+        public String toString() {
+            return "CommandResult{" +
+                    "exitCode=" + exitCode +
+                    ", stdout='" + stdout + '\'' +
+                    ", stderr='" + stderr + '\'' +
+                    '}';
+        }
     }
 }

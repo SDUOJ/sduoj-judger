@@ -2,6 +2,7 @@ package cn.edu.sdu.qd.oj.judger.config;
 
 import cn.edu.sdu.qd.oj.judger.exception.SystemErrorException;
 import cn.edu.sdu.qd.oj.judger.util.ProcessUtils;
+import cn.edu.sdu.qd.oj.judger.util.ShellUtils;
 import org.apache.commons.lang3.StringUtils;
 
 import java.util.Arrays;
@@ -36,34 +37,32 @@ public class DockerContainers {
         return CONTAINER_ID;
     }
 
-    public static String[] getContainerIps() throws SystemErrorException {
+    public static String[] getContainerIps() {
         if (CONTAINER_IPS == null) {
-            ProcessUtils.ProcessStatus result = null;
-            result = ProcessUtils.cmd(null, 2, "hostname", "-I");
+            ProcessUtils.CommandResult result = ShellUtils.execCmd("hostname", "-I");
             if (result.exitCode != 0) {
-                throw new RuntimeException("Get container ip failed, command output: "
-                        + result.output);
+                throw new RuntimeException("Get container ip failed, command output: " +
+                        result.stdout + "\n" + result.stderr);
             }
-            CONTAINER_IPS = Arrays.stream(result.output.split(" "))
+            CONTAINER_IPS = Arrays.stream(result.stdout.split(" "))
                                   .filter(StringUtils::isNotBlank)
                                   .toArray(String[]::new);
         }
         return CONTAINER_IPS;
     }
 
-    public static String getContainerName() throws SystemErrorException {
+    public static String getContainerName() {
         if (CONTAINER_NAME == null) {
             // use DNS to get the container name
             Set<String> containerNames = new HashSet<>();
             for (String containerIp : getContainerIps()) {
-                ProcessUtils.ProcessStatus result = ProcessUtils.cmd(null, 10,
-                        "host", '"' + containerIp + '"');
+                ProcessUtils.CommandResult result = ShellUtils.execCmd("host", containerIp);
                 if (result.exitCode != 0) {
                     throw new RuntimeException("Get host failed, command output: "
-                            + result.output);
+                            + result.stdout + "\n" + result.stderr);
                 }
                 // temp1, e.g., "container-name-1.network1."
-                String temp1 = result.output.substring(result.output.lastIndexOf(' ') + 1);
+                String temp1 = result.stdout.substring(result.stdout.lastIndexOf(' ') + 1);
                 // temp2, e.g., "container-name-1"
                 String temp2 = temp1.substring(0, temp1.indexOf('.'));
                 containerNames.add(temp2);

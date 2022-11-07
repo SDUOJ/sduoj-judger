@@ -12,8 +12,8 @@ package cn.edu.sdu.qd.oj.judger.manager;
 
 import cn.edu.sdu.qd.oj.judger.config.PathConfig;
 import cn.edu.sdu.qd.oj.judger.exception.CompileErrorException;
-import cn.edu.sdu.qd.oj.judger.exception.SystemErrorException;
 import cn.edu.sdu.qd.oj.judger.util.ProcessUtils;
+import cn.edu.sdu.qd.oj.judger.util.ShellUtils;
 import com.google.common.collect.Sets;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.boot.CommandLineRunner;
@@ -66,13 +66,13 @@ public class LocalCheckerManager implements CommandLineRunner {
         }
     }
 
-    public void compilePredefinedChecker(String checkerSourceFilename) throws SystemErrorException, CompileErrorException {
+    public void compilePredefinedChecker(String checkerSourceFilename) throws CompileErrorException {
         String checkerBinary = checkerSourceFilename.substring(0, checkerSourceFilename.indexOf('.'));
-        ProcessUtils.ProcessStatus processStatus = ProcessUtils.cmdOnRootPath("/usr/bin/g++", "-I/",
+        ProcessUtils.CommandResult result = ShellUtils.execCmd("/usr/bin/g++", "-I/",
                 "-DONLINE_JUDGE", "-O2", "-w", "-fmax-errors=3", "-std=c++14",
                 Paths.get(PathConfig.CHECKER_DIR, checkerSourceFilename).toString(), "-lm",
                 "-o", Paths.get(PathConfig.CHECKER_DIR, checkerBinary).toString());
-        if (processStatus.exitCode != 0) {
+        if (result.exitCode != 0) {
             throw new CompileErrorException("checker compile error! please contract admin!");
         }
         addCheckpoint(checkerSourceFilename);

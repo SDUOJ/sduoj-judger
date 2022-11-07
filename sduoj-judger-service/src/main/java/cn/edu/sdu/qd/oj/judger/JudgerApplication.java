@@ -16,7 +16,7 @@ import cn.edu.sdu.qd.oj.judger.config.CpuConfig;
 import cn.edu.sdu.qd.oj.judger.config.DockerContainers;
 import cn.edu.sdu.qd.oj.judger.config.PathConfig;
 import cn.edu.sdu.qd.oj.judger.util.FileUtils;
-import cn.edu.sdu.qd.oj.judger.util.ProcessUtils;
+import cn.edu.sdu.qd.oj.judger.util.ShellUtils;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.boot.SpringApplication;
 import org.springframework.boot.autoconfigure.SpringBootApplication;
@@ -59,7 +59,7 @@ public class JudgerApplication {
             FileUtils.createDir(PathConfig.DATA_DIR);
             FileUtils.createDir(PathConfig.ZIP_DIR);
             FileUtils.createDir(PathConfig.WORKSPACE_DIR);
-            ProcessUtils.chmod(PathConfig.WORKSPACE_DIR, "711");
+            ShellUtils.chmod(PathConfig.WORKSPACE_DIR, "711");
         } catch (Throwable t) {
             log.error("", t);
             System.exit(-1);

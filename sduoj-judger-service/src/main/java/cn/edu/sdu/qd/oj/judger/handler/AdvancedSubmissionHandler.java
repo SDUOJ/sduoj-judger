@@ -13,8 +13,8 @@ package cn.edu.sdu.qd.oj.judger.handler;
 import cn.edu.sdu.qd.oj.judger.config.PathConfig;
 import cn.edu.sdu.qd.oj.judger.exception.SystemErrorException;
 import cn.edu.sdu.qd.oj.judger.util.FileUtils;
-import cn.edu.sdu.qd.oj.judger.util.ProcessUtils;
 import cn.edu.sdu.qd.oj.judger.util.SandboxRunner;
+import cn.edu.sdu.qd.oj.judger.util.ShellUtils;
 import cn.edu.sdu.qd.oj.judgetemplate.enums.JudgeTemplateTypeEnum;
 import cn.edu.sdu.qd.oj.sandbox.dto.Argument;
 import cn.edu.sdu.qd.oj.sandbox.dto.SandboxResultDTO;
@@ -66,7 +66,7 @@ public class AdvancedSubmissionHandler extends AbstractSubmissionHandler {
         // shell 脚本代码写入文件
         FileUtils.writeFile(jtPath, judgeTemplate.getShellScript());
         if (judgeTemplate.getZipFileId() != null) {
-            ProcessUtils.unzip(Paths.get(PathConfig.ZIP_DIR, judgeTemplate.getZipFileId() + ".zip").toString(), workspaceDir);
+            ShellUtils.unzip(Paths.get(PathConfig.ZIP_DIR, judgeTemplate.getZipFileId() + ".zip").toString(), workspaceDir);
         }
 
         // 用户文件或代码写入文件
@@ -74,13 +74,13 @@ public class AdvancedSubmissionHandler extends AbstractSubmissionHandler {
             FileUtils.writeFile(userCodePath, submission.getCode());
         }
         if (submission.getZipFileId() != null) {
-            ProcessUtils.unzip(Paths.get(PathConfig.ZIP_DIR, submission.getZipFileId() + ".zip").toString(), workspaceUserDir);
+            ShellUtils.unzip(Paths.get(PathConfig.ZIP_DIR, submission.getZipFileId() + ".zip").toString(), workspaceUserDir);
         }
 
-        // 工作目录下的所有文件授权 717 给nobody读写权限
-        ProcessUtils.chmod(workspaceDir + "/*", "717");
+        // 工作目录下的所有文件授权给nobody读写权限
+        ShellUtils.chmod(workspaceDir, "777");
         // 执行 judgeTemplate 的脚本 ./jt.sh
-        ProcessUtils.chmod(jtPath, "+x");
+        ShellUtils.chmod(jtPath, "+x");
 
         String[] exeEnvs = System.getenv().entrySet().stream().map(entry -> entry.getKey() + "=" + entry.getValue()).toArray(String[]::new);
         String[] exeArgs = ArrayUtils.toArray("-c", jtPath);

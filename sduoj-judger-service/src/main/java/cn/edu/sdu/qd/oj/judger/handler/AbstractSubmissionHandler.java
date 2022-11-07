@@ -27,7 +27,7 @@ import cn.edu.sdu.qd.oj.judger.manager.LocalCheckpointManager;
 import cn.edu.sdu.qd.oj.judger.manager.LocalZipManager;
 import cn.edu.sdu.qd.oj.judger.sender.RabbitSender;
 import cn.edu.sdu.qd.oj.judger.util.FileUtils;
-import cn.edu.sdu.qd.oj.judger.util.ProcessUtils;
+import cn.edu.sdu.qd.oj.judger.util.ShellUtils;
 import cn.edu.sdu.qd.oj.judgetemplate.dto.JudgeTemplateDTO;
 import cn.edu.sdu.qd.oj.judgetemplate.enums.JudgeTemplateTypeEnum;
 import cn.edu.sdu.qd.oj.problem.dto.ProblemJudgerDTO;
@@ -231,22 +231,22 @@ public abstract class AbstractSubmissionHandler {
         workspaceDir = Paths.get(PathConfig.WORKSPACE_DIR, String.valueOf(submission.getSubmissionId())).toString();
         userOutputDir = Paths.get(workspaceDir, "output").toString();
         try {
-            ProcessUtils.deleteWorkspaceDir(workspaceDir);
+            ShellUtils.deleteWorkspaceDir(workspaceDir);
             FileUtils.createDir(workspaceDir);
             FileUtils.createDir(userOutputDir);
-            ProcessUtils.chown(workspaceDir, "nobody");
-            ProcessUtils.chmod(workspaceDir, "717");
+            ShellUtils.chown(workspaceDir, "nobody");
+            ShellUtils.chmod(workspaceDir, "777");
         } catch (Exception e) {
-            throw new SystemErrorException("Can not initialize workspace:\n" + e.toString());
+            throw new SystemErrorException("Can not initialize workspace:\n" + e);
         }
     }
 
     private void releaseWorkspace() throws SystemErrorException {
         try {
-            ProcessUtils.chmod(workspaceDir + "/*", "711");
+            ShellUtils.chmod(workspaceDir, "711");
             // clears the workspace of non-rejudged submission to save storage
             if (submission.getVersion() == 0) {
-                ProcessUtils.deleteWorkspaceDir(workspaceDir);
+                ShellUtils.deleteWorkspaceDir(workspaceDir);
             }
         } catch (Exception e) {
             throw new SystemErrorException("Can not release workspace:\n" + e.toString());

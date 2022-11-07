@@ -26,7 +26,7 @@ public class FileUtils {
 
     public static void writeFile(String path, String content) throws SystemErrorException {
         try {
-            org.apache.commons.io.FileUtils.writeStringToFile(new File(path), content);
+            org.apache.commons.io.FileUtils.writeStringToFile(new File(path), content, StandardCharsets.UTF_8);
         } catch (Exception e) {
             throw new SystemErrorException(String.format("Can not write to file \"%s\": %s", path, e));
         }
