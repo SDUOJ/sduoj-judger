@@ -11,23 +11,22 @@ jobs:
     runs-on: ubuntu-latest
 
     steps:
-      - uses: actions/checkout@v2
+      - uses: actions/checkout@v3
 
-      - uses: actions/setup-java@v2
+      - uses: actions/setup-java@v3
         with:
           java-version: 8
-          distribution: adopt-hotspot
-          architecture: x64
-          cache: gradle
+          distribution: temurin
 
-      - name: To disable the cache of sduoj-server packages
-        run: |
-          rm -rf ~/.gradle/caches/modules**/files**/cn.edu.sdu.qd.oj**
-          rm -rf ~/.gradle/caches/modules**/metadata**/descriptors/cn.edu.sdu.qd.oj**
-
-      - name: Gradle Build
+      - name: Run Gradle
+        uses: gradle/gradle-build-action@v2
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-        run: |
-          chmod +x ./gradlew
-          ./gradlew build --scan
+        with:
+          cache-read-only: false
+          arguments: |
+            build
+            --scan
+
+      - name: To disable the cache of sduoj-server packages
+        run: rm -rfv ~/.gradle/caches/modules*/**/cn.edu.sdu.qd.oj*/**
