@@ -82,7 +82,15 @@ public class AdvancedSubmissionHandler extends AbstractSubmissionHandler {
         // 执行 judgeTemplate 的脚本 ./jt.sh
         ShellUtils.chmod(jtPath, "+x");
 
-        String[] exeEnvs = System.getenv().entrySet().stream().map(entry -> entry.getKey() + "=" + entry.getValue()).toArray(String[]::new);
+        String[] exeEnvs = System.getenv()
+                                 .entrySet()
+                                 .stream()
+                                 .filter(entry -> entry.getKey().equals("LANG")
+                                         || entry.getKey().equals("PATH")
+                                         || entry.getKey().equals("TZ"))
+                                 .map(entry -> entry.getKey() + "=" + entry.getValue())
+                                 .toArray(String[]::new);
+
         String[] exeArgs = ArrayUtils.toArray("-c", jtPath);
         Argument _args = Argument.build()
                 .add(SandboxArgument.MAX_CPU_TIME, timeLimit)
