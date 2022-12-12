@@ -11,6 +11,7 @@
 package cn.edu.sdu.qd.oj.judger.handler;
 
 import cn.edu.sdu.qd.oj.judger.config.PathConfig;
+import cn.edu.sdu.qd.oj.judger.exception.CompileErrorException;
 import cn.edu.sdu.qd.oj.judger.exception.SystemErrorException;
 import cn.edu.sdu.qd.oj.judger.util.FileUtils;
 import cn.edu.sdu.qd.oj.judger.util.SandboxRunner;
@@ -52,7 +53,7 @@ public class AdvancedSubmissionHandler extends AbstractSubmissionHandler {
     * 评测模板zip包被解压在 ./ 下
     * 评测模板脚本为 ./jt.sh
     **/
-    protected SubmissionUpdateReqDTO start() throws SystemErrorException {
+    protected SubmissionUpdateReqDTO start() throws SystemErrorException, CompileErrorException {
         // 题目配置：时间、空间、检查点分数
         long submissionId = submission.getSubmissionId();
         int timeLimit = problem.getTimeLimit();
@@ -66,7 +67,11 @@ public class AdvancedSubmissionHandler extends AbstractSubmissionHandler {
         // shell 脚本代码写入文件
         FileUtils.writeFile(jtPath, judgeTemplate.getShellScript());
         if (judgeTemplate.getZipFileId() != null) {
-            ShellUtils.unzip(Paths.get(PathConfig.ZIP_DIR, judgeTemplate.getZipFileId() + ".zip").toString(), workspaceDir);
+            boolean isSucc = ShellUtils.unzip(Paths.get(PathConfig.ZIP_DIR,
+                    judgeTemplate.getZipFileId() + ".zip").toString(), workspaceDir);
+            if (!isSucc) {
+                throw new SystemErrorException("Decompresses judge template failed");
+            }
         }
 
         // 用户文件或代码写入文件
@@ -74,7 +79,11 @@ public class AdvancedSubmissionHandler extends AbstractSubmissionHandler {
             FileUtils.writeFile(userCodePath, submission.getCode());
         }
         if (submission.getZipFileId() != null) {
-            ShellUtils.unzip(Paths.get(PathConfig.ZIP_DIR, submission.getZipFileId() + ".zip").toString(), workspaceUserDir);
+            boolean isSucc = ShellUtils.unzip(Paths.get(PathConfig.ZIP_DIR,
+                    submission.getZipFileId() + ".zip").toString(), workspaceUserDir);
+            if (!isSucc) {
+                throw new CompileErrorException("Decompresses user's zip file failed");
+            }
         }
 
         // 工作目录下的所有文件授权给nobody读写权限

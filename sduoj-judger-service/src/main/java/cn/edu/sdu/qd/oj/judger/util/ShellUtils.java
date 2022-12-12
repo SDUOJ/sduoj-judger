@@ -50,11 +50,14 @@ public final class ShellUtils extends ProcessUtils {
         }
     }
 
-    public static void unzip(String zipFilePath, String targetDirPath) {
-        CommandResult result = ShellUtils.execCmd("sudo", "unzip", "-o", "-q", "-d", targetDirPath, zipFilePath);
+    public static boolean unzip(String zipFilePath, String targetDirPath) {
+        CommandResult result = ShellUtils.execCmd("sudo", "unzip",
+                "-o", "-q", "-d", targetDirPath, zipFilePath);
         if (result.exitCode != 0) {
-            throw new RuntimeException("Run unzip error: " + result);
+            log.warn("unzip error: {}", result);
+            return false;
         }
+        return true;
     }
 
     public static void deleteWorkspaceDir(String path) {
