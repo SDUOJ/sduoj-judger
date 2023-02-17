@@ -1,0 +1,11 @@
+# keep this the first line in the file
+*	text=auto
+*.txt	text eol=lf
+*.sh	text eol=lf
+*.java	text eol=lf
+*.kts	text eol=lf
+*.kt	text eol=lf
+*.yml	text eol=lf
+*.yaml	text eol=lf
+*.md	text eol=lf
+
