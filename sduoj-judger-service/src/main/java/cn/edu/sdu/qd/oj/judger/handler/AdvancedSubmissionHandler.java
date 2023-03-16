@@ -114,7 +114,8 @@ public class AdvancedSubmissionHandler extends AbstractSubmissionHandler {
                 .add(SandboxArgument.GID, 0);
 
         // 发送 judging 的 websocket
-        rabbitSender.sendOneJudgeResult(new CheckpointResultMsgDTO(submissionId, SubmissionJudgeResult.JUDGING.code));
+        rabbitSender.sendOneJudgeResult(new CheckpointResultMsgDTO(submissionId, submission.getVersion(),
+                SubmissionJudgeResult.JUDGING.code));
 
         SandboxResultDTO sandboxResult = SandboxRunner.run(workspaceDir, _args);
         if (sandboxResult == null) {

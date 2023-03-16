@@ -18,7 +18,6 @@ import cn.edu.sdu.qd.oj.judger.config.PathConfig;
 import cn.edu.sdu.qd.oj.judger.exception.CompileErrorException;
 import cn.edu.sdu.qd.oj.judger.exception.SystemErrorException;
 import cn.edu.sdu.qd.oj.judger.util.FileUtils;
-import cn.edu.sdu.qd.oj.judger.util.ProcessUtils;
 import cn.edu.sdu.qd.oj.judger.util.SandboxRunner;
 import cn.edu.sdu.qd.oj.judgetemplate.dto.JudgeTemplateConfigDTO;
 import cn.edu.sdu.qd.oj.judgetemplate.enums.JudgeTemplateTypeEnum;
@@ -115,7 +114,8 @@ public class IOSubmissionHandler extends AbstractSubmissionHandler {
                 .build();
 
         // 发送 compiling 的 websocket
-        rabbitSender.sendOneJudgeResult(new CheckpointResultMsgDTO(submissionId, SubmissionJudgeResult.COMPILING.code));
+        rabbitSender.sendOneJudgeResult(new CheckpointResultMsgDTO(submissionId, submission.getVersion(),
+                SubmissionJudgeResult.COMPILING.code));
 
         // 用户代码写入文件
         String code = submission.getCode();
@@ -124,19 +124,24 @@ public class IOSubmissionHandler extends AbstractSubmissionHandler {
         compile(compileConfig);
 
         // 发送 judging 的 websocket
-        rabbitSender.sendOneJudgeResult(new CheckpointResultMsgDTO(submissionId, SubmissionJudgeResult.JUDGING.code));
+        rabbitSender.sendOneJudgeResult(new CheckpointResultMsgDTO(submissionId, submission.getVersion(),
+                SubmissionJudgeResult.JUDGING.code));
 
         // 提交评测任务到线程池
         for (int i = 0, checkpointNum = checkpoints.size(); i < checkpointNum; ++i) {
-            String checkpointId = String.valueOf(checkpoints.get(i).getCheckpointId());
-            String inputPath = Paths.get(PathConfig.DATA_DIR, checkpointId + ".in").toString();
-            String answerPath = Paths.get(PathConfig.DATA_DIR, checkpointId + ".ans").toString();
-            String outputPath = Paths.get(userOutputDir, checkpointId + ".out").toString();
+            long checkpointId = checkpoints.get(i).getCheckpointId();
+            String checkpointIdStr = String.valueOf(checkpointId);
+            String inputPath = Paths.get(PathConfig.DATA_DIR, checkpointIdStr + ".in").toString();
+            String answerPath = Paths.get(PathConfig.DATA_DIR, checkpointIdStr + ".ans").toString();
+            String outputPath = Paths.get(userOutputDir, checkpointIdStr + ".out").toString();
 
             Integer checkpointScore = checkpoints.get(i).getCheckpointScore();
 
-            cpuAffinityThreadPool.submit(new IOJudgeCpuAffinityCommand(submissionId, i, checkpointScore, timeLimit,
-                    memoryLimit, outputLimit, inputPath, outputPath, answerPath, runConfig, customCheckerRunConfig));
+            cpuAffinityThreadPool.submit(new IOJudgeCpuAffinityCommand(submissionId, i,
+                    checkpointId, checkpointScore,
+                    timeLimit, memoryLimit, outputLimit,
+                    inputPath, outputPath, answerPath,
+                    runConfig, customCheckerRunConfig));
         }
 
         // 收集评测结果
@@ -172,6 +177,7 @@ public class IOSubmissionHandler extends AbstractSubmissionHandler {
         result.setCheckpointResults(checkpointResults.stream()
                 .map(CheckpointResultMsgDTO::toEachCheckpointResult)
                 .collect(Collectors.toList()));
+        result.setCheckpointNum(result.getCheckpointResults().size());
         result.setJudgeResult(judgeResult.code);
         result.setJudgeScore(judgeScore);
         result.setUsedTime(maxUsedTime);
@@ -234,6 +240,7 @@ public class IOSubmissionHandler extends AbstractSubmissionHandler {
 
         private final long submissionId;
         private final int caseNo;
+        private final long checkpointId;
         private final int score;
         private final String outputPath;
         private final String answerPath;
@@ -241,12 +248,14 @@ public class IOSubmissionHandler extends AbstractSubmissionHandler {
         private final Argument runCommand;
         private final Argument customCheckerRunCommand;
 
-        IOJudgeCpuAffinityCommand(long submissionId, int caseNo, int score, int timeLimit, int memoryLimit, int outputLimit,
+        IOJudgeCpuAffinityCommand(long submissionId, int caseNo, long checkpointId,
+                                  int score, int timeLimit, int memoryLimit, int outputLimit,
                                   String inputPath, String outputPath, String answerPath,
                                   JudgeTemplateConfigDTO.TemplateConfig.Run runConfig,
                                   JudgeTemplateConfigDTO.TemplateConfig.Run customCheckerConfig) throws SystemErrorException {
             this.submissionId = submissionId;
             this.caseNo = caseNo;
+            this.checkpointId = checkpointId;
             this.score = score;
             this.outputPath = outputPath;
             this.answerPath = answerPath;
@@ -306,8 +315,10 @@ public class IOSubmissionHandler extends AbstractSubmissionHandler {
                 } else if (SandboxResult.SUCCESS.equals(judgeResult.getResult())) {
                     SubmissionJudgeResult result = check(coreNo);
                     commandResult = new CommandResult<>(new CheckpointResultMsgDTO(
-                            submissionId, caseNo, result.code,
-                            SubmissionJudgeResult.AC.code == result.code ? score : 0, judgeResult.getCpuTime(), judgeResult.getMemory()
+                            submissionId, submission.getVersion(),
+                            0, caseNo, checkpointId,
+                            result.code, SubmissionJudgeResult.AC.code == result.code ? score : 0,
+                            judgeResult.getCpuTime(), judgeResult.getMemory()
                     ));
                 } else {
                     int time = judgeResult.getCpuTime();
@@ -317,16 +328,20 @@ public class IOSubmissionHandler extends AbstractSubmissionHandler {
                     }
 
                     commandResult = new CommandResult<>(new CheckpointResultMsgDTO(
-                            submissionId, caseNo, SandboxResult.of(judgeResult.getResult()).submissionJudgeResult.code,
-                            0, time, judgeResult.getMemory()
+                            submissionId, submission.getVersion(),
+                            0, caseNo, checkpointId,
+                            SandboxResult.of(judgeResult.getResult()).submissionJudgeResult.code, 0,
+                            time, judgeResult.getMemory()
                     ));
                 }
             } catch (SystemErrorException e) {
                 log.warn("", e);
                 judgeLog += e + "\n";
                 commandResult = new CommandResult<>(new CheckpointResultMsgDTO(
-                        submissionId, caseNo, SubmissionJudgeResult.SE.code,
-                        0, 0, 0
+                        submissionId, submission.getVersion(),
+                        0, caseNo, checkpointId,
+                        SubmissionJudgeResult.SE.code, 0,
+                        0, 0
                 ));
             } catch (Exception e) {
                 log.warn("", e);
