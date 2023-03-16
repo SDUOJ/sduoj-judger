@@ -10,8 +10,7 @@
 
 package cn.edu.sdu.qd.oj.judger.handler;
 
-import cn.edu.sdu.qd.oj.checkpoint.dto.CheckpointManageListDTO;
-import cn.edu.sdu.qd.oj.common.rpc.client.CheckpointClient;
+import cn.edu.sdu.qd.oj.checkpoint.dto.CheckpointJudgerDTO;
 import cn.edu.sdu.qd.oj.common.rpc.client.FilesysClient;
 import cn.edu.sdu.qd.oj.common.rpc.client.JudgeTemplateClient;
 import cn.edu.sdu.qd.oj.common.rpc.client.ProblemClient;
@@ -35,7 +34,6 @@ import cn.edu.sdu.qd.oj.submission.api.message.CheckpointResultMsgDTO;
 import cn.edu.sdu.qd.oj.submission.dto.SubmissionJudgeDTO;
 import cn.edu.sdu.qd.oj.submission.dto.SubmissionUpdateReqDTO;
 import cn.edu.sdu.qd.oj.submission.enums.SubmissionJudgeResult;
-import com.google.common.collect.Lists;
 import lombok.extern.slf4j.Slf4j;
 import org.apache.commons.io.IOUtils;
 import org.apache.commons.lang3.StringUtils;
@@ -47,12 +45,14 @@ import java.io.BufferedInputStream;
 import java.io.File;
 import java.nio.file.Paths;
 import java.util.ArrayList;
+import java.util.Collection;
 import java.util.List;
 import java.util.Objects;
-import java.util.Optional;
+import java.util.function.Function;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 import java.util.stream.Collectors;
+import java.util.stream.Stream;
 import java.util.zip.ZipEntry;
 import java.util.zip.ZipInputStream;
 
@@ -69,9 +69,6 @@ public abstract class AbstractSubmissionHandler {
 
     @Autowired
     protected ProblemClient problemClient;
-
-    @Autowired
-    protected CheckpointClient checkpointClient;
 
     @Autowired
     protected FilesysClient filesysClient;
@@ -104,7 +101,9 @@ public abstract class AbstractSubmissionHandler {
 
     protected ProblemJudgerDTO problem;
 
-    protected List<CheckpointManageListDTO> checkpoints;
+    protected List<CheckpointJudgerDTO> checkpoints;
+
+    protected List<CheckpointJudgerDTO> publicCheckpoints;
 
     protected String judgeLog;
 
@@ -292,31 +291,37 @@ public abstract class AbstractSubmissionHandler {
     private void initializeCheckpoint() throws SystemErrorException {
         // 查询出题目的检查点
         try {
-            checkpoints = Optional.ofNullable(checkpointClient.queryCheckpointListByProblemId(submission.getProblemId()))
-                    .filter(CollectionUtils::isNotEmpty)
-                    .orElse(Lists.newArrayList());
+            checkpoints = problemClient.listJudgerCheckpoints(submission.getProblemId());
+            publicCheckpoints = problemClient.listJudgerPublicCheckpoints(submission.getProblemId());
         } catch (Exception e) {
             throw new SystemErrorException(String.format("Can not query checkpoint:\n%s", e));
         }
         // 检查所有checkpoints，找出本地没有的检查点
-        List<CheckpointManageListDTO> neededCheckpoint = checkpoints.stream()
+        Collection<CheckpointJudgerDTO> checkpointsToDownload  = Stream
+                .concat(checkpoints.stream(), publicCheckpoints.stream())
                 .filter(o -> !localCheckpointManager.isCheckpointExist(o.getCheckpointId()))
-                .collect(Collectors.toList());
+                .collect(Collectors.toMap(CheckpointJudgerDTO::getCheckpointId,
+                        Function.identity(), (o1, o2) -> o1))
+                .values();
+
         List<FileDownloadReqDTO> fileDownloadReqList = new ArrayList<>();
-        for (CheckpointManageListDTO checkpointManageDTO : neededCheckpoint) {
+        for (CheckpointJudgerDTO checkpoint : checkpointsToDownload) {
             fileDownloadReqList.add(FileDownloadReqDTO.builder()
-                    .id(checkpointManageDTO.getInputFileId())
-                    .downloadFilename(checkpointManageDTO.getCheckpointId() + ".in")
+                    .id(checkpoint.getInputFileId())
+                    .downloadFilename(checkpoint.getCheckpointId() + ".in")
                     .build());
             fileDownloadReqList.add(FileDownloadReqDTO.builder()
-                    .id(checkpointManageDTO.getOutputFileId())
-                    .downloadFilename(checkpointManageDTO.getCheckpointId() + ".ans")
+                    .id(checkpoint.getOutputFileId())
+                    .downloadFilename(checkpoint.getCheckpointId() + ".ans")
                     .build());
         }
         // 下载不存在的checkpoints
         if (CollectionUtils.isNotEmpty(fileDownloadReqList)) {
             try {
-                log.info("\nDownloadCheckpoint: {}", neededCheckpoint.stream().map(CheckpointManageListDTO::getCheckpointId).collect(Collectors.toList()));
+                log.info("\nDownloadCheckpoint: {}", checkpointsToDownload
+                        .stream()
+                        .map(CheckpointJudgerDTO::getCheckpointId)
+                        .collect(Collectors.toList()));
                 // 下载检查点并解压，维护本地已有 checkpoints
                 Resource download = filesysClient.download(fileDownloadReqList);
                 ZipInputStream zipInputStream = new ZipInputStream(new BufferedInputStream(download.getInputStream()));
