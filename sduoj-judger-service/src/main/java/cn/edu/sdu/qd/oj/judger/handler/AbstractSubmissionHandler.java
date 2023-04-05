@@ -303,20 +303,19 @@ public abstract class AbstractSubmissionHandler {
                 .collect(Collectors.toMap(CheckpointJudgerDTO::getCheckpointId,
                         Function.identity(), (o1, o2) -> o1))
                 .values();
-
-        List<FileDownloadReqDTO> fileDownloadReqList = new ArrayList<>();
+        // 下载不存在的checkpoints
         for (CheckpointJudgerDTO checkpoint : checkpointsToDownload) {
-            fileDownloadReqList.add(FileDownloadReqDTO.builder()
+            List<FileDownloadReqDTO> fileDownloadReqList = new ArrayList<>();
+            fileDownloadReqList.add(FileDownloadReqDTO
+                    .builder()
                     .id(checkpoint.getInputFileId())
                     .downloadFilename(checkpoint.getCheckpointId() + ".in")
                     .build());
-            fileDownloadReqList.add(FileDownloadReqDTO.builder()
+            fileDownloadReqList.add(FileDownloadReqDTO
+                    .builder()
                     .id(checkpoint.getOutputFileId())
                     .downloadFilename(checkpoint.getCheckpointId() + ".ans")
                     .build());
-        }
-        // 下载不存在的checkpoints
-        if (CollectionUtils.isNotEmpty(fileDownloadReqList)) {
             try {
                 log.info("\nDownloadCheckpoint: {}", checkpointsToDownload
                         .stream()
@@ -328,13 +327,15 @@ public abstract class AbstractSubmissionHandler {
                 ZipEntry zipEntry;
                 while ((zipEntry = zipInputStream.getNextEntry()) != null) {
                     String name = zipEntry.getName();
+                    // do not read from zipInputStream directly
+                    // it will cause the zipInputStream to be closed
                     byte[] bytes = IOUtils.toByteArray(zipInputStream);
                     FileUtils.writeFile(Paths.get(PathConfig.DATA_DIR, name).toString(), bytes);
-
                     localCheckpointManager.addCheckpoint(Long.valueOf(name.substring(0, name.indexOf("."))));
                 }
             } catch (Exception e) {
-                throw new SystemErrorException(String.format("Can not download checkpoints:\n%s", e));
+                log.error("Can not download checkpoints", e);
+                throw new SystemErrorException("Can not download checkpoints");
             }
         }
     }
