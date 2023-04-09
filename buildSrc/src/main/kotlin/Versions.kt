@@ -1,11 +1,15 @@
 object Versions {
-    val sduoj = "0.1.0-SNAPSHOT"
+    const val sduoj = "0.2.0-SNAPSHOT"
 
-    val springCloud = "2021.0.3"
-    val springCloudAlibaba = "2021.0.1.0"
+    const val java = "17"
 
-    val lombok = "1.18.12"
-    val commonsLang3 = "3.11"
-    val slf4j = "1.7.30"
-    val jackson = "2.9.10" // TODO: upgrade
+    const val springBoot = "3.0.5"
+    const val springCloud = "2022.0.2"
+    const val springCloudAlibaba = "2022.0.0.0-RC1"
+
+    const val nacos = "2.2.1"
+
+    const val lombok = "1.18.26"
+    const val commonsLang3 = "3.11"
+    const val commonsIO = "2.11.0"
 }

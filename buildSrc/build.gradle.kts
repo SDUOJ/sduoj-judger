@@ -12,10 +12,15 @@ repositories {
     gradlePluginPortal()
 }
 
-val springBootVersion: String by project
-val dependencyManagementPluginVersion: String by project
+// should be same as 'buildSrc/src/main/kotlin/Versions.kt'
+object Versions {
+    const val springBoot = "3.0.5"
+    const val dependencyManagementPlugin = "1.1.0"
+    const val checkstyle = "8.41.1"
+    const val kotlin = "1.8.10"
+}
 
 dependencies {
-    implementation("org.springframework.boot:spring-boot-gradle-plugin:$springBootVersion")
-    implementation("io.spring.gradle:dependency-management-plugin:$dependencyManagementPluginVersion")
+    implementation("org.springframework.boot:spring-boot-gradle-plugin:${Versions.springBoot}")
+    implementation("io.spring.gradle:dependency-management-plugin:${Versions.dependencyManagementPlugin}")
 }

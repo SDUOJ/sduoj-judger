@@ -11,9 +11,9 @@
 package cn.edu.sdu.qd.oj.judger.config;
 
 import cn.edu.sdu.qd.oj.common.mq.MqManager;
+import cn.edu.sdu.qd.oj.common.util.collection.Lists;
 import cn.edu.sdu.qd.oj.common.util.collection.Pair;
 import cn.edu.sdu.qd.oj.submission.api.message.SubmissionWaitingMsgDTO;
-import com.google.common.collect.Lists;
 import org.springframework.stereotype.Component;
 
 import java.util.List;

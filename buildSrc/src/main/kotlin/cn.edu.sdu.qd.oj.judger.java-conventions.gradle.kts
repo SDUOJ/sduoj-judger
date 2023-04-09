@@ -3,6 +3,7 @@
  */
 
 plugins {
+    java
     `java-library`
     `maven-publish`
     id("org.springframework.boot")
@@ -12,9 +13,11 @@ plugins {
 group = "cn.edu.sdu.qd.oj.judger"
 version = Versions.sduoj
 
-java.sourceCompatibility = JavaVersion.VERSION_1_8
-java.targetCompatibility = JavaVersion.VERSION_1_8
-
+java {
+    toolchain {
+        languageVersion.set(JavaLanguageVersion.of(Versions.java))
+    }
+}
 
 repositories {
     mavenLocal()
@@ -40,6 +43,7 @@ dependencies {
 
 dependencyManagement {
     imports {
+        mavenBom("org.springframework.boot:spring-boot-dependencies:${Versions.springBoot}")
         mavenBom("org.springframework.cloud:spring-cloud-dependencies:${Versions.springCloud}")
         mavenBom("com.alibaba.cloud:spring-cloud-alibaba-dependencies:${Versions.springCloudAlibaba}")
     }
@@ -73,4 +77,5 @@ allprojects {
 
 tasks.withType<JavaCompile>() {
     options.encoding = "UTF-8"
+    options.compilerArgs.add("-parameters")
 }

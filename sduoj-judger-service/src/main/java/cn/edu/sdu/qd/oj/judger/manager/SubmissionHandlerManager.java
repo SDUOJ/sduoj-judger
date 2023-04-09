@@ -13,7 +13,7 @@ package cn.edu.sdu.qd.oj.judger.manager;
 import cn.edu.sdu.qd.oj.judger.handler.AbstractSubmissionHandler;
 import cn.edu.sdu.qd.oj.judger.util.SpringContextUtils;
 import cn.edu.sdu.qd.oj.judgetemplate.enums.JudgeTemplateTypeEnum;
-import com.google.common.collect.Maps;
+import com.alibaba.nacos.shaded.com.google.common.collect.Maps;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.boot.CommandLineRunner;
 import org.springframework.stereotype.Component;

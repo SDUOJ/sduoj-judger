@@ -15,7 +15,6 @@ import cn.edu.sdu.qd.oj.common.rpc.client.FilesysClient;
 import cn.edu.sdu.qd.oj.common.rpc.client.JudgeTemplateClient;
 import cn.edu.sdu.qd.oj.common.rpc.client.ProblemClient;
 import cn.edu.sdu.qd.oj.common.rpc.client.SubmissionClient;
-import cn.edu.sdu.qd.oj.common.util.CollectionUtils;
 import cn.edu.sdu.qd.oj.filesys.dto.FileDownloadReqDTO;
 import cn.edu.sdu.qd.oj.judger.command.CpuAffinityThreadPool;
 import cn.edu.sdu.qd.oj.judger.config.PathConfig;
@@ -34,12 +33,12 @@ import cn.edu.sdu.qd.oj.submission.api.message.CheckpointResultMsgDTO;
 import cn.edu.sdu.qd.oj.submission.dto.SubmissionJudgeDTO;
 import cn.edu.sdu.qd.oj.submission.dto.SubmissionUpdateReqDTO;
 import cn.edu.sdu.qd.oj.submission.enums.SubmissionJudgeResult;
+import feign.Response;
 import lombok.extern.slf4j.Slf4j;
 import org.apache.commons.io.IOUtils;
 import org.apache.commons.lang3.StringUtils;
 import org.springframework.amqp.AmqpException;
 import org.springframework.beans.factory.annotation.Autowired;
-import org.springframework.core.io.Resource;
 
 import java.io.BufferedInputStream;
 import java.io.File;
@@ -271,9 +270,10 @@ public abstract class AbstractSubmissionHandler {
 
     private void downloadZipFile(long zipFileId) throws SystemErrorException {
         try {
-            Resource resource = filesysClient.download(zipFileId);
+            Response resp = filesysClient.download(zipFileId);
             File file = new File(Paths.get(PathConfig.ZIP_DIR, zipFileId + ".zip").toString());
-            org.apache.commons.io.FileUtils.copyInputStreamToFile(resource.getInputStream(), file);
+            org.apache.commons.io.FileUtils.copyInputStreamToFile(resp.body().asInputStream(), file);
+            resp.close();
         } catch (Exception e) {
             throw new SystemErrorException(String.format("Can not download Zip:%s \n%s", zipFileId, e));
         }
@@ -306,24 +306,24 @@ public abstract class AbstractSubmissionHandler {
         // 下载不存在的checkpoints
         for (CheckpointJudgerDTO checkpoint : checkpointsToDownload) {
             List<FileDownloadReqDTO> fileDownloadReqList = new ArrayList<>();
-            fileDownloadReqList.add(FileDownloadReqDTO
-                    .builder()
-                    .id(checkpoint.getInputFileId())
-                    .downloadFilename(checkpoint.getCheckpointId() + ".in")
-                    .build());
-            fileDownloadReqList.add(FileDownloadReqDTO
-                    .builder()
-                    .id(checkpoint.getOutputFileId())
-                    .downloadFilename(checkpoint.getCheckpointId() + ".ans")
-                    .build());
+            fileDownloadReqList.add(new FileDownloadReqDTO(
+                    checkpoint.getInputFileId(),
+                    checkpoint.getCheckpointId() + ".in"
+            ));
+            fileDownloadReqList.add(new FileDownloadReqDTO(
+                    checkpoint.getOutputFileId(),
+                    checkpoint.getCheckpointId() + ".ans"
+            ));
             try {
                 log.info("\nDownloadCheckpoint: {}", checkpointsToDownload
                         .stream()
                         .map(CheckpointJudgerDTO::getCheckpointId)
                         .collect(Collectors.toList()));
                 // 下载检查点并解压，维护本地已有 checkpoints
-                Resource download = filesysClient.download(fileDownloadReqList);
-                ZipInputStream zipInputStream = new ZipInputStream(new BufferedInputStream(download.getInputStream()));
+                Response resp = filesysClient.zipDownload(fileDownloadReqList);
+                ZipInputStream zipInputStream = new ZipInputStream(new BufferedInputStream(
+                        resp.body().asInputStream()
+                ));
                 ZipEntry zipEntry;
                 while ((zipEntry = zipInputStream.getNextEntry()) != null) {
                     String name = zipEntry.getName();
@@ -333,6 +333,7 @@ public abstract class AbstractSubmissionHandler {
                     FileUtils.writeFile(Paths.get(PathConfig.DATA_DIR, name).toString(), bytes);
                     localCheckpointManager.addCheckpoint(Long.valueOf(name.substring(0, name.indexOf("."))));
                 }
+                resp.close();
             } catch (Exception e) {
                 log.error("Can not download checkpoints", e);
                 throw new SystemErrorException("Can not download checkpoints");

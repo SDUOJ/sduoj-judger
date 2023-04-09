@@ -11,7 +11,7 @@ dependencies {
 
     /* 3-rd party dependency */
     api("org.apache.commons:commons-lang3:${Versions.commonsLang3}")
-    api("com.fasterxml.jackson.core:jackson-databind:${Versions.jackson}")
+    api("com.fasterxml.jackson.core:jackson-databind")
 }
 
 description = "sduoj-judger-interface"

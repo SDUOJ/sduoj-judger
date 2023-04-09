@@ -11,11 +11,11 @@
 package cn.edu.sdu.qd.oj.judger.util;
 
 import cn.edu.sdu.qd.oj.common.util.JsonUtils;
+import cn.edu.sdu.qd.oj.common.util.collection.Lists;
 import cn.edu.sdu.qd.oj.judger.config.CpuConfig;
 import cn.edu.sdu.qd.oj.judger.exception.SystemErrorException;
 import cn.edu.sdu.qd.oj.sandbox.dto.Argument;
 import cn.edu.sdu.qd.oj.sandbox.dto.SandboxResultDTO;
-import com.google.common.collect.Lists;
 import lombok.extern.slf4j.Slf4j;
 
 import java.io.File;
