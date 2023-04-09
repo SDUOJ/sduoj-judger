@@ -56,7 +56,7 @@ RUN ln -s /opt/python/3.11/bin/python /usr/bin/python3 \
 
 # install JDK(s)
 ENV JAVA_HOME=/opt/java/openjdk
-COPY --from=eclipse-temurin:8 $JAVA_HOME ${JAVA_HOME}8
+#COPY --from=eclipse-temurin:8 $JAVA_HOME ${JAVA_HOME}8
 COPY --from=eclipse-temurin:17 $JAVA_HOME ${JAVA_HOME}17
 # set the default JDK to JDK17
 ENV JAVA_HOME=/opt/java/openjdk17
