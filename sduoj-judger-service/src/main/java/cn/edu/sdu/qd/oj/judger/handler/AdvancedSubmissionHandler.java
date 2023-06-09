@@ -140,11 +140,24 @@ public class AdvancedSubmissionHandler extends AbstractSubmissionHandler {
             usedTime = Math.max(usedTime, sandboxResult.getRealTime());
         }
 
+        // 读 jt.score
+        int judgeScore = SandboxResult.SUCCESS.equals(sandboxResult.getResult()) ? 100 : 0;
+        try {
+            String judgeScoreStr = FileUtils.readFile(Paths.get(workspaceDir, "jt.score").toString());
+            judgeScoreStr = judgeScoreStr.trim();
+            if (judgeScoreStr.indexOf('.') != -1) {
+                judgeScore = Math.max(judgeScore, (int) Double.parseDouble(judgeScoreStr));
+            } else {
+                judgeScore = Math.max(judgeScore, Integer.parseInt(judgeScoreStr));
+            }
+        } catch(Exception ignored) {
+        }
+
         // 拼装结果
         return SubmissionUpdateReqDTO.builder()
                 .submissionId(submissionId)
                 .judgeResult(judgeResult)
-                .judgeScore(SandboxResult.SUCCESS.equals(sandboxResult.getResult()) ? 100 : 0)
+                .judgeScore(judgeScore)
                 .usedTime(usedTime)
                 .usedMemory(sandboxResult.getMemory())
                 .judgeLog(judgeLog)
