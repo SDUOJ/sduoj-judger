@@ -63,6 +63,8 @@ import java.util.zip.ZipInputStream;
 @Slf4j
 public abstract class AbstractSubmissionHandler {
 
+    protected static final int MAX_JUDGE_LOG = 60 * 1024;
+
     @Autowired
     protected JudgeTemplateClient judgeTemplateClient;
 
@@ -175,10 +177,10 @@ public abstract class AbstractSubmissionHandler {
         if (updateReqDTO != null) {
             // 设置 updateDTO 中的乐观锁字段
             updateReqDTO.setVersion(submission.getVersion());
-            // judgeLog 字段长度限制
+            // 传给后端的 judgeLog 字段限制长度
             String judgeLog = updateReqDTO.getJudgeLog();
-            if (StringUtils.isNotBlank(judgeLog)) {
-                updateReqDTO.setJudgeLog(judgeLog.substring(0, Math.min(judgeLog.length(), 48 * 1024))); // 限制 48K judgeLog
+            if (StringUtils.isNotBlank(judgeLog) && judgeLog.length() > MAX_JUDGE_LOG) {
+                updateReqDTO.setJudgeLog(judgeLog.substring(0, MAX_JUDGE_LOG));
             }
             // 多次尝试
             for (int i = 0; i < 5; i++) {

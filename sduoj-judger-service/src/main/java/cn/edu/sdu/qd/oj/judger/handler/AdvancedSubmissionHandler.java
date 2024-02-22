@@ -124,8 +124,9 @@ public class AdvancedSubmissionHandler extends AbstractSubmissionHandler {
 
         String judgeLog = null;
         try {
-            judgeLog = FileUtils.readFile(Paths.get(workspaceDir, "jt.log").toString());
-        } catch(Exception ignored) {}
+            judgeLog = FileUtils.readFirstNChars(Paths.get(workspaceDir, "jt.log"), MAX_JUDGE_LOG);
+        } catch(Exception ignored) {
+        }
 
         // 若是 SE 可能
         SandboxResult sr = SandboxResult.of(sandboxResult.getResult());
