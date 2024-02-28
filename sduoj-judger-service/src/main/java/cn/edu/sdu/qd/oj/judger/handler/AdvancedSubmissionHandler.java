@@ -144,7 +144,7 @@ public class AdvancedSubmissionHandler extends AbstractSubmissionHandler {
         // 读 jt.score
         int judgeScore = SandboxResult.SUCCESS.equals(sandboxResult.getResult()) ? 100 : 0;
         try {
-            String judgeScoreStr = FileUtils.readFile(Paths.get(workspaceDir, "jt.score").toString());
+            String judgeScoreStr = FileUtils.readFile(Paths.get(workspaceDir, "jt.score"));
             judgeScoreStr = judgeScoreStr.trim();
             if (judgeScoreStr.indexOf('.') != -1) {
                 judgeScore = Math.max(judgeScore, (int) Double.parseDouble(judgeScoreStr));

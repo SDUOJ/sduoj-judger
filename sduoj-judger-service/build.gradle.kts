@@ -19,7 +19,6 @@ dependencies {
     implementation("org.springframework.boot:spring-boot-starter")
     implementation("org.springframework.boot:spring-boot-configuration-processor")
     implementation("org.springframework.cloud:spring-cloud-starter-bootstrap")
-    implementation("commons-io:commons-io:${Versions.commonsIO}")
     testImplementation("junit:junit")
 }
 

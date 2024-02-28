@@ -15,7 +15,6 @@ import cn.edu.sdu.qd.oj.judger.exception.SystemErrorException;
 import java.io.BufferedReader;
 import java.io.File;
 import java.io.IOException;
-import java.nio.charset.StandardCharsets;
 import java.nio.file.Files;
 import java.nio.file.Path;
 
@@ -36,28 +35,40 @@ public class FileUtils {
         }
     }
 
-    public static void writeFile(String path, String content) throws SystemErrorException {
+    public static void writeFile(Path path, String content) throws SystemErrorException {
         try {
-            org.apache.commons.io.FileUtils.writeStringToFile(new File(path), content, StandardCharsets.UTF_8);
+            Files.writeString(path, content);
+        } catch (Exception e) {
+            throw new SystemErrorException(String.format("Can not write to file \"%s\": %s", path, e));
+        }
+    }
+
+    public static void writeFile(String path, String content) throws SystemErrorException {
+        writeFile(Path.of(path), content);
+    }
+
+    public static void writeFile(Path path, byte[] content) throws SystemErrorException {
+        try {
+            Files.write(path, content);
         } catch (Exception e) {
             throw new SystemErrorException(String.format("Can not write to file \"%s\": %s", path, e));
         }
     }
 
     public static void writeFile(String path, byte[] content) throws SystemErrorException {
+        writeFile(Path.of(path), content);
+    }
+
+    public static String readFile(Path path) throws SystemErrorException {
         try {
-            org.apache.commons.io.FileUtils.writeByteArrayToFile(new File(path), content);
-        } catch (Exception e) {
-            throw new SystemErrorException(String.format("Can not write to file \"%s\": %s", path, e));
+            return Files.readString(path);
+        } catch (IOException e) {
+            throw new SystemErrorException(e);
         }
     }
 
     public static String readFile(String path) throws SystemErrorException {
-        try {
-            return org.apache.commons.io.FileUtils.readFileToString(new File(path), String.valueOf(StandardCharsets.UTF_8));
-        } catch (IOException e) {
-            throw new SystemErrorException(e);
-        }
+        return readFile(Path.of(path));
     }
 
     /**

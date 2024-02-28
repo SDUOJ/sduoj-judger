@@ -11,7 +11,6 @@
 package cn.edu.sdu.qd.oj.judger.util;
 
 import lombok.extern.slf4j.Slf4j;
-import org.apache.commons.io.IOUtils;
 
 import javax.annotation.Nullable;
 import java.io.File;
@@ -66,8 +65,8 @@ public class ProcessUtils {
             if (!process.isAlive()) {
                 exitCode = process.exitValue();
             }
-            stdout = IOUtils.toString(process.getInputStream(), StandardCharsets.UTF_8);
-            stderr = IOUtils.toString(process.getErrorStream(), StandardCharsets.UTF_8);
+            stdout = new String(process.getInputStream().readAllBytes(), StandardCharsets.UTF_8);
+            stderr = new String(process.getErrorStream().readAllBytes(), StandardCharsets.UTF_8);
         } catch (Exception e) {
             log.error("", e);
         } finally {

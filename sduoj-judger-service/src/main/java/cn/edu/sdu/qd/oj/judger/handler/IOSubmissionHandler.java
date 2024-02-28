@@ -88,7 +88,7 @@ public class IOSubmissionHandler extends AbstractSubmissionHandler {
             JudgeTemplateConfigDTO.TemplateConfig.Compile spjCompileConfig = configDTO.getCompile();
             customCheckerRunConfig = configDTO.getRun();
             customCheckerRunConfig.setCommand(replacePatternToProblemInfo(customCheckerRunConfig.getCommand()));
-            FileUtils.writeFile(Paths.get(workspaceDir, spjCompileConfig.getSrcName()).toString(), checkerConfigDTO.getSource());
+            FileUtils.writeFile(Paths.get(workspaceDir, spjCompileConfig.getSrcName()), checkerConfigDTO.getSource());
             compile(spjCompileConfig);
         }
 
@@ -109,7 +109,7 @@ public class IOSubmissionHandler extends AbstractSubmissionHandler {
 
         // 用户代码写入文件
         String code = submission.getCode();
-        FileUtils.writeFile(Paths.get(workspaceDir, compileConfig.getSrcName()).toString(), code);
+        FileUtils.writeFile(Paths.get(workspaceDir, compileConfig.getSrcName()), code);
         // 编译
         compile(compileConfig);
 
@@ -243,7 +243,7 @@ public class IOSubmissionHandler extends AbstractSubmissionHandler {
                 }
 
                 try {
-                    sb.append(FileUtils.readFile(Paths.get(workspaceDir, compilerLogPath).toString()));
+                    sb.append(FileUtils.readFile(Paths.get(workspaceDir, compilerLogPath)));
                 } catch (SystemErrorException e) {
                     throw new CompileErrorException(sb.toString());
                 }

@@ -35,13 +35,13 @@ import cn.edu.sdu.qd.oj.submission.dto.SubmissionUpdateReqDTO;
 import cn.edu.sdu.qd.oj.submission.enums.SubmissionJudgeResult;
 import feign.Response;
 import lombok.extern.slf4j.Slf4j;
-import org.apache.commons.io.IOUtils;
 import org.apache.commons.lang3.StringUtils;
 import org.springframework.amqp.AmqpException;
 import org.springframework.beans.factory.annotation.Autowired;
 
 import java.io.BufferedInputStream;
 import java.io.File;
+import java.nio.file.Files;
 import java.nio.file.Paths;
 import java.util.ArrayList;
 import java.util.Collection;
@@ -274,7 +274,7 @@ public abstract class AbstractSubmissionHandler {
         try {
             Response resp = filesysClient.download(zipFileId);
             File file = new File(Paths.get(PathConfig.ZIP_DIR, zipFileId + ".zip").toString());
-            org.apache.commons.io.FileUtils.copyInputStreamToFile(resp.body().asInputStream(), file);
+            Files.copy(resp.body().asInputStream(), file.toPath());
             resp.close();
         } catch (Exception e) {
             throw new SystemErrorException(String.format("Can not download Zip:%s \n%s", zipFileId, e));
@@ -331,8 +331,8 @@ public abstract class AbstractSubmissionHandler {
                     String name = zipEntry.getName();
                     // do not read from zipInputStream directly
                     // it will cause the zipInputStream to be closed
-                    byte[] bytes = IOUtils.toByteArray(zipInputStream);
-                    FileUtils.writeFile(Paths.get(PathConfig.DATA_DIR, name).toString(), bytes);
+                    byte[] bytes = zipInputStream.readAllBytes();
+                    FileUtils.writeFile(Paths.get(PathConfig.DATA_DIR, name), bytes);
                     localCheckpointManager.addCheckpoint(Long.valueOf(name.substring(0, name.indexOf("."))));
                 }
                 resp.close();
