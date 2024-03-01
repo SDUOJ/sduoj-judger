@@ -11,40 +11,39 @@
 package cn.edu.sdu.qd.oj.judger.manager;
 
 import cn.edu.sdu.qd.oj.judger.config.PathConfig;
-import com.alibaba.nacos.shaded.com.google.common.collect.Sets;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.boot.CommandLineRunner;
 import org.springframework.stereotype.Component;
 
-import java.io.File;
-import java.util.Objects;
-import java.util.Optional;
+import java.nio.file.Files;
+import java.nio.file.Path;
 import java.util.Set;
+import java.util.concurrent.CopyOnWriteArraySet;
 
 @Slf4j
 @Component
 public class LocalZipManager implements CommandLineRunner {
 
-    private Set<String> checkpoints;
+    private final Set<Long> zipFileIds = new CopyOnWriteArraySet<>();
 
     @Override
     public void run(String... args) throws Exception {
-        checkpoints = Optional.ofNullable(PathConfig.ZIP_DIR)
-                .map(File::new)
-                .map(File::list)
-                .map(Sets::newHashSet)
-                .orElse(Sets.newHashSet());
-        log.info("{}", checkpoints);
+        Files.list(Path.of(PathConfig.ZIP_DIR))
+                .map(Path::getFileName)
+                .map(Path::toString)
+                .filter(o -> o.endsWith(".zip"))
+                .map(o -> o.substring(0, o.length() - 4))
+                .map(Long::parseLong)
+                .forEach(zipFileIds::add);
+        log.info("{}", zipFileIds);
     }
 
     public boolean isExist(Long zipFileId) {
-        return checkpoints.contains(zipFileId.toString());
+        return zipFileIds.contains(zipFileId);
     }
 
-    public void addZipFile(Long checkpointId) {
-        synchronized (checkpoints) {
-            Optional.ofNullable(checkpointId).map(Objects::toString).ifPresent(checkpoints::add);
-        }
+    public void addZipFile(Long zipFileId) {
+        zipFileIds.add(zipFileId);
     }
 
 }

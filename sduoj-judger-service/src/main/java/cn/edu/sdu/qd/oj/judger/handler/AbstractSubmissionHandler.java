@@ -260,6 +260,7 @@ public abstract class AbstractSubmissionHandler {
             return;
         }
         downloadZipFile(zipFileId);
+        localZipManager.addZipFile(zipFileId);
     }
 
     private void initializeJudgeTemplate() throws SystemErrorException {
@@ -268,14 +269,17 @@ public abstract class AbstractSubmissionHandler {
             return;
         }
         downloadZipFile(zipFileId);
+        localZipManager.addZipFile(zipFileId);
     }
 
+    // FIXME: Download the same file concurrently will cause failure
     private void downloadZipFile(long zipFileId) throws SystemErrorException {
         try {
             Response resp = filesysClient.download(zipFileId);
             File file = new File(Paths.get(PathConfig.ZIP_DIR, zipFileId + ".zip").toString());
             Files.copy(resp.body().asInputStream(), file.toPath());
             resp.close();
+            log.info("\nDownloadZip: {}", zipFileId);
         } catch (Exception e) {
             throw new SystemErrorException(String.format("Can not download Zip:%s \n%s", zipFileId, e));
         }
