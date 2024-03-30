@@ -235,7 +235,7 @@ public abstract class AbstractSubmissionHandler {
             ShellUtils.deleteWorkspaceDir(workspaceDir);
             FileUtils.createDir(workspaceDir);
             FileUtils.createDir(userOutputDir);
-            ShellUtils.chown(workspaceDir, "nobody");
+            ShellUtils.chown(workspaceDir, "nobody:nogroup");
             ShellUtils.chmod(workspaceDir, "777");
         } catch (Exception e) {
             throw new SystemErrorException("Can not initialize workspace:\n" + e);
