@@ -35,6 +35,11 @@ RUN for PYTHON_VERSION in 3.6 3.11; do \
      && /opt/python/${PYTHON_VERSION}/bin/python -m pip install --upgrade pip \
     ; done
 
+COPY docker/install-pypy.sh install-pypy.sh
+RUN bash install-pypy.sh \
+    && rm -rf /opt/conda \
+    && ls -l /opt
+
 # ---------------------------------------------
 FROM basic
 
@@ -49,10 +54,12 @@ COPY docker/checkers/ /checkers/
 COPY --from=sduoj/docker-compose-wait:latest /wait /wait
 
 # install Python(s)
-COPY --from=py-builder /opt/python/ /opt/python/
+COPY --from=py-builder /opt/ /opt/
 RUN ln -s /opt/python/3.11/bin/python /usr/bin/python3 \
  && ln -s /opt/python/3.11/bin/python /usr/bin/python3.11 \
- && ln -s /opt/python/3.6/bin/python /usr/bin/python3.6
+ && ln -s /opt/python/3.6/bin/python /usr/bin/python3.6 \
+ && ln -s /opt/pypy/3.10/bin/pypy /usr/bin/pypy3 \
+ && ln -s /opt/pypy/3.10/bin/pypy /usr/bin/pypy3.10
 
 # install JDK(s)
 ENV JAVA_HOME=/opt/java/openjdk
