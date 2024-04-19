@@ -42,11 +42,14 @@ import org.springframework.beans.factory.annotation.Autowired;
 import java.io.BufferedInputStream;
 import java.io.File;
 import java.nio.file.Files;
+import java.nio.file.Path;
 import java.nio.file.Paths;
+import java.nio.file.StandardCopyOption;
 import java.util.ArrayList;
 import java.util.Collection;
 import java.util.List;
 import java.util.Objects;
+import java.util.UUID;
 import java.util.function.Function;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
@@ -272,16 +275,38 @@ public abstract class AbstractSubmissionHandler {
         localZipManager.addZipFile(zipFileId);
     }
 
-    // FIXME: Download the same file concurrently will cause failure
     private void downloadZipFile(long zipFileId) throws SystemErrorException {
-        try {
-            Response resp = filesysClient.download(zipFileId);
-            File file = new File(Paths.get(PathConfig.ZIP_DIR, zipFileId + ".zip").toString());
-            Files.copy(resp.body().asInputStream(), file.toPath());
-            resp.close();
-            log.info("\nDownloadZip: {}", zipFileId);
-        } catch (Exception e) {
-            throw new SystemErrorException(String.format("Can not download Zip:%s \n%s", zipFileId, e));
+        File file = Paths.get(PathConfig.ZIP_DIR, zipFileId + ".zip").toFile();
+        if (!file.exists()) {
+            Path tempFilePath = Paths.get(PathConfig.ZIP_DIR,
+                    "tmp-" + UUID.randomUUID().toString().replace("-", ""));
+            try {
+                Response resp = filesysClient.download(zipFileId);
+                Files.copy(resp.body().asInputStream(), tempFilePath,
+                        StandardCopyOption.REPLACE_EXISTING);
+                resp.close();
+                if (!file.exists()) {
+                    log.info("\nDownloaded zip {} at {}, now moving to {}",
+                            zipFileId, tempFilePath, file);
+                    try {
+                        Files.move(tempFilePath, file.toPath(),
+                                StandardCopyOption.ATOMIC_MOVE);
+                    } catch (Exception e) {
+                        if (!file.exists()) {
+                            log.error("Can not move zip file", e);
+                            throw e;
+                        }
+                    }
+                }
+            } catch (Exception e) {
+                throw new SystemErrorException(String.format(
+                        "Can not download Zip %s: %s", zipFileId, e));
+            } finally {
+                File tempFile = tempFilePath.toFile();
+                if (tempFile.exists() && !tempFile.delete()) {
+                    log.warn("Can not delete temp file {}", tempFile);
+                }
+            }
         }
     }
 
