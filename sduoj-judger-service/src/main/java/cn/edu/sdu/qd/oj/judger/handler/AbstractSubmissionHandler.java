@@ -369,6 +369,9 @@ public abstract class AbstractSubmissionHandler {
                 log.error("Can not download checkpoints", e);
                 throw new SystemErrorException("Can not download checkpoints");
             }
+            if (!localCheckpointManager.isCheckpointExist(checkpoint.getCheckpointId())) {
+                throw new SystemErrorException("Can not download checkpoint: " + checkpoint.getCheckpointId());
+            }
         }
     }
 
