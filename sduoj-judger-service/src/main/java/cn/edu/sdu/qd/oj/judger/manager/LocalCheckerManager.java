@@ -14,22 +14,22 @@ import cn.edu.sdu.qd.oj.judger.config.PathConfig;
 import cn.edu.sdu.qd.oj.judger.exception.CompileErrorException;
 import cn.edu.sdu.qd.oj.judger.util.ProcessUtils;
 import cn.edu.sdu.qd.oj.judger.util.ShellUtils;
-import com.alibaba.nacos.shaded.com.google.common.collect.Sets;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.boot.CommandLineRunner;
 import org.springframework.stereotype.Component;
 
 import java.io.File;
 import java.nio.file.Paths;
+import java.util.HashSet;
 import java.util.Set;
 
 @Slf4j
 @Component
 public class LocalCheckerManager implements CommandLineRunner {
 
-    private final Set<String> checkers = Sets.newHashSet();
+    private final Set<String> checkers = new HashSet<>();
 
-    private final Set<String> checkerSources = Sets.newHashSet();
+    private final Set<String> checkerSources = new HashSet<>();
 
     @Override
     public void run(String... args) throws Exception {
