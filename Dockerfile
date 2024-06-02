@@ -22,6 +22,7 @@ RUN --mount=type=bind,source=docker/replace-apt-sources.sh,target=replace-apt-so
             ca-certificates tzdata \
             sudo git unzip wget curl host dos2unix vim \
             make=4.1-9.1ubuntu1 cmake \
+            libc6-dev binutils \
 # install dosbox for Assembly Course
             dosbox=0.74-4.3 \
   && apt-get clean autoclean \
