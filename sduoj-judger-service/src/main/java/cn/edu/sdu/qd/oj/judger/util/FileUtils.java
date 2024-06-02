@@ -15,6 +15,7 @@ import cn.edu.sdu.qd.oj.judger.exception.SystemErrorException;
 import java.io.BufferedReader;
 import java.io.File;
 import java.io.IOException;
+import java.nio.charset.StandardCharsets;
 import java.nio.file.Files;
 import java.nio.file.Path;
 
@@ -29,18 +30,17 @@ public class FileUtils {
     private static final ThreadLocal<char[]> CHAR_BUFFER = ThreadLocal.withInitial(() -> new char[BUFFER_SIZE]);
 
     public static void createDir(String path) throws SystemErrorException {
-        File file = new File(path);
-        if (!file.exists() && !file.mkdirs()) {
-            throw new SystemErrorException(String.format("create dir \"%s\" failed", path));
+        createDir(new File(path));
+    }
+
+    public static void createDir(File dir) throws SystemErrorException {
+        if (!dir.exists() && !dir.mkdirs()) {
+            throw new SystemErrorException(String.format("create dir \"%s\" failed", dir));
         }
     }
 
     public static void writeFile(Path path, String content) throws SystemErrorException {
-        try {
-            Files.writeString(path, content);
-        } catch (Exception e) {
-            throw new SystemErrorException(String.format("Can not write to file \"%s\": %s", path, e));
-        }
+        writeFile(path, content.getBytes(StandardCharsets.UTF_8));
     }
 
     public static void writeFile(String path, String content) throws SystemErrorException {
@@ -49,6 +49,7 @@ public class FileUtils {
 
     public static void writeFile(Path path, byte[] content) throws SystemErrorException {
         try {
+            createDir(path.getParent().toFile());
             Files.write(path, content);
         } catch (Exception e) {
             throw new SystemErrorException(String.format("Can not write to file \"%s\": %s", path, e));
