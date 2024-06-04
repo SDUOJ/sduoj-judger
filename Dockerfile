@@ -21,8 +21,8 @@ RUN --mount=type=bind,source=docker/replace-apt-sources.sh,target=replace-apt-so
  && apt-get install -y -qq --no-install-recommends \
             ca-certificates tzdata \
             sudo git unzip wget curl host dos2unix vim \
-            make=4.1-9.1ubuntu1 cmake \
-            libc6-dev binutils \
+            make cmake \
+            build-essential \
 # install dosbox for Assembly Course
             dosbox=0.74-4.3 \
   && apt-get clean autoclean \
@@ -44,7 +44,6 @@ COPY --from=ghcr.io/sduoj/judging-containers:python-3.12-csp /opt/ /opt/
 # install PyPy
 COPY --from=ghcr.io/sduoj/judging-containers:pypy-3.10-v7.3.15 /opt/ /opt/
 # install GCC
-COPY --from=ghcr.io/sduoj/judging-containers:ubuntu-18.04_gcc-7.5.0 /opt/ /opt/
 COPY --from=ghcr.io/sduoj/judging-containers:ubuntu-18.04_gcc-13.2.0 /opt/ /opt/
 # install Rust
 COPY --from=ghcr.io/sduoj/judging-containers:ubuntu-18.04_rust-1.78.0 /opt/ /opt/
@@ -56,9 +55,7 @@ COPY --from=ghcr.io/sduoj/docker-compose-wait:latest /wait /wait
 # configure the environment
 RUN mkdir -p /sduoj \
  && ln -s /opt/sduoj-sandbox/bin/sandbox /usr/bin/sandbox \
- && ln -s /opt/python/3.11/bin/python    /usr/bin/python3 \
- && ln -s /opt/gcc/7.5.0/bin/gcc         /usr/bin/gcc \
- && ln -s /opt/gcc/7.5.0/bin/g++         /usr/bin/g++
+ && ln -s /opt/python/3.11/bin/python    /usr/bin/python3
 
 # copy sduoj-judger
 COPY sduoj-judger-service/build/libs/ /sduoj/
