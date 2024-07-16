@@ -248,7 +248,9 @@ public class IOSubmissionHandler extends AbstractSubmissionHandler {
                     throw new CompileErrorException(sb.toString());
                 }
 
-                if (!SandboxResult.SUCCESS.equals(sandboxResultDTO.getResult())) {
+                SandboxResult sandboxResult = SandboxResult.of(sandboxResultDTO.getResult());
+                if (SandboxResult.SUCCESS != sandboxResult) {
+                    sb.append(sandboxResult.message).append(" while compiling");
                     throw new CompileErrorException(sb.toString());
                 }
             }
