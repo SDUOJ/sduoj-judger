@@ -10,7 +10,7 @@ plugins {
     id("io.spring.dependency-management")
 }
 
-group = "cn.edu.sdu.qd.oj.judger"
+group = "com.sduoj.judger"
 version = Versions.sduoj
 
 java {

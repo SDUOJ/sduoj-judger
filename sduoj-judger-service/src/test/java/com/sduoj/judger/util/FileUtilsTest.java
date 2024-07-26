@@ -1,6 +1,5 @@
-package cn.edu.sdu.qd.oj.judger.util;
+package com.sduoj.judger.util;
 
-import cn.edu.sdu.qd.oj.judger.exception.SystemErrorException;
 import org.junit.After;
 import org.junit.Before;
 import org.junit.Test;
@@ -10,7 +9,7 @@ import java.io.IOException;
 import java.nio.file.Files;
 import java.nio.file.Path;
 
-import static org.junit.Assert.*;
+import static org.junit.Assert.assertEquals;
 
 public class FileUtilsTest {
 

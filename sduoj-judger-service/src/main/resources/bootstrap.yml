@@ -2,7 +2,7 @@ sduoj:
   config:
     application-name: judger-service
     active: dev
-    nacos-addr: nacos.oj.qd.sdu.edu.cn:8848
+    nacos-addr: sduoj-nacos:8848
 
 spring:
   application:

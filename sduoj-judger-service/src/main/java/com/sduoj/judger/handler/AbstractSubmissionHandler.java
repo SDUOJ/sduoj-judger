@@ -1,5 +1,5 @@
 /*
- * Copyright 2020-2022 the original author or authors.
+ * Copyright 2020-2024 the original author or authors.
  *
  * Licensed under the Affero General Public License, Version 3.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -8,31 +8,31 @@
  *      https://www.gnu.org/licenses/agpl-3.0.en.html
  */
 
-package cn.edu.sdu.qd.oj.judger.handler;
+package com.sduoj.judger.handler;
 
-import cn.edu.sdu.qd.oj.checkpoint.dto.CheckpointJudgerDTO;
-import cn.edu.sdu.qd.oj.common.rpc.client.FilesysClient;
-import cn.edu.sdu.qd.oj.common.rpc.client.JudgeTemplateClient;
-import cn.edu.sdu.qd.oj.common.rpc.client.ProblemClient;
-import cn.edu.sdu.qd.oj.common.rpc.client.SubmissionClient;
-import cn.edu.sdu.qd.oj.filesys.dto.FileDownloadReqDTO;
-import cn.edu.sdu.qd.oj.judger.command.CpuAffinityThreadPool;
-import cn.edu.sdu.qd.oj.judger.config.PathConfig;
-import cn.edu.sdu.qd.oj.judger.exception.CompileErrorException;
-import cn.edu.sdu.qd.oj.judger.exception.SystemErrorException;
-import cn.edu.sdu.qd.oj.judger.manager.LocalCheckerManager;
-import cn.edu.sdu.qd.oj.judger.manager.LocalCheckpointManager;
-import cn.edu.sdu.qd.oj.judger.manager.LocalZipManager;
-import cn.edu.sdu.qd.oj.judger.sender.RabbitSender;
-import cn.edu.sdu.qd.oj.judger.util.FileUtils;
-import cn.edu.sdu.qd.oj.judger.util.ShellUtils;
-import cn.edu.sdu.qd.oj.judgetemplate.dto.JudgeTemplateDTO;
-import cn.edu.sdu.qd.oj.judgetemplate.enums.JudgeTemplateTypeEnum;
-import cn.edu.sdu.qd.oj.problem.dto.ProblemJudgerDTO;
-import cn.edu.sdu.qd.oj.submission.api.message.CheckpointResultMsgDTO;
-import cn.edu.sdu.qd.oj.submission.dto.SubmissionJudgeDTO;
-import cn.edu.sdu.qd.oj.submission.dto.SubmissionUpdateReqDTO;
-import cn.edu.sdu.qd.oj.submission.enums.SubmissionJudgeResult;
+import com.sduoj.checkpoint.dto.CheckpointJudgerDTO;
+import com.sduoj.common.rpc.client.FilesysClient;
+import com.sduoj.common.rpc.client.JudgeTemplateClient;
+import com.sduoj.common.rpc.client.ProblemClient;
+import com.sduoj.common.rpc.client.SubmissionClient;
+import com.sduoj.filesys.dto.FileDownloadReqDTO;
+import com.sduoj.judger.command.CpuAffinityThreadPool;
+import com.sduoj.judger.config.PathConfig;
+import com.sduoj.judger.exception.CompileErrorException;
+import com.sduoj.judger.exception.SystemErrorException;
+import com.sduoj.judger.manager.LocalCheckerManager;
+import com.sduoj.judger.manager.LocalCheckpointManager;
+import com.sduoj.judger.manager.LocalZipManager;
+import com.sduoj.judger.sender.RabbitSender;
+import com.sduoj.judger.util.FileUtils;
+import com.sduoj.judger.util.ShellUtils;
+import com.sduoj.judgetemplate.dto.JudgeTemplateDTO;
+import com.sduoj.judgetemplate.enums.JudgeTemplateTypeEnum;
+import com.sduoj.problem.dto.ProblemJudgerDTO;
+import com.sduoj.submission.api.message.CheckpointResultMsgDTO;
+import com.sduoj.submission.dto.SubmissionJudgeDTO;
+import com.sduoj.submission.dto.SubmissionUpdateReqDTO;
+import com.sduoj.submission.enums.SubmissionJudgeResult;
 import feign.Response;
 import lombok.extern.slf4j.Slf4j;
 import org.apache.commons.lang3.StringUtils;
@@ -117,7 +117,7 @@ public abstract class AbstractSubmissionHandler {
 
     /**
     * @Description 子类需要实现的具体评测逻辑
-    * @return cn.edu.sdu.qd.oj.submit.dto.SubmissionUpdateReqDTO
+    * @return com.sduoj.submit.dto.SubmissionUpdateReqDTO
     **/
     protected abstract SubmissionUpdateReqDTO start() throws CompileErrorException, SystemErrorException ;
 

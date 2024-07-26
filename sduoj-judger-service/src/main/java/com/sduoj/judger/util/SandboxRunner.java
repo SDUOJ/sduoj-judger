@@ -1,5 +1,5 @@
 /*
- * Copyright 2020-2022 the original author or authors.
+ * Copyright 2020-2024 the original author or authors.
  *
  * Licensed under the Affero General Public License, Version 3.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -8,14 +8,14 @@
  *      https://www.gnu.org/licenses/agpl-3.0.en.html
  */
 
-package cn.edu.sdu.qd.oj.judger.util;
+package com.sduoj.judger.util;
 
-import cn.edu.sdu.qd.oj.common.util.JsonUtils;
-import cn.edu.sdu.qd.oj.common.util.collection.Lists;
-import cn.edu.sdu.qd.oj.judger.config.CpuConfig;
-import cn.edu.sdu.qd.oj.judger.exception.SystemErrorException;
-import cn.edu.sdu.qd.oj.sandbox.dto.Argument;
-import cn.edu.sdu.qd.oj.sandbox.dto.SandboxResultDTO;
+import com.sduoj.common.util.JsonUtils;
+import com.sduoj.common.util.collection.Lists;
+import com.sduoj.judger.config.CpuConfig;
+import com.sduoj.judger.exception.SystemErrorException;
+import com.sduoj.sandbox.dto.Argument;
+import com.sduoj.sandbox.dto.SandboxResultDTO;
 import lombok.extern.slf4j.Slf4j;
 
 import java.io.File;

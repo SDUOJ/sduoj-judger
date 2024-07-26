@@ -1,5 +1,5 @@
 /*
- * Copyright 2020-2022 the original author or authors.
+ * Copyright 2020-2024 the original author or authors.
  *
  * Licensed under the Affero General Public License, Version 3.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -8,10 +8,10 @@
  *      https://www.gnu.org/licenses/agpl-3.0.en.html
  */
 
-package cn.edu.sdu.qd.oj.judger.sender;
+package com.sduoj.judger.sender;
 
-import cn.edu.sdu.qd.oj.common.mq.util.RabbitSenderUtils;
-import cn.edu.sdu.qd.oj.submission.api.message.CheckpointResultMsgDTO;
+import com.sduoj.common.mq.util.RabbitSenderUtils;
+import com.sduoj.submission.api.message.CheckpointResultMsgDTO;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Component;

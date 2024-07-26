@@ -1,5 +1,5 @@
 /*
- * Copyright 2020-2022 the original author or authors.
+ * Copyright 2020-2024 the original author or authors.
  *
  * Licensed under the Affero General Public License, Version 3.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -8,29 +8,29 @@
  *      https://www.gnu.org/licenses/agpl-3.0.en.html
  */
 
-package cn.edu.sdu.qd.oj.judger.handler;
+package com.sduoj.judger.handler;
 
-import cn.edu.sdu.qd.oj.checkpoint.dto.CheckpointJudgerDTO;
-import cn.edu.sdu.qd.oj.common.util.CollectionUtils;
-import cn.edu.sdu.qd.oj.common.util.JsonUtils;
-import cn.edu.sdu.qd.oj.judger.command.CommandResult;
-import cn.edu.sdu.qd.oj.judger.command.CpuAffinityCommand;
-import cn.edu.sdu.qd.oj.judger.config.PathConfig;
-import cn.edu.sdu.qd.oj.judger.exception.CompileErrorException;
-import cn.edu.sdu.qd.oj.judger.exception.SystemErrorException;
-import cn.edu.sdu.qd.oj.judger.util.FileUtils;
-import cn.edu.sdu.qd.oj.judger.util.SandboxRunner;
-import cn.edu.sdu.qd.oj.judgetemplate.dto.JudgeTemplateConfigDTO;
-import cn.edu.sdu.qd.oj.judgetemplate.enums.JudgeTemplateTypeEnum;
-import cn.edu.sdu.qd.oj.problem.dto.ProblemCheckerConfigDTO;
-import cn.edu.sdu.qd.oj.problem.enums.ProblemCheckpointRelType;
-import cn.edu.sdu.qd.oj.sandbox.dto.Argument;
-import cn.edu.sdu.qd.oj.sandbox.dto.SandboxResultDTO;
-import cn.edu.sdu.qd.oj.sandbox.enums.SandboxArgument;
-import cn.edu.sdu.qd.oj.sandbox.enums.SandboxResult;
-import cn.edu.sdu.qd.oj.submission.api.message.CheckpointResultMsgDTO;
-import cn.edu.sdu.qd.oj.submission.dto.SubmissionUpdateReqDTO;
-import cn.edu.sdu.qd.oj.submission.enums.SubmissionJudgeResult;
+import com.sduoj.checkpoint.dto.CheckpointJudgerDTO;
+import com.sduoj.common.util.CollectionUtils;
+import com.sduoj.common.util.JsonUtils;
+import com.sduoj.judger.command.CommandResult;
+import com.sduoj.judger.command.CpuAffinityCommand;
+import com.sduoj.judger.config.PathConfig;
+import com.sduoj.judger.exception.CompileErrorException;
+import com.sduoj.judger.exception.SystemErrorException;
+import com.sduoj.judger.util.FileUtils;
+import com.sduoj.judger.util.SandboxRunner;
+import com.sduoj.judgetemplate.dto.JudgeTemplateConfigDTO;
+import com.sduoj.judgetemplate.enums.JudgeTemplateTypeEnum;
+import com.sduoj.problem.dto.ProblemCheckerConfigDTO;
+import com.sduoj.problem.enums.ProblemCheckpointRelType;
+import com.sduoj.sandbox.dto.Argument;
+import com.sduoj.sandbox.dto.SandboxResultDTO;
+import com.sduoj.sandbox.enums.SandboxArgument;
+import com.sduoj.sandbox.enums.SandboxResult;
+import com.sduoj.submission.api.message.CheckpointResultMsgDTO;
+import com.sduoj.submission.dto.SubmissionUpdateReqDTO;
+import com.sduoj.submission.enums.SubmissionJudgeResult;
 import lombok.AllArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Component;

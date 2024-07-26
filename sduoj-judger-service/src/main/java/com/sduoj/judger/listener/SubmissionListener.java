@@ -1,5 +1,5 @@
 /*
- * Copyright 2020-2022 the original author or authors.
+ * Copyright 2020-2024 the original author or authors.
  *
  * Licensed under the Affero General Public License, Version 3.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -8,20 +8,20 @@
  *      https://www.gnu.org/licenses/agpl-3.0.en.html
  */
 
-package cn.edu.sdu.qd.oj.judger.listener;
+package com.sduoj.judger.listener;
 
-import cn.edu.sdu.qd.oj.common.rpc.client.JudgeTemplateClient;
-import cn.edu.sdu.qd.oj.common.rpc.client.SubmissionClient;
-import cn.edu.sdu.qd.oj.judger.config.JudgerMqManager;
-import cn.edu.sdu.qd.oj.judger.exception.SystemErrorException;
-import cn.edu.sdu.qd.oj.judger.handler.AbstractSubmissionHandler;
-import cn.edu.sdu.qd.oj.judger.manager.SubmissionHandlerManager;
-import cn.edu.sdu.qd.oj.judger.property.JudgerProperty;
-import cn.edu.sdu.qd.oj.judger.sender.RabbitSender;
-import cn.edu.sdu.qd.oj.judgetemplate.dto.JudgeTemplateDTO;
-import cn.edu.sdu.qd.oj.judgetemplate.enums.JudgeTemplateTypeEnum;
-import cn.edu.sdu.qd.oj.submission.api.message.SubmissionWaitingMsgDTO;
-import cn.edu.sdu.qd.oj.submission.dto.SubmissionJudgeDTO;
+import com.sduoj.common.rpc.client.JudgeTemplateClient;
+import com.sduoj.common.rpc.client.SubmissionClient;
+import com.sduoj.judger.config.JudgerMqManager;
+import com.sduoj.judger.exception.SystemErrorException;
+import com.sduoj.judger.handler.AbstractSubmissionHandler;
+import com.sduoj.judger.manager.SubmissionHandlerManager;
+import com.sduoj.judger.property.JudgerProperty;
+import com.sduoj.judger.sender.RabbitSender;
+import com.sduoj.judgetemplate.dto.JudgeTemplateDTO;
+import com.sduoj.judgetemplate.enums.JudgeTemplateTypeEnum;
+import com.sduoj.submission.api.message.SubmissionWaitingMsgDTO;
+import com.sduoj.submission.dto.SubmissionJudgeDTO;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.amqp.rabbit.annotation.RabbitListener;
 import org.springframework.beans.factory.annotation.Autowired;

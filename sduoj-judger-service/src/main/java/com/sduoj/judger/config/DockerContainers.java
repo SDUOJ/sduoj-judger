@@ -1,8 +1,8 @@
-package cn.edu.sdu.qd.oj.judger.config;
+package com.sduoj.judger.config;
 
-import cn.edu.sdu.qd.oj.judger.exception.SystemErrorException;
-import cn.edu.sdu.qd.oj.judger.util.ProcessUtils;
-import cn.edu.sdu.qd.oj.judger.util.ShellUtils;
+import com.sduoj.judger.exception.SystemErrorException;
+import com.sduoj.judger.util.ProcessUtils;
+import com.sduoj.judger.util.ShellUtils;
 import org.apache.commons.lang3.StringUtils;
 
 import java.util.Arrays;

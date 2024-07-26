@@ -1,5 +1,5 @@
 /*
- * Copyright 2020-2022 the original author or authors.
+ * Copyright 2020-2024 the original author or authors.
  *
  * Licensed under the Affero General Public License, Version 3.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -8,9 +8,9 @@
  *      https://www.gnu.org/licenses/agpl-3.0.en.html
  */
 
-package cn.edu.sdu.qd.oj.judger.util;
+package com.sduoj.judger.util;
 
-import cn.edu.sdu.qd.oj.judger.exception.SystemErrorException;
+import com.sduoj.judger.exception.SystemErrorException;
 
 import java.io.BufferedReader;
 import java.io.File;

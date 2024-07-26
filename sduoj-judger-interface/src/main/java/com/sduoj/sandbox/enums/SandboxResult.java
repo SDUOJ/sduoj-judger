@@ -1,5 +1,5 @@
 /*
- * Copyright 2020-2022 the original author or authors.
+ * Copyright 2020-2024 the original author or authors.
  *
  * Licensed under the Affero General Public License, Version 3.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -8,9 +8,9 @@
  *      https://www.gnu.org/licenses/agpl-3.0.en.html
  */
 
-package cn.edu.sdu.qd.oj.sandbox.enums;
+package com.sduoj.sandbox.enums;
 
-import cn.edu.sdu.qd.oj.submission.enums.SubmissionJudgeResult;
+import com.sduoj.submission.enums.SubmissionJudgeResult;
 import lombok.AllArgsConstructor;
 
 @AllArgsConstructor

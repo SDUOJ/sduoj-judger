@@ -27,4 +27,4 @@ jobs:
           ./gradlew build --scan
 
       - name: To disable the cache of sduoj-server packages
-        run: rm -rfv ~/.gradle/caches/modules*/**/cn.edu.sdu.qd.oj*/**
+        run: rm -rfv ~/.gradle/caches/modules*/**/com.sduoj*/**

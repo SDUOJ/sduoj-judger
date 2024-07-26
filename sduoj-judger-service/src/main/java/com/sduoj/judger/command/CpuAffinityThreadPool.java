@@ -1,5 +1,5 @@
 /*
- * Copyright 2020-2022 the original author or authors.
+ * Copyright 2020-2024 the original author or authors.
  *
  * Licensed under the Affero General Public License, Version 3.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -8,9 +8,9 @@
  *      https://www.gnu.org/licenses/agpl-3.0.en.html
  */
 
-package cn.edu.sdu.qd.oj.judger.command;
+package com.sduoj.judger.command;
 
-import cn.edu.sdu.qd.oj.judger.config.CpuConfig;
+import com.sduoj.judger.config.CpuConfig;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Component;
 
@@ -48,7 +48,7 @@ public class CpuAffinityThreadPool {
 
     /**
      * 获取一个任务的执行结果，顺序任意取决于任务完成顺序
-     * @return cn.edu.sdu.qd.oj.judger.dto.CommandExecResult
+     * @return com.sduoj.judger.dto.CommandExecResult
      **/
     public CommandResult take() throws InterruptedException, ExecutionException {
         return threadPool.take().get();

@@ -1,5 +1,5 @@
 /*
- * Copyright 2020-2022 the original author or authors.
+ * Copyright 2020-2024 the original author or authors.
  *
  * Licensed under the Affero General Public License, Version 3.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -8,15 +8,15 @@
  *      https://www.gnu.org/licenses/agpl-3.0.en.html
  */
 
-package cn.edu.sdu.qd.oj.judger;
+package com.sduoj.judger;
 
-import cn.edu.sdu.qd.oj.common.mq.EnableMqModule;
-import cn.edu.sdu.qd.oj.common.rpc.EnableRpcModule;
-import cn.edu.sdu.qd.oj.judger.config.CpuConfig;
-import cn.edu.sdu.qd.oj.judger.config.DockerContainers;
-import cn.edu.sdu.qd.oj.judger.config.PathConfig;
-import cn.edu.sdu.qd.oj.judger.util.FileUtils;
-import cn.edu.sdu.qd.oj.judger.util.ShellUtils;
+import com.sduoj.common.mq.EnableMqModule;
+import com.sduoj.common.rpc.EnableRpcModule;
+import com.sduoj.judger.config.CpuConfig;
+import com.sduoj.judger.config.DockerContainers;
+import com.sduoj.judger.config.PathConfig;
+import com.sduoj.judger.util.FileUtils;
+import com.sduoj.judger.util.ShellUtils;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.boot.SpringApplication;
 import org.springframework.boot.autoconfigure.SpringBootApplication;
