@@ -57,23 +57,28 @@ RUN mkdir -p /sduoj \
  && ln -s /opt/sduoj-sandbox/bin/sandbox /usr/bin/sandbox \
  && ln -s /opt/python/3.11/bin/python    /usr/bin/python3
 
-# copy sduoj-judger
-COPY sduoj-judger-service/build/libs/ /sduoj/
+
+WORKDIR /app
+
+# copy sduoj-judger.jar
+COPY sduoj-judger-service/build/libs/ /app/
 # copy testlib.h
 COPY docker/testlib /testlib.h
 # copy checkers
 COPY docker/checkers/ /checkers/
 
-ENV NACOS_ADDR=127.0.0.1:8848
-ENV ACTIVE=prod
-ENV CPU_PER_JUDGER=1
-
-WORKDIR /sduoj
+ENV NACOS_ADDR="127.0.0.1:8848" \
+    ACTIVE="prod" \
+    CPU_PER_JUDGER=1 \
+    JAVA_OPT="" \
+    JAVA_OPT_EXT=""
 
 ENTRYPOINT /wait                                                   \
  && JAVA_OPT="${JAVA_OPT} -jar sduoj-judger.jar"                   \
+ && JAVA_OPT="${JAVA_OPT} ${JAVA_OPT_EXT}"                         \
  && JAVA_OPT="${JAVA_OPT} --sduoj.config.active=$ACTIVE"           \
  && JAVA_OPT="${JAVA_OPT} --sduoj.config.nacos-addr=$NACOS_ADDR"   \
- && echo "SDUOJ is starting, you can check the '/sduoj/sduoj.log'" \
+ && echo "SDUOJ is starting, you can check the '/app/logs/judger.log'" \
  && echo "Run: java ${JAVA_OPT}"                                   \
- && exec java ${JAVA_OPT} >> /sduoj/sduoj.log 2>&1
+ && mkdir -p /app/logs                                             \
+ && exec java ${JAVA_OPT} >> /app/logs/judger.log 2>&1
