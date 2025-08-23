@@ -1,0 +1,27 @@
+server:
+  port: 8083
+
+spring:
+  application:
+    name: judger-service
+  main:
+    allow-bean-definition-overriding: true
+  rabbitmq:
+    host: localhost
+    port: 5672
+    username: "admin"
+    password: "admin"
+    publisher-confirms: true
+    listener:
+      prefetch: 1
+      concurrency: 1
+      simple:
+        default-requeue-rejected: true
+        retry:
+          initial-interval: 3000
+          enabled: true
+          max-attempts: 3
+
+submit-service.ribbon.listOfServers: localhost:19014
+problem-service.ribbon.listOfServers: localhost:19013
+filesys-service.ribbon.listOfServers: localhost:19012

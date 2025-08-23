@@ -33,13 +33,10 @@ RUN wget -q -O /sduoj/sandbox.zip https://codeload.github.com/SDUOJ/sduoj-sandbo
  && make \
  && make install
 
-ENV NACOS_ADDR=127.0.0.1:8848
-ENV ACTIVE=prod
+ENV ACTIVE=prd
 
 WORKDIR /sduoj
 
 CMD /wait \
  && java -jar sduoj-judger.jar \
-         --sduoj.config.nacos-addr=$NACOS_ADDR \
-         --sduoj.config.active=$ACTIVE \
-         >> /sduoj/sduoj.log
+         -Dspring.profiles.active=$ACTIVE

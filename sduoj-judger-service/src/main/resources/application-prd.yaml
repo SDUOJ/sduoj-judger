@@ -1,0 +1,15 @@
+feign:
+  client:
+    config:
+      default:
+        readTimeout: 60000
+        connectTimeout: 3000
+spring:
+  rabbitmq:
+    host: ${RABBITMQ_HOST}
+    username: ${RABBITMQ_USERNAME}
+    password: ${RABBITMQ_PASSWORD}
+
+submit-service.ribbon.listOfServers: ${SUBMIT_SERVICE_URL}
+problem-service.ribbon.listOfServers: ${PROBLEM_SERVICE_URL}
+filesys-service.ribbon.listOfServers: ${FILESYS_SERVICE_URL}

@@ -16,11 +16,13 @@ import java.nio.file.Paths;
 
 @Configuration
 public class PathConfig {
+    //public static final String BASE_PATH = "/Users/rajeev/Desktop/judge_experiments/SDUOJ/";
+    public static final String BASE_PATH = "";
     public static final String SANDBOX_PATH = "/usr/bin/sandbox";
-    public static final String WORKSPACE_DIR = "/workspace";
-    public static final String LOG_DIR = "/log";
-    public static final String DATA_DIR = "/data";
-    public static final String ZIP_DIR = "/zip";
+    public static final String WORKSPACE_DIR = BASE_PATH + "/workspace";
+    public static final String LOG_DIR =  BASE_PATH + "/log";
+    public static final String DATA_DIR =  BASE_PATH + "/data";
+    public static final String ZIP_DIR =  BASE_PATH + "/zip";
 
 
     public static final String SANDBOX_LOG_PATH = Paths.get(LOG_DIR, "sandbox.log").toString();

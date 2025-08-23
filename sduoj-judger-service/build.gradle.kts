@@ -5,17 +5,16 @@ plugins {
 dependencies {
     /* 1-st party dependency */
     implementation(project(":sduoj-judger-interface"))
-    implementation("cn.edu.sdu.qd.oj.common:sduoj-common-entity:${Versions.sduoj}")
-    implementation("cn.edu.sdu.qd.oj.common:sduoj-common-util:${Versions.sduoj}")
+    implementation(files("/Users/rajeev/Desktop/judge_experiments/SDUOJ/sduoj-server/sduoj-common/sduoj-common-entity/build/libs/sduoj-common-entity-0.0.1-SNAPSHOT.jar"))
+    implementation(files("/Users/rajeev/Desktop/judge_experiments/SDUOJ/sduoj-server/sduoj-common/sduoj-common-util/build/libs/sduoj-common-util-0.0.1-SNAPSHOT.jar"))
 
     /* 2-nd party dependency */
-    implementation("cn.edu.sdu.qd.oj.problem:sduoj-problem-interface:${Versions.sduoj}")
-    implementation("cn.edu.sdu.qd.oj.submit:sduoj-submit-interface:${Versions.sduoj}")
-    implementation("cn.edu.sdu.qd.oj.filesys:sduoj-filesys-interface:${Versions.sduoj}")
+    implementation(files("/Users/rajeev/Desktop/judge_experiments/SDUOJ/sduoj-server/sduoj-problem/sduoj-problem-interface/build/libs/sduoj-problem-interface-0.0.1-SNAPSHOT.jar"))
+    implementation(files("/Users/rajeev/Desktop/judge_experiments/SDUOJ/sduoj-server/sduoj-submit/sduoj-submit-interface/build/libs/sduoj-submit-interface-0.0.1-SNAPSHOT.jar"))
+    implementation(files("/Users/rajeev/Desktop/judge_experiments/SDUOJ/sduoj-server/sduoj-filesys/sduoj-filesys-interface/build/libs/sduoj-filesys-interface-0.0.1-SNAPSHOT.jar"))
 
     /* 3-rd party dependency */
-    implementation("com.alibaba.cloud:spring-cloud-starter-alibaba-nacos-config")
-    implementation("com.alibaba.cloud:spring-cloud-starter-alibaba-nacos-discovery")
+    implementation("org.springframework.cloud:spring-cloud-starter-netflix-ribbon")
     implementation("org.springframework.cloud:spring-cloud-starter-openfeign")
     implementation("org.springframework:spring-aop")
     implementation("org.springframework.boot:spring-boot-starter-actuator")
