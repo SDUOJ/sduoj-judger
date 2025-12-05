@@ -25,6 +25,11 @@ RUN --mount=type=bind,source=docker/replace-apt-sources.sh,target=replace-apt-so
             build-essential \
 # install dosbox for Assembly Course
             dosbox=0.74-4.3 \
+# install tini
+  && TINI_ARCH=$(dpkg --print-architecture) \
+  && curl -L "https://github.com/krallin/tini/releases/download/v0.19.0/tini-${TINI_ARCH}" -o /usr/bin/tini \
+  && chmod +x /usr/bin/tini \
+# clean up
   && apt-get clean autoclean \
   && apt-get autoremove -y \
   && rm -rf /var/lib/apt/lists/* \
@@ -73,12 +78,14 @@ ENV NACOS_ADDR="127.0.0.1:8848" \
     JAVA_OPT="" \
     JAVA_OPT_EXT=""
 
-ENTRYPOINT /wait                                                   \
+ENTRYPOINT ["/usr/bin/tini", "--"]
+
+CMD /wait                                                          \
  && JAVA_OPT="${JAVA_OPT} -jar sduoj-judger.jar"                   \
  && JAVA_OPT="${JAVA_OPT} ${JAVA_OPT_EXT}"                         \
  && JAVA_OPT="${JAVA_OPT} --sduoj.config.active=$ACTIVE"           \
  && JAVA_OPT="${JAVA_OPT} --sduoj.config.nacos-addr=$NACOS_ADDR"   \
- && echo "SDUOJ is starting, you can check the '/app/logs/judger.log'" \
+ && echo "SDUOJ is starting. Logs are in '/app/logs/judger.log'"   \
  && echo "Run: java ${JAVA_OPT}"                                   \
  && mkdir -p /app/logs                                             \
  && exec java ${JAVA_OPT} >> /app/logs/judger.log 2>&1
