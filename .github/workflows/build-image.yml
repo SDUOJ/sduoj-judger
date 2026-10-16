@@ -9,6 +9,8 @@ on:
 jobs:
   docker:
     runs-on: ubuntu-latest
+    outputs:
+      image_digest: ${{ steps.image.outputs.digest }}
     steps:
       - uses: actions/checkout@v7
 
@@ -56,6 +58,7 @@ jobs:
           password: ${{ secrets.DOCKER_PASSWORD }}
 
       - name: Build and push
+        id: image
         uses: docker/build-push-action@v7
         with:
           context: .
@@ -67,3 +70,33 @@ jobs:
           tags: registry.cn-beijing.aliyuncs.com/pre-sduoj/sduoj-judger:latest
           cache-from: type=gha
           cache-to: type=gha,mode=max
+
+  runtime-verification:
+    needs: docker
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - runner: ubuntu-latest
+            architecture: x86_64
+          - runner: ubuntu-24.04-arm
+            architecture: aarch64
+    runs-on: ${{ matrix.runner }}
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v7
+
+      - name: Log in to the published image registry
+        uses: docker/login-action@v4
+        with:
+          registry: registry.cn-beijing.aliyuncs.com
+          username: ${{ secrets.DOCKER_USERNAME }}
+          password: ${{ secrets.DOCKER_PASSWORD }}
+
+      - name: Verify the final image on its native architecture
+        env:
+          IMAGE_REF: registry.cn-beijing.aliyuncs.com/pre-sduoj/sduoj-judger@${{ needs.docker.outputs.image_digest }}
+          EXPECTED_ARCH: ${{ matrix.architecture }}
+        run: |
+          docker run --rm -i --network none --entrypoint /bin/bash "$IMAGE_REF" \
+            -s -- "$EXPECTED_ARCH" < test/runtime-smoke.sh
