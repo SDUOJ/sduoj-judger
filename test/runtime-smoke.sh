@@ -75,3 +75,113 @@ assert not target.exists(), target
 print(json.dumps({'denied_probe': probe, 'sandbox': result}))
 PY
 done
+
+# Exercise the helper classes shipped in this exact image, including their Linux ownership rules.
+mkdir "$workspace/helper-classes"
+(
+    cd "$workspace/helper-classes"
+    jar xf /app/sduoj-judger.jar \
+        BOOT-INF/classes/com/sduoj/judger/util/HelperCompilation.class \
+        'BOOT-INF/classes/com/sduoj/judger/util/HelperCompilation$CompilerProcess.class' \
+        BOOT-INF/classes/com/sduoj/judger/util/WorkspaceFiles.class
+)
+test -s "$workspace/helper-classes/BOOT-INF/classes/com/sduoj/judger/util/HelperCompilation.class"
+cat > "$workspace/HelperRuntimeSmoke.java" <<'JAVA'
+import com.sduoj.judger.util.HelperCompilation;
+import java.nio.charset.StandardCharsets;
+import java.nio.file.*;
+import java.nio.file.attribute.PosixFilePermissions;
+import java.util.*;
+import java.util.concurrent.TimeUnit;
+
+class HelperRuntimeSmoke {
+    static Path directory(Path path, String permissions) throws Exception {
+        return Files.createDirectory(path, PosixFilePermissions.asFileAttribute(
+                PosixFilePermissions.fromString(permissions)));
+    }
+    static String sandbox(Path cwd, int uid, String executable, List<String> arguments,
+            Path input, Path output, Path error, int outputBytes, boolean restricted) throws Exception {
+        var command = new ArrayList<>(List.of("/usr/bin/sandbox", "--max_cpu_time=10000",
+                "--max_real_time=15000", "--max_memory=536870912", "--max_stack=134217728",
+                "--max_output_size=" + outputBytes, "--uid=" + uid, "--gid=" + uid,
+                "--exe_envs=PATH=" + System.getenv("PATH"),
+                "--exe_path=" + executable, "--input_path=" + input,
+                "--output_path=" + output, "--error_path=" + error));
+        for (String argument : arguments) command.add("--exe_args=" + argument);
+        if (restricted) command.add("--seccomp_rules=c_cpp");
+        var process = new ProcessBuilder(command).directory(cwd.toFile())
+                .redirectErrorStream(true).start();
+        if (!process.waitFor(20, TimeUnit.SECONDS)) {
+            process.destroyForcibly();
+            throw new AssertionError("Helper runtime sandbox timed out");
+        }
+        String result = new String(process.getInputStream().readAllBytes(), StandardCharsets.UTF_8);
+        if (process.exitValue() != 0) throw new AssertionError(result);
+        return result;
+    }
+    static void successful(String result) {
+        for (String field : List.of("result", "exit_code", "error", "signal")) {
+            if (!result.matches("(?s).*\"" + field + "\"\\s*:\\s*0\\s*[,}].*")) {
+                throw new AssertionError(result);
+            }
+        }
+    }
+    public static void main(String[] args) throws Exception {
+        Path base = directory(Path.of(args[0]).resolve("helpers"), "rwxr-xr-x");
+        Path task = directory(base.resolve("first"), "rwx--x--x");
+        Path other = directory(base.resolve("second"), "rwx--x--x");
+        Path sealed = directory(task.resolve("sealed"), "rwxr-xr-x");
+        try (var helper = HelperCompilation.create(task);
+                var second = HelperCompilation.create(other)) {
+            if (helper.uid() <= 0 || helper.uid() == 65534 || helper.uid() == second.uid()) {
+                throw new AssertionError("Helper identities are not exclusive non-root users");
+            }
+            directory(helper.build().resolve("src"), "rwxr-xr-x");
+            Files.writeString(helper.build().resolve("src/main.cc"),
+                    "#include <iostream>\nint main(){int a,b;if(!(std::cin>>a>>b))return 2;std::cout<<a+b<<'\\n';}\n");
+            helper.allowWrites();
+            String compilation = sandbox(helper.build(), helper.uid(), "/opt/gcc/13.2.0/bin/g++",
+                    List.of("src/main.cc", "-std=c++17", "-O2", "-static", "-o", "src/main"),
+                    Path.of("/dev/null"), task.resolve("compile.out"), task.resolve("compile.err"),
+                    16 * 1024 * 1024, false);
+            try {
+                successful(compilation);
+            } catch (AssertionError failure) {
+                throw new AssertionError("Helper compilation failed: "
+                        + Files.readString(task.resolve("compile.err")), failure);
+            }
+            Path original = helper.build().resolve("src/main");
+            if (!Integer.valueOf(helper.uid()).equals(Files.getAttribute(original, "unix:uid"))) {
+                throw new AssertionError("Compiler did not run as its leased identity");
+            }
+            Object originalInode = Files.getAttribute(original, "unix:ino");
+            helper.sealTo(sealed);
+            Path executable = sealed.resolve("src/main");
+            if (!Integer.valueOf(0).equals(Files.getAttribute(executable, "unix:uid"))
+                    || originalInode.equals(Files.getAttribute(executable, "unix:ino"))) {
+                throw new AssertionError("Helper was not copied into a fresh root-owned inode");
+            }
+            byte[] before = Files.readAllBytes(executable);
+            sandbox(sealed, 65534, "/bin/sh", List.of("-c", "printf overwritten > src/main"),
+                    Path.of("/dev/null"), task.resolve("write.out"), task.resolve("write.err"), 65536, false);
+            if (!Arrays.equals(before, Files.readAllBytes(executable))
+                    || !Files.readString(task.resolve("write.err")).contains("Permission denied")) {
+                throw new AssertionError("Submission identity could modify the sealed helper");
+            }
+            Path input = task.resolve("input");
+            Files.writeString(input, "17 25\n");
+            String execution = sandbox(sealed, 65534, executable.toString(), List.of(), input,
+                    task.resolve("run.out"), task.resolve("run.err"), 65536, true);
+            successful(execution);
+            if (!Files.readString(task.resolve("run.out")).equals("42\n")) {
+                throw new AssertionError("Sealed nested helper did not execute correctly");
+            }
+            System.out.println("{\"helper_non_root_compilation\":true,\"helper_distinct_leases\":true,"
+                    + "\"helper_fresh_root_inode\":true,\"helper_nobody_write_denied\":true,"
+                    + "\"helper_nested_cpp_execution\":true}");
+        }
+    }
+}
+JAVA
+java --class-path "$workspace/helper-classes/BOOT-INF/classes" \
+    "$workspace/HelperRuntimeSmoke.java" "$workspace"
