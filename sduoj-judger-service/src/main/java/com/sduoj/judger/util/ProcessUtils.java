@@ -60,7 +60,13 @@ public class ProcessUtils {
             if (timeout == 0) {
                 process.waitFor();
             } else {
-                process.waitFor(timeout, unit);
+                if (!process.waitFor(timeout, unit)) {
+                    process.descendants().forEach(ProcessHandle::destroyForcibly);
+                    process.destroyForcibly();
+                    process.waitFor(2, TimeUnit.SECONDS);
+                    return new CommandResult(
+                            CommandResult.PROCESS_NOT_FINISHED, "", "Process deadline exceeded");
+                }
             }
             if (!process.isAlive()) {
                 exitCode = process.exitValue();
