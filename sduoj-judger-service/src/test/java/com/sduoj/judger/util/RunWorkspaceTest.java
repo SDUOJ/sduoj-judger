@@ -150,4 +150,36 @@ public class RunWorkspaceTest {
         }
         assertEquals("fixture", Files.readString(input));
     }
+
+    @Test
+    public void nestedProgramSourcesPermitCompilerOutputsWithoutOpeningTrustedSiblings() throws Exception {
+        Path source = RunWorkspace.source(task.program(), "src/nested/Main.java");
+        RunWorkspace.writeNew(source, "public class Main {}".getBytes(StandardCharsets.UTF_8));
+        task.allowProgramWrites();
+        for (Path directory : new Path[] {task.program(), source.getParent(), source.getParent().getParent()}) {
+            assertTrue(Files.getPosixFilePermissions(directory)
+                    .contains(java.nio.file.attribute.PosixFilePermission.OTHERS_WRITE));
+        }
+        for (Path directory : new Path[] {task.root(), task.checker(), task.validator(), task.ioPath("x").getParent()}) {
+            assertFalse(Files.getPosixFilePermissions(directory)
+                    .contains(java.nio.file.attribute.PosixFilePermission.OTHERS_WRITE));
+        }
+    }
+
+    @Test
+    public void linuxWorkerCompilesNestedJavaSourcesAsNobody() throws Exception {
+        Assume.assumeTrue("Linux root worker required",
+                Integer.valueOf(0).equals(Files.getAttribute(parent, "unix:uid")));
+        Path source = RunWorkspace.source(task.program(), "src/Main.java");
+        RunWorkspace.writeNew(source, "public class Main {}".getBytes(StandardCharsets.UTF_8));
+        task.requireRootOwner();
+        task.allowProgramWrites();
+        var compiled = new ProcessBuilder("runuser", "-u", "nobody", "--", "javac", "src/Main.java")
+                .directory(task.program().toFile()).redirectErrorStream(true).start();
+        assertTrue(compiled.waitFor(15, TimeUnit.SECONDS));
+        String diagnostic = new String(compiled.getInputStream().readAllBytes(), StandardCharsets.UTF_8);
+        assertEquals(diagnostic, 0, compiled.exitValue());
+        assertTrue(Files.isRegularFile(task.program().resolve("src/Main.class")));
+    }
+
 }

@@ -70,7 +70,16 @@ public final class RunWorkspace {
 
     public void allowProgramWrites() throws IOException {
         requireDirectory(program);
-        Files.setPosixFilePermissions(program, PosixFilePermissions.fromString("rwxrwxrwx"));
+        // Snapshot before opening any parent for writes. Nested sources (for
+        // example javac src/Main.java) also need adjacent compiler outputs.
+        try (var paths = Files.walk(program)) {
+            var directories = paths.filter(path -> Files.isDirectory(path, LinkOption.NOFOLLOW_LINKS))
+                    .sorted(java.util.Comparator.comparingInt(Path::getNameCount).reversed()).toList();
+            for (Path directory : directories) {
+                requireDirectory(directory);
+                Files.setPosixFilePermissions(directory, PosixFilePermissions.fromString("rwxrwxrwx"));
+            }
+        }
     }
 
     public Path input(String name, byte[] bytes) throws IOException {
