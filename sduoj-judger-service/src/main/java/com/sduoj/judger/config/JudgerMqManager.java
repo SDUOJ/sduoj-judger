@@ -15,10 +15,12 @@ import com.sduoj.common.util.collection.Lists;
 import com.sduoj.common.util.collection.Pair;
 import com.sduoj.submission.api.message.SubmissionWaitingMsgDTO;
 import org.springframework.stereotype.Component;
+import org.springframework.boot.autoconfigure.condition.ConditionalOnProperty;
 
 import java.util.List;
 
 @Component
+@ConditionalOnProperty(name = "sduoj.run.worker", havingValue = "false", matchIfMissing = true)
 public class JudgerMqManager implements MqManager {
 
     public static final String SUBMISSION_QUEUE_NAME = "sduoj.judger.submission";

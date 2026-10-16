@@ -27,10 +27,12 @@ import org.springframework.amqp.rabbit.annotation.RabbitListener;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.context.properties.EnableConfigurationProperties;
 import org.springframework.stereotype.Component;
+import org.springframework.boot.autoconfigure.condition.ConditionalOnProperty;
 
 
 @Slf4j
 @Component
+@ConditionalOnProperty(name = "sduoj.run.worker", havingValue = "false", matchIfMissing = true)
 @EnableConfigurationProperties(JudgerProperty.class)
 public class SubmissionListener {
 
