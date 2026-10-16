@@ -18,6 +18,7 @@ import com.sduoj.judger.config.CpuConfig;
 import com.sduoj.judger.config.PathConfig;
 import com.sduoj.judger.manager.LocalCheckerManager;
 import com.sduoj.judger.util.ProcessUtils;
+import com.sduoj.judger.util.RunWorkspace;
 import com.sduoj.judger.util.WorkspaceFiles;
 import com.sduoj.judgetemplate.dto.JudgeTemplateConfigDTO;
 import com.sduoj.problem.dto.ProblemCheckerConfigDTO;
@@ -56,7 +57,7 @@ public class CasesRunHandler {
     public void execute(RunSpecDTO spec) throws Exception {
         long id = spec.getSubmission().getSubmissionId();
         int version = spec.getSubmission().getVersion();
-        Path workspace = Paths.get(PathConfig.WORKSPACE_DIR, "run-" + id + "-" + version);
+        RunWorkspace task = null;
         List<RunCaseResultItemDTO> results = new ArrayList<>();
         RunTaskUpdateReqDTO update = new RunTaskUpdateReqDTO();
         update.setSubmissionId(id);
@@ -65,15 +66,12 @@ public class CasesRunHandler {
         String judgeLog = "";
         boolean management = spec.getTaskType() != null && spec.getTaskType() > 100;
         Instant deadline = Instant.now().plusSeconds(management ? 95 : 8L * spec.getCases().size());
-        Path validatorDirectory = workspace.resolve(".validator-" + UUID.randomUUID());
         try {
-            Files.createDirectories(workspace);
-            ProcessUtils.execCmd(
-                    List.of("sudo", "chmod", "777", workspace.toString()),
-                    null,
-                    workspace.toFile(),
-                    5,
-                    TimeUnit.SECONDS);
+            task = RunWorkspace.create(Path.of(PathConfig.WORKSPACE_DIR), id, version);
+            task.requireRootOwner();
+            Path workspace = task.program();
+            Path compileOut = task.output("program.compile.out");
+            Path compileErr = task.output("program.compile.err");
             JudgeTemplateConfigDTO config =
                     JsonUtils.toObject(
                             spec.getJudgeTemplate().getShellScript(), JudgeTemplateConfigDTO.class);
@@ -106,12 +104,11 @@ public class CasesRunHandler {
                                 + code;
             }
             JudgeTemplateConfigDTO.TemplateConfig.Compile compile = config.getUser().getCompile();
-            Path source = workspace.resolve(compile.getSrcName()).normalize();
-            if (!source.startsWith(workspace))
-                throw new IllegalArgumentException("Invalid template source path");
-            if (code != null) Files.writeString(source, code);
+            Path source = RunWorkspace.source(workspace, compile.getSrcName());
+            if (code != null) RunWorkspace.writeNew(source, code.getBytes(StandardCharsets.UTF_8));
             else if (!Files.isRegularFile(source, LinkOption.NOFOLLOW_LINKS))
                 throw new IllegalArgumentException("ZIP does not contain template source file");
+            task.allowProgramWrites();
             for (String command : compile.getCommands()) {
                 if (Instant.now().isAfter(deadline))
                     throw new IllegalStateException("Run deadline exceeded");
@@ -125,15 +122,14 @@ public class CasesRunHandler {
                                 compile.getMaxMemory() * 1024L,
                                 null,
                                 "/dev/null",
-                                "compile.out",
-                                "compile.err",
+                                compileOut.toString(),
+                                compileErr.toString(),
                                 16 * 1024 * 1024,
-                                false,
+                                true,
                                 null,
                                 deadline);
                 judgeLog =
-                        prefix(workspace.resolve("compile.out"), 32768)
-                                + prefix(workspace.resolve("compile.err"), 24576);
+                        prefix(compileOut, 32768) + prefix(compileErr, 24576);
                 if (compiled == null || compiled.getResult() != 0 || compiled.getExitCode() != 0) {
                     update.setComplete(true);
                     update.setJudgeResult(8);
@@ -150,12 +146,14 @@ public class CasesRunHandler {
                 if (Instant.now().isAfter(deadline))
                     throw new IllegalStateException("Run execution deadline exceeded");
                 RunCaseInputDTO input = spec.getCases().get(i);
-                String in = i + ".in", out = i + ".out", err = i + ".err";
+                byte[] inputBytes = management
+                        ? download(spec.getMetaCases().get(i).getInputFileId(), 5 * 1024 * 1024)
+                        : input.getInput().getBytes(StandardCharsets.UTF_8);
+                Path in = task.input(i + ".in", inputBytes);
+                Path out = task.output(i + ".out");
+                Path err = task.output(i + ".err");
                 if (management) {
                     var meta = spec.getMetaCases().get(i);
-                    Files.write(
-                            workspace.resolve(in),
-                            download(meta.getInputFileId(), 5 * 1024 * 1024));
                     if (Integer.valueOf(102).equals(spec.getTaskType())) {
                         input.setExpectedOutput(
                                 StandardCharsets.UTF_8
@@ -167,12 +165,10 @@ public class CasesRunHandler {
                                                                 5 * 1024 * 1024)))
                                         .toString());
                     }
-                } else {
-                    Files.writeString(workspace.resolve(in), input.getInput());
                 }
                 if (Integer.valueOf(103).equals(spec.getTaskType())) {
                     int validated =
-                            validateInput(workspace, validatorDirectory, spec, in, err, deadline);
+                            validateInput(task, spec, in, err, i, deadline);
                     if (validated != 1) {
                         results.add(
                                 RunCaseResultItemDTO.builder()
@@ -185,7 +181,7 @@ public class CasesRunHandler {
                                         .stdout("")
                                         .stderr(
                                                 prefix(
-                                                        workspace.resolve(err),
+                                                        err,
                                                         spec.getStderrPrefixBytes()))
                                         .build());
                         aggregate = validated;
@@ -214,9 +210,9 @@ public class CasesRunHandler {
                                                 * run.getMaxMemoryFactor()
                                                 * 1024L),
                                 run.getSeccompRule(),
-                                in,
-                                out,
-                                err,
+                                in.toString(),
+                                out.toString(),
+                                err.toString(),
                                 65536,
                                 true,
                                 run.getEnvs(),
@@ -233,7 +229,7 @@ public class CasesRunHandler {
                                     ? 1
                                     : input.getExpectedOutput() == null
                                             ? -1
-                                            : compare(workspace, spec, input, in, out, i, deadline);
+                                            : compare(task, spec, input, in, out, i, deadline);
                 }
                 Long generatedOutput = null;
                 if (Integer.valueOf(103).equals(spec.getTaskType()) && result == -1) {
@@ -242,9 +238,9 @@ public class CasesRunHandler {
                                     .newDecoder()
                                     .decode(
                                             java.nio.ByteBuffer.wrap(
-                                                    Files.readAllBytes(workspace.resolve(out))))
+                                                    RunWorkspace.read(out, 65536)))
                                     .toString());
-                    result = compare(workspace, spec, input, in, out, i, deadline);
+                    result = compare(task, spec, input, in, out, i, deadline);
                     if (result == 1 && client.active(id, version)) {
                         generatedOutput =
                                 files.uploadTaskOutput(
@@ -252,13 +248,12 @@ public class CasesRunHandler {
                                                 id,
                                                 version,
                                                 i,
-                                                Files.readAllBytes(workspace.resolve(out))));
+                                                RunWorkspace.read(out, 65536)));
                         if (generatedOutput == null || generatedOutput <= 0)
                             throw new IllegalStateException("Generated output upload failed");
                     }
                 }
-                long stdoutSize = size(workspace.resolve(out)),
-                        stderrSize = size(workspace.resolve(err));
+                long stdoutSize = RunWorkspace.size(out), stderrSize = RunWorkspace.size(err);
                 RunCaseResultItemDTO item =
                         RunCaseResultItemDTO.builder()
                                 .index(i)
@@ -283,8 +278,8 @@ public class CasesRunHandler {
                                 .usedTime(Math.max(executed.getCpuTime(), executed.getRealTime()))
                                 .usedMemory(executed.getMemory())
                                 .exitCode(executed.getExitCode())
-                                .stdout(prefix(workspace.resolve(out), spec.getStdoutPrefixBytes()))
-                                .stderr(prefix(workspace.resolve(err), spec.getStderrPrefixBytes()))
+                                .stdout(prefix(out, spec.getStdoutPrefixBytes()))
+                                .stderr(prefix(err, spec.getStderrPrefixBytes()))
                                 .stdoutTruncated(stdoutSize > spec.getStdoutPrefixBytes())
                                 .stderrTruncated(stderrSize > spec.getStderrPrefixBytes())
                                 .stdoutOriginalLength((int) Math.min(Integer.MAX_VALUE, stdoutSize))
@@ -301,7 +296,7 @@ public class CasesRunHandler {
             judgeLog = e.getClass().getSimpleName() + ": " + e.getMessage();
         } finally {
             try {
-                WorkspaceFiles.delete(workspace);
+                if (task != null) WorkspaceFiles.delete(task.root());
             } catch (Exception cleanupFailure) {
                 // Preserve the task outcome; scheduled retention retries abandoned directories.
                 log.warn("Run workspace cleanup failed for {}", id, cleanupFailure);
@@ -330,16 +325,14 @@ public class CasesRunHandler {
             java.util.zip.ZipEntry entry;
             while ((entry = zip.getNextEntry()) != null) {
                 if (++count > 256) throw new IllegalArgumentException("ZIP has too many entries");
-                Path destination = workspace.resolve(entry.getName()).normalize();
-                if (!destination.startsWith(workspace) || destination.equals(workspace))
-                    throw new IllegalArgumentException("Unsafe ZIP path");
+                Path destination = RunWorkspace.source(workspace, entry.getName());
                 if (entry.isDirectory()) {
-                    Files.createDirectories(destination);
+                    RunWorkspace.ensureParents(workspace, destination);
                     continue;
                 }
-                Files.createDirectories(destination.getParent());
                 try (var output =
-                        Files.newOutputStream(destination, StandardOpenOption.CREATE_NEW)) {
+                        Files.newOutputStream(destination, StandardOpenOption.CREATE_NEW,
+                                StandardOpenOption.WRITE, LinkOption.NOFOLLOW_LINKS)) {
                     byte[] buffer = new byte[8192];
                     int size;
                     while ((size = zip.read(buffer)) != -1) {
@@ -349,39 +342,33 @@ public class CasesRunHandler {
                         output.write(buffer, 0, size);
                     }
                 }
+                Files.setPosixFilePermissions(destination,
+                        java.nio.file.attribute.PosixFilePermissions.fromString("rw-r--r--"));
             }
         }
     }
 
     private int validateInput(
-            Path workspace,
-            Path directory,
+            RunWorkspace task,
             RunSpecDTO spec,
-            String in,
-            String err,
+            Path input,
+            Path error,
+            int index,
             Instant deadline)
             throws Exception {
         var validator = spec.getProblem().getCheckerConfig().getInputValidator();
         if (validator == null) throw new IllegalArgumentException("Missing input validator");
         var template = validator.getSpj();
-        if (Files.exists(directory.resolve("compile.failed"))) {
-            Files.copy(
-                    directory.resolve("compile.err"),
-                    workspace.resolve(err),
-                    StandardCopyOption.REPLACE_EXISTING);
+        Path directory = task.validator();
+        Path prepared = directory.resolve(".compiled");
+        Path failed = directory.resolve(".compile-failed");
+        Path compileError = task.ioPath("validator.compile.err");
+        if (Files.exists(failed, LinkOption.NOFOLLOW_LINKS)) {
+            RunWorkspace.copyPrefix(compileError, error, 65536);
             return 8;
         }
-        if (!Files.exists(directory)) {
-            Files.createDirectories(directory);
-            ProcessUtils.execCmd(
-                    List.of("sudo", "chmod", "777", directory.toString()),
-                    null,
-                    workspace.toFile(),
-                    5,
-                    TimeUnit.SECONDS);
-            Path source = directory.resolve(template.getCompile().getSrcName()).normalize();
-            if (!source.startsWith(directory))
-                throw new IllegalArgumentException("Unsafe validator source path");
+        if (!Files.exists(prepared, LinkOption.NOFOLLOW_LINKS)) {
+            Path source = RunWorkspace.source(directory, template.getCompile().getSrcName());
             if (validator.getZipFileId() != null) {
                 byte[] archive = download(validator.getZipFileId(), 5 * 1024 * 1024);
                 if (!HexFormat.of()
@@ -394,53 +381,29 @@ public class CasesRunHandler {
                     throw new IllegalArgumentException("Validator ZIP lacks template source file");
                 }
             } else {
-                Files.writeString(source, validator.getSource());
+                RunWorkspace.writeNew(source, validator.getSource().getBytes(StandardCharsets.UTF_8));
             }
+            Path compileOutput = task.output("validator.compile.out");
+            task.output("validator.compile.err");
             for (String command : template.getCompile().getCommands()) {
-                var compiled =
-                        sandbox(
-                                directory,
-                                substitute(command, spec),
-                                Math.min(10000, template.getCompile().getMaxCpuTime()),
-                                Math.min(15000, template.getCompile().getMaxRealTime()),
-                                template.getCompile().getMaxMemory() * 1024L,
-                                null,
-                                "/dev/null",
-                                "compile.out",
-                                "compile.err",
-                                16 * 1024 * 1024,
-                                false,
-                                null,
-                                deadline);
+                var compiled = sandbox(directory, substitute(command, spec),
+                        Math.min(10000, template.getCompile().getMaxCpuTime()),
+                        Math.min(15000, template.getCompile().getMaxRealTime()),
+                        template.getCompile().getMaxMemory() * 1024L, null, "/dev/null",
+                        compileOutput.toString(), compileError.toString(), 16 * 1024 * 1024,
+                        false, null, deadline);
                 if (compiled == null || compiled.getResult() != 0 || compiled.getExitCode() != 0) {
-                    Files.writeString(directory.resolve("compile.failed"), "failed");
-                    Files.copy(
-                            directory.resolve("compile.err"),
-                            workspace.resolve(err),
-                            StandardCopyOption.REPLACE_EXISTING);
+                    RunWorkspace.writeNew(failed, new byte[0]);
+                    RunWorkspace.copyPrefix(compileError, error, 65536);
                     return 8;
                 }
             }
+            RunWorkspace.writeNew(prepared, new byte[0]);
         }
-        var result =
-                sandbox(
-                        directory,
-                        substitute(template.getRun().getCommand(), spec),
-                        2000,
-                        4000,
-                        256L * 1024 * 1024,
-                        template.getRun().getSeccompRule(),
-                        workspace.resolve(in).toString(),
-                        "validator.out",
-                        "validator.err",
-                        65536,
-                        true,
-                        template.getRun().getEnvs(),
-                        deadline);
-        Files.copy(
-                directory.resolve("validator.err"),
-                workspace.resolve(err),
-                StandardCopyOption.REPLACE_EXISTING);
+        var result = sandbox(directory, substitute(template.getRun().getCommand(), spec),
+                2000, 4000, 256L * 1024 * 1024, template.getRun().getSeccompRule(),
+                input.toString(), task.output("validator-" + index + ".out").toString(),
+                error.toString(), 65536, true, template.getRun().getEnvs(), deadline);
         if (result == null) return 5;
         return result.getResult() == 0 && result.getExitCode() == 0
                 ? 1
@@ -450,82 +413,50 @@ public class CasesRunHandler {
     }
 
     private int compare(
-            Path workspace,
+            RunWorkspace task,
             RunSpecDTO spec,
             RunCaseInputDTO input,
-            String in,
-            String out,
+            Path in,
+            Path out,
             int index,
             Instant deadline)
             throws Exception {
         ProblemCheckerConfigDTO checker = spec.getProblem().getCheckerConfig();
+        Path expected = task.input(index + ".expected",
+                input.getExpectedOutput().getBytes(StandardCharsets.UTF_8));
+        Path report = task.report("checker-" + index + ".report");
+        String arguments = " " + in + " " + out + " " + expected + " " + report;
+        Path output = task.output("checker-" + index + ".out");
+        Path error = task.output("checker-" + index + ".err");
         if (checker != null && checker.getSpj() != null) {
-            // Custom checker uses trusted template configuration and the same sandbox limits.
             JudgeTemplateConfigDTO.TemplateConfig custom = checker.getSpj();
-            Path checkerWorkspace = workspace.resolve("checker");
-            Files.createDirectories(checkerWorkspace);
-            ProcessUtils.execCmd(
-                    List.of("sudo", "chmod", "777", checkerWorkspace.toString()),
-                    null,
-                    workspace.toFile(),
-                    5,
-                    TimeUnit.SECONDS);
-            Path checkerSource =
-                    checkerWorkspace.resolve(custom.getCompile().getSrcName()).normalize();
-            if (!checkerSource.startsWith(checkerWorkspace))
-                throw new IllegalArgumentException("Invalid checker path");
-            if (!Files.exists(checkerSource)) {
-                Files.writeString(checkerSource, checker.getSource());
+            Path directory = task.checker();
+            Path prepared = directory.resolve(".compiled");
+            Path failed = directory.resolve(".compile-failed");
+            if (Files.exists(failed, LinkOption.NOFOLLOW_LINKS)) return 5;
+            if (!Files.exists(prepared, LinkOption.NOFOLLOW_LINKS)) {
+                Path source = RunWorkspace.source(directory, custom.getCompile().getSrcName());
+                RunWorkspace.writeNew(source, checker.getSource().getBytes(StandardCharsets.UTF_8));
+                Path compileOutput = task.output("checker.compile.out");
+                Path compileError = task.output("checker.compile.err");
                 for (String command : custom.getCompile().getCommands()) {
-                    SandboxResultDTO compiled =
-                            sandbox(
-                                    checkerWorkspace,
-                                    substitute(command, spec),
-                                    10000,
-                                    15000,
-                                    custom.getCompile().getMaxMemory() * 1024L,
-                                    null,
-                                    "/dev/null",
-                                    "checker.compile",
-                                    "checker.err",
-                                    16 * 1024 * 1024,
-                                    false,
-                                    null,
-                                    deadline);
-                    if (compiled == null
-                            || compiled.getResult() != 0
-                            || compiled.getExitCode() != 0) return 5;
+                    SandboxResultDTO compiled = sandbox(directory, substitute(command, spec),
+                            10000, 15000, custom.getCompile().getMaxMemory() * 1024L,
+                            null, "/dev/null", compileOutput.toString(), compileError.toString(),
+                            16 * 1024 * 1024, false, null, deadline);
+                    if (compiled == null || compiled.getResult() != 0 || compiled.getExitCode() != 0) {
+                        RunWorkspace.writeNew(failed, new byte[0]);
+                        return 5;
+                    }
                 }
+                RunWorkspace.writeNew(prepared, new byte[0]);
             }
-            String expected = index + ".expected";
-            Files.writeString(workspace.resolve(expected), input.getExpectedOutput());
-            SandboxResultDTO checked =
-                    sandbox(
-                            checkerWorkspace,
-                            substitute(custom.getRun().getCommand(), spec)
-                                    + " "
-                                    + workspace.resolve(in)
-                                    + " "
-                                    + workspace.resolve(out)
-                                    + " "
-                                    + workspace.resolve(expected)
-                                    + " checker.report",
-                            2000,
-                            4000,
-                            256L * 1024 * 1024,
-                            custom.getRun().getSeccompRule(),
-                            "/dev/null",
-                            "checker.out",
-                            "checker.err",
-                            65536,
-                            true,
-                            custom.getRun().getEnvs(),
-                            deadline);
-            if (checked == null || checked.getResult() != 0 && checked.getResult() != 4) return 5;
-            if (checked.getExitCode() == 0) return 1;
-            if (Set.of(1, 3, 4, 7, 8).contains(checked.getExitCode())) return 6;
-            if (checked.getExitCode() == 2) return 7;
-            return 5;
+            SandboxResultDTO checked = sandbox(directory,
+                    substitute(custom.getRun().getCommand(), spec) + arguments,
+                    2000, 4000, 256L * 1024 * 1024, custom.getRun().getSeccompRule(), "/dev/null",
+                    output.toString(), error.toString(), 65536, true,
+                    custom.getRun().getEnvs(), deadline);
+            return checkerResult(checked);
         }
         if (usesPredefinedChecker(checker)) {
             if (!checkers.isCheckerSourceFilenameExist(checker.getSource()))
@@ -533,38 +464,20 @@ public class CasesRunHandler {
             if (!checkers.isCheckerExist(checker.getSource()))
                 checkers.compilePredefinedChecker(checker.getSource());
             String name = checker.getSource().substring(0, checker.getSource().indexOf('.'));
-            Files.writeString(workspace.resolve(index + ".expected"), input.getExpectedOutput());
-            SandboxResultDTO checked =
-                    sandbox(
-                            workspace,
-                            PathConfig.CHECKER_DIR
-                                    + "/"
-                                    + name
-                                    + " "
-                                    + in
-                                    + " "
-                                    + out
-                                    + " "
-                                    + index
-                                    + ".expected checker.report",
-                            2000,
-                            4000,
-                            256L * 1024 * 1024,
-                            null,
-                            "/dev/null",
-                            "checker.out",
-                            "checker.err",
-                            65536,
-                            true,
-                            null,
-                            deadline);
-            if (checked == null || checked.getResult() != 0 && checked.getResult() != 4) return 5;
-            if (checked.getExitCode() == 0) return 1;
-            return checked.getExitCode() == 2
-                    ? 7
-                    : Set.of(1, 3, 4, 7, 8).contains(checked.getExitCode()) ? 6 : 5;
+            SandboxResultDTO checked = sandbox(task.checker(),
+                    PathConfig.CHECKER_DIR + "/" + name + arguments,
+                    2000, 4000, 256L * 1024 * 1024, null, "/dev/null",
+                    output.toString(), error.toString(), 65536, true, null, deadline);
+            return checkerResult(checked);
         }
         throw new IllegalArgumentException("Missing problem checker configuration");
+    }
+
+    private static int checkerResult(SandboxResultDTO checked) {
+        if (checked == null || checked.getResult() != 0 && checked.getResult() != 4) return 5;
+        if (checked.getExitCode() == 0) return 1;
+        if (Set.of(1, 3, 4, 7, 8).contains(checked.getExitCode())) return 6;
+        return checked.getExitCode() == 2 ? 7 : 5;
     }
 
     static boolean usesPredefinedChecker(ProblemCheckerConfigDTO checker) {
@@ -631,10 +544,6 @@ public class CasesRunHandler {
         if (result.exitCode != 0)
             throw new IllegalStateException("Sandbox invocation failed: " + result.stderr);
         return JsonUtils.toObject(result.stdout, SandboxResultDTO.class);
-    }
-
-    private static long size(Path path) throws Exception {
-        return Files.exists(path, LinkOption.NOFOLLOW_LINKS) ? Files.size(path) : 0;
     }
 
     public static String prefix(Path path, int bytes) throws Exception {
