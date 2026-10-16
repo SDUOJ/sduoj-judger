@@ -34,7 +34,7 @@ public class ProcessUtils {
     /**
      * 当前线程会同步等待对应执行命令的进程结束
      */
-    protected static CommandResult execCmd(final List<String> commands,
+    public static CommandResult execCmd(final List<String> commands,
                                            @Nullable final Map<String, String> environment,
                                            @Nullable final File workingDirectory,
                                            final long timeout,
