@@ -17,6 +17,7 @@ import com.sduoj.judger.client.RunClient;
 import com.sduoj.judger.config.CpuConfig;
 import com.sduoj.judger.config.PathConfig;
 import com.sduoj.judger.manager.LocalCheckerManager;
+import com.sduoj.judger.util.HelperCompilation;
 import com.sduoj.judger.util.ProcessUtils;
 import com.sduoj.judger.util.RunWorkspace;
 import com.sduoj.judger.util.WorkspaceFiles;
@@ -125,7 +126,7 @@ public class CasesRunHandler {
                                 compileOut.toString(),
                                 compileErr.toString(),
                                 16 * 1024 * 1024,
-                                true,
+                                65534,
                                 null,
                                 deadline);
                 judgeLog =
@@ -214,7 +215,7 @@ public class CasesRunHandler {
                                 out.toString(),
                                 err.toString(),
                                 65536,
-                                true,
+                                65534,
                                 run.getEnvs(),
                                 deadline);
                 if (executed == null) throw new IllegalStateException("Missing sandbox result");
@@ -368,42 +369,48 @@ public class CasesRunHandler {
             return 8;
         }
         if (!Files.exists(prepared, LinkOption.NOFOLLOW_LINKS)) {
-            Path source = RunWorkspace.source(directory, template.getCompile().getSrcName());
-            if (validator.getZipFileId() != null) {
-                byte[] archive = download(validator.getZipFileId(), 5 * 1024 * 1024);
-                if (!HexFormat.of()
-                        .formatHex(MessageDigest.getInstance("SHA-256").digest(archive))
-                        .equals(spec.getValidatorZipSha256())) {
-                    throw new IllegalStateException("Validator ZIP snapshot changed");
+            try (var helper = HelperCompilation.create(task.root())) {
+                Path source = RunWorkspace.source(helper.build(), template.getCompile().getSrcName());
+                if (validator.getZipFileId() != null) {
+                    byte[] archive = download(validator.getZipFileId(), 5 * 1024 * 1024);
+                    if (!HexFormat.of()
+                            .formatHex(MessageDigest.getInstance("SHA-256").digest(archive))
+                            .equals(spec.getValidatorZipSha256())) {
+                        throw new IllegalStateException("Validator ZIP snapshot changed");
+                    }
+                    extractZip(archive, helper.build());
+                    if (!Files.isRegularFile(source, LinkOption.NOFOLLOW_LINKS)) {
+                        throw new IllegalArgumentException("Validator ZIP lacks template source file");
+                    }
+                } else {
+                    RunWorkspace.writeNew(source, validator.getSource().getBytes(StandardCharsets.UTF_8));
                 }
-                extractZip(archive, directory);
-                if (!Files.isRegularFile(source, LinkOption.NOFOLLOW_LINKS)) {
-                    throw new IllegalArgumentException("Validator ZIP lacks template source file");
+                helper.allowWrites();
+                Path compileOutput = task.output("validator.compile.out");
+                task.output("validator.compile.err");
+                for (String command : template.getCompile().getCommands()) {
+                    if (!client.active(spec.getSubmission().getSubmissionId(), spec.getSubmission().getVersion())) return 5;
+                    var compiled = sandbox(helper.build(), substitute(command, spec),
+                            Math.min(10000, template.getCompile().getMaxCpuTime()),
+                            Math.min(15000, template.getCompile().getMaxRealTime()),
+                            template.getCompile().getMaxMemory() * 1024L, null, "/dev/null",
+                            compileOutput.toString(), compileError.toString(), 16 * 1024 * 1024,
+                            helper.uid(), null, deadline);
+                    if (compiled == null || compiled.getResult() != 0 || compiled.getExitCode() != 0) {
+                        RunWorkspace.writeNew(failed, new byte[0]);
+                        RunWorkspace.copyPrefix(compileError, error, 65536);
+                        return 8;
+                    }
                 }
-            } else {
-                RunWorkspace.writeNew(source, validator.getSource().getBytes(StandardCharsets.UTF_8));
-            }
-            Path compileOutput = task.output("validator.compile.out");
-            task.output("validator.compile.err");
-            for (String command : template.getCompile().getCommands()) {
-                var compiled = sandbox(directory, substitute(command, spec),
-                        Math.min(10000, template.getCompile().getMaxCpuTime()),
-                        Math.min(15000, template.getCompile().getMaxRealTime()),
-                        template.getCompile().getMaxMemory() * 1024L, null, "/dev/null",
-                        compileOutput.toString(), compileError.toString(), 16 * 1024 * 1024,
-                        false, null, deadline);
-                if (compiled == null || compiled.getResult() != 0 || compiled.getExitCode() != 0) {
-                    RunWorkspace.writeNew(failed, new byte[0]);
-                    RunWorkspace.copyPrefix(compileError, error, 65536);
-                    return 8;
-                }
+                if (!client.active(spec.getSubmission().getSubmissionId(), spec.getSubmission().getVersion())) return 5;
+                helper.sealTo(directory);
             }
             RunWorkspace.writeNew(prepared, new byte[0]);
         }
         var result = sandbox(directory, substitute(template.getRun().getCommand(), spec),
                 2000, 4000, 256L * 1024 * 1024, template.getRun().getSeccompRule(),
                 input.toString(), task.output("validator-" + index + ".out").toString(),
-                error.toString(), 65536, true, template.getRun().getEnvs(), deadline);
+                error.toString(), 65536, 65534, template.getRun().getEnvs(), deadline);
         if (result == null) return 5;
         return result.getResult() == 0 && result.getExitCode() == 0
                 ? 1
@@ -435,26 +442,32 @@ public class CasesRunHandler {
             Path failed = directory.resolve(".compile-failed");
             if (Files.exists(failed, LinkOption.NOFOLLOW_LINKS)) return 5;
             if (!Files.exists(prepared, LinkOption.NOFOLLOW_LINKS)) {
-                Path source = RunWorkspace.source(directory, custom.getCompile().getSrcName());
-                RunWorkspace.writeNew(source, checker.getSource().getBytes(StandardCharsets.UTF_8));
-                Path compileOutput = task.output("checker.compile.out");
-                Path compileError = task.output("checker.compile.err");
-                for (String command : custom.getCompile().getCommands()) {
-                    SandboxResultDTO compiled = sandbox(directory, substitute(command, spec),
-                            10000, 15000, custom.getCompile().getMaxMemory() * 1024L,
-                            null, "/dev/null", compileOutput.toString(), compileError.toString(),
-                            16 * 1024 * 1024, false, null, deadline);
-                    if (compiled == null || compiled.getResult() != 0 || compiled.getExitCode() != 0) {
-                        RunWorkspace.writeNew(failed, new byte[0]);
-                        return 5;
+                try (var helper = HelperCompilation.create(task.root())) {
+                    Path source = RunWorkspace.source(helper.build(), custom.getCompile().getSrcName());
+                    RunWorkspace.writeNew(source, checker.getSource().getBytes(StandardCharsets.UTF_8));
+                    helper.allowWrites();
+                    Path compileOutput = task.output("checker.compile.out");
+                    Path compileError = task.output("checker.compile.err");
+                    for (String command : custom.getCompile().getCommands()) {
+                        if (!client.active(spec.getSubmission().getSubmissionId(), spec.getSubmission().getVersion())) return 5;
+                        SandboxResultDTO compiled = sandbox(helper.build(), substitute(command, spec),
+                                10000, 15000, custom.getCompile().getMaxMemory() * 1024L,
+                                null, "/dev/null", compileOutput.toString(), compileError.toString(),
+                                16 * 1024 * 1024, helper.uid(), null, deadline);
+                        if (compiled == null || compiled.getResult() != 0 || compiled.getExitCode() != 0) {
+                            RunWorkspace.writeNew(failed, new byte[0]);
+                            return 5;
+                        }
                     }
+                    if (!client.active(spec.getSubmission().getSubmissionId(), spec.getSubmission().getVersion())) return 5;
+                    helper.sealTo(directory);
                 }
                 RunWorkspace.writeNew(prepared, new byte[0]);
             }
             SandboxResultDTO checked = sandbox(directory,
                     substitute(custom.getRun().getCommand(), spec) + arguments,
                     2000, 4000, 256L * 1024 * 1024, custom.getRun().getSeccompRule(), "/dev/null",
-                    output.toString(), error.toString(), 65536, true,
+                    output.toString(), error.toString(), 65536, 65534,
                     custom.getRun().getEnvs(), deadline);
             return checkerResult(checked);
         }
@@ -467,7 +480,7 @@ public class CasesRunHandler {
             SandboxResultDTO checked = sandbox(task.checker(),
                     PathConfig.CHECKER_DIR + "/" + name + arguments,
                     2000, 4000, 256L * 1024 * 1024, null, "/dev/null",
-                    output.toString(), error.toString(), 65536, true, null, deadline);
+                    output.toString(), error.toString(), 65536, 65534, null, deadline);
             return checkerResult(checked);
         }
         throw new IllegalArgumentException("Missing problem checker configuration");
@@ -500,7 +513,7 @@ public class CasesRunHandler {
             String output,
             String stderr,
             long outputBytes,
-            boolean nobody,
+            int uid,
             String[] environment,
             Instant deadline)
             throws Exception {
@@ -527,10 +540,9 @@ public class CasesRunHandler {
                                 "--output_path=" + output,
                                 "--error_path=" + stderr));
         if (rule != null && !rule.isBlank()) argv.add("--seccomp_rules=" + rule);
-        if (nobody) {
-            argv.add("--uid=65534");
-            argv.add("--gid=65534");
-        }
+        if (uid <= 0) throw new IllegalArgumentException("Run sandbox identity must not be root");
+        argv.add("--uid=" + uid);
+        argv.add("--gid=" + uid);
         for (int i = 1; i < executable.length; i++) argv.add("--exe_args=" + executable[i]);
         if (environment != null) for (String env : environment) argv.add("--exe_envs=" + env);
         else argv.add("--exe_envs=PATH=" + System.getenv("PATH"));
