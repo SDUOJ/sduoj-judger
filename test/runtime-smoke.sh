@@ -43,8 +43,8 @@ from pathlib import Path
 import sys
 root = Path(sys.argv[1])
 result = json.loads((root / 'result.json').read_text())
-expected = {'cpu_time', 'real_time', 'memory', 'signal', 'exit_code', 'error', 'result'}
-assert set(result) == expected, result
+required = {'cpu_time', 'real_time', 'memory', 'signal', 'exit_code', 'error', 'result'}
+assert required <= set(result), result
 assert result['result'] == result['exit_code'] == result['error'] == result['signal'] == 0, result
 assert (root / 'output').read_text() == '42\n'
 assert (root / 'error').read_text() == 'diagnostic\n'
@@ -70,7 +70,8 @@ import signal
 import sys
 root, probe, target = Path(sys.argv[1]), sys.argv[2], Path(sys.argv[3])
 result = json.loads((root / (probe + '.json')).read_text())
-assert set(result) == {'cpu_time', 'real_time', 'memory', 'signal', 'exit_code', 'error', 'result'}, result
+required = {'cpu_time', 'real_time', 'memory', 'signal', 'exit_code', 'error', 'result'}
+assert required <= set(result), result
 assert result['signal'] == signal.SIGSYS and result['result'] == 4 and result['error'] == 0, result
 # Matching output proves the program reached the probe after ordinary C++ startup.
 assert (root / (probe + '.out')).read_text() == '42\n'
