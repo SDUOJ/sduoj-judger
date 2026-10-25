@@ -5,7 +5,7 @@ RUN apt-get update -qq \
  && rm -rf /var/lib/apt/lists/*
 WORKDIR /src
 COPY --from=sandbox-src . .
-RUN make -j4
+RUN rm -rf build && make -j4
 
 FROM ubuntu:${UBUNTU_VERSION} as basic
 # metadata
