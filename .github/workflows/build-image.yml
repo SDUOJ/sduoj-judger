@@ -110,5 +110,8 @@ jobs:
           IMAGE_REF: registry.cn-beijing.aliyuncs.com/pre-sduoj/sduoj-judger@${{ needs.docker.outputs.image_digest }}
           EXPECTED_ARCH: ${{ matrix.architecture }}
         run: |
-          docker run --rm -i --network none --entrypoint /bin/bash "$IMAGE_REF" \
-            -s -- "$EXPECTED_ARCH" < test/runtime-smoke.sh
+          docker run --rm -i --network none \
+            --cap-add SYS_ADMIN --security-opt apparmor=unconfined \
+            --cgroupns=private --memory=1536m --memory-swap=1536m --pids-limit=512 \
+            --entrypoint /usr/local/bin/sduoj-judge-entrypoint "$IMAGE_REF" \
+            /bin/bash -s -- "$EXPECTED_ARCH" < test/runtime-smoke.sh

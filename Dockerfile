@@ -62,6 +62,8 @@ COPY --from=ghcr.io/sduoj/judging-containers:ubuntu-18.04_gcc-13.2.0 /opt/ /opt/
 COPY --from=ghcr.io/sduoj/judging-containers:ubuntu-18.04_rust-1.78.0 /opt/ /opt/
 # install sduoj-sandbox built from the reviewed source commit
 COPY --from=sandbox-build /src/build/bin/sandbox /opt/sduoj-sandbox/bin/sandbox
+COPY --from=sandbox-src docker/judge-entrypoint.sh /usr/local/bin/sduoj-judge-entrypoint
+RUN chmod 0755 /usr/local/bin/sduoj-judge-entrypoint
 # install docker-compose-wait
 COPY --from=ghcr.io/sduoj/docker-compose-wait:latest /wait /wait
 
