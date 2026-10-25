@@ -1,4 +1,12 @@
 ARG UBUNTU_VERSION=18.04
+FROM ubuntu:${UBUNTU_VERSION} AS sandbox-build
+RUN apt-get update -qq \
+ && apt-get install -y -qq --no-install-recommends build-essential libseccomp-dev \
+ && rm -rf /var/lib/apt/lists/*
+WORKDIR /src
+COPY --from=sandbox-src . .
+RUN make -j4
+
 FROM ubuntu:${UBUNTU_VERSION} as basic
 # metadata
 LABEL maintainer="SDUOJ-Team"
@@ -52,8 +60,8 @@ COPY --from=ghcr.io/sduoj/judging-containers:pypy-3.10-v7.3.15 /opt/ /opt/
 COPY --from=ghcr.io/sduoj/judging-containers:ubuntu-18.04_gcc-13.2.0 /opt/ /opt/
 # install Rust
 COPY --from=ghcr.io/sduoj/judging-containers:ubuntu-18.04_rust-1.78.0 /opt/ /opt/
-# install sduoj-sandbox
-COPY --from=ghcr.io/sduoj/judging-containers:ubuntu-18.04_sduoj-sandbox /opt/ /opt/
+# install sduoj-sandbox built from the reviewed source commit
+COPY --from=sandbox-build /src/build/bin/sandbox /opt/sduoj-sandbox/bin/sandbox
 # install docker-compose-wait
 COPY --from=ghcr.io/sduoj/docker-compose-wait:latest /wait /wait
 

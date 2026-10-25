@@ -26,6 +26,11 @@ public enum SandboxArgument {
     EXE_PATH("exe_path", String.class),
     INPUT_PATH("input_path", String.class),
     OUTPUT_PATH("output_path", String.class),
+    ERROR_PATH("error_path", String.class),
+    IO_MODE("io_mode", String.class),
+    MAX_IO_INPUT_SIZE("max_io_input_size", Long.class),
+    ISOLATE_FS("isolate_fs", Integer.class),
+    WORK_READONLY("work_readonly", Integer.class),
     SECCOMP_RULES("seccomp_rules", String.class),
 
     // may occur many times

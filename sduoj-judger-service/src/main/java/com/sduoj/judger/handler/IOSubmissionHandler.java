@@ -35,6 +35,9 @@ import lombok.AllArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Component;
 
+import java.nio.file.Files;
+import java.nio.file.LinkOption;
+import java.nio.file.Path;
 import java.nio.file.Paths;
 import java.util.ArrayList;
 import java.util.Arrays;
@@ -235,7 +238,11 @@ public class IOSubmissionHandler extends AbstractSubmissionHandler {
                         .add(SandboxArgument.EXE_ARGS, Arrays.copyOfRange(_commands, 1, _commands.length))
                         .add(SandboxArgument.EXE_ENVS, exeEnvs)
                         .add(SandboxArgument.INPUT_PATH, "/dev/null")
-                        .add(SandboxArgument.OUTPUT_PATH, compilerLogPath);
+                        .add(SandboxArgument.OUTPUT_PATH, compilerLogPath)
+                        .add(SandboxArgument.IO_MODE, "memfd")
+                        .add(SandboxArgument.MAX_IO_INPUT_SIZE, 1L)
+                        .add(SandboxArgument.ISOLATE_FS, 1)
+                        .add(SandboxArgument.WORK_READONLY, 0);
 
                 SandboxResultDTO sandboxResultDTO = SandboxRunner.run(workspaceDir, _args);
                 if (sandboxResultDTO == null) {
@@ -270,6 +277,11 @@ public class IOSubmissionHandler extends AbstractSubmissionHandler {
         private final int score;
         private final String outputPath;
         private final String answerPath;
+        private final String inputPath;
+        private final Path checkerWorkspace;
+        private final Path checkerInputPath;
+        private final Path checkerOutputPath;
+        private final Path checkerAnswerPath;
 
         private final Argument runCommand;
         private final Argument customCheckerRunCommand;
@@ -286,14 +298,39 @@ public class IOSubmissionHandler extends AbstractSubmissionHandler {
             this.score = score;
             this.outputPath = outputPath;
             this.answerPath = answerPath;
+            this.inputPath = inputPath;
+            // Allocate files only when checking a successful execution. Failed
+            // or cancelled cases must not leave copies of checkpoint data.
+            checkerWorkspace = Paths.get(PathConfig.WORKSPACE_DIR).resolve(
+                    ".checker-" + submissionId + "-" + checkpointId + "-" + java.util.UUID.randomUUID());
+            checkerInputPath = checkerWorkspace.resolve("input");
+            checkerOutputPath = checkerWorkspace.resolve("output");
+            checkerAnswerPath = checkerWorkspace.resolve("answer");
+
+            String ioMode = runConfig.getIoMode();
+            if (ioMode != null && !ioMode.isBlank() && !"memfd".equals(ioMode)) {
+                throw new SystemErrorException("Only memfd I/O is supported for standard evaluation: " + ioMode);
+            }
+            if ("c_cpp_file_io".equals(runConfig.getSeccompRule())) {
+                throw new SystemErrorException(
+                        "memfd I/O mode is only supported for standard stdin/stdout tasks");
+            }
 
             String[] commands = WHITESPACE_PATTERN.split(runConfig.getCommand().trim());
 
+            long runMemory = memoryLimit * runConfig.getMaxMemoryFactor() * 1024L;
+            long answerOutputLimit = outputLimitForAnswer(answerPath);
+            long inputBytes;
+            try {
+                inputBytes = Files.size(Paths.get(inputPath));
+            } catch (Exception e) {
+                throw new SystemErrorException("Cannot determine input file size", e);
+            }
             runCommand = Argument.build()
                     .add(SandboxArgument.MAX_CPU_TIME, timeLimit * runConfig.getMaxCpuTimeFactor())
                     .add(SandboxArgument.MAX_REAL_TIME, timeLimit * runConfig.getMaxRealTimeFactor())
-                    .add(SandboxArgument.MAX_MEMORY, memoryLimit * runConfig.getMaxMemoryFactor() * 1024L)
-                    .add(SandboxArgument.MAX_OUTPUT_SIZE, outputLimit * 1024L)
+                    .add(SandboxArgument.MAX_MEMORY, runMemory)
+                    .add(SandboxArgument.MAX_OUTPUT_SIZE, answerOutputLimit)
                     .add(SandboxArgument.MAX_STACK, 128L * 1024 * 1024)
                     .add(SandboxArgument.EXE_PATH, commands[0])
                     .add(SandboxArgument.EXE_ARGS, Arrays.copyOfRange(commands, 1, commands.length))
@@ -302,15 +339,22 @@ public class IOSubmissionHandler extends AbstractSubmissionHandler {
                     .add(SandboxArgument.OUTPUT_PATH, outputPath)
                     .add(SandboxArgument.SECCOMP_RULES, runConfig.getSeccompRule())
                     .add(SandboxArgument.UID, PathConfig.NOBODY_UID)
-                    .add(SandboxArgument.GID, PathConfig.NOBODY_GID);
+                    .add(SandboxArgument.GID, PathConfig.NOBODY_GID)
+                    .add(SandboxArgument.IO_MODE, "memfd")
+                    .add(SandboxArgument.MAX_IO_INPUT_SIZE, Math.max(1L, inputBytes))
+                    .add(SandboxArgument.ISOLATE_FS, 1)
+                    .add(SandboxArgument.WORK_READONLY, 1);
 
 
             commands = WHITESPACE_PATTERN.split(customCheckerConfig.getCommand().trim());
             // exeArgs 的格式为 <input-file> <output-file> <answer-file> <report-file> [<-appes>]
+            String checkerExecutable = Paths.get(commands[0]).isAbsolute()
+                    ? commands[0]
+                    : Paths.get(workspaceDir, commands[0]).normalize().toString();
             String[] exeArgs = new String[4 + commands.length - 1];
-            exeArgs[0] = inputPath;
-            exeArgs[1] = outputPath;
-            exeArgs[2] = answerPath;
+            exeArgs[0] = checkerInputPath.toString();
+            exeArgs[1] = checkerOutputPath.toString();
+            exeArgs[2] = checkerAnswerPath.toString();
             exeArgs[3] = "checker.out";
             for (int i = 1, n = commands.length; i < n; i++) {
                 exeArgs[i + 3] = commands[i];
@@ -320,16 +364,20 @@ public class IOSubmissionHandler extends AbstractSubmissionHandler {
                     .add(SandboxArgument.MAX_CPU_TIME, timeLimit * customCheckerConfig.getMaxCpuTimeFactor())
                     .add(SandboxArgument.MAX_REAL_TIME, timeLimit * customCheckerConfig.getMaxRealTimeFactor())
                     .add(SandboxArgument.MAX_MEMORY, Math.max(64 * 1024 * 1024L, memoryLimit * customCheckerConfig.getMaxMemoryFactor() * 1024L))
-                    .add(SandboxArgument.MAX_OUTPUT_SIZE, outputLimit * 1 * 1024L)
+                    .add(SandboxArgument.MAX_OUTPUT_SIZE, answerOutputLimit)
                     .add(SandboxArgument.MAX_STACK, 128L * 1024 * 1024)
-                    .add(SandboxArgument.EXE_PATH, commands[0])
+                    .add(SandboxArgument.EXE_PATH, checkerExecutable)
                     .add(SandboxArgument.EXE_ARGS, exeArgs)
                     .add(SandboxArgument.EXE_ENVS, customCheckerConfig.getEnvs())
                     .add(SandboxArgument.INPUT_PATH, "/dev/null")
                     .add(SandboxArgument.OUTPUT_PATH, "/dev/null")
                     .add(SandboxArgument.SECCOMP_RULES, customCheckerConfig.getSeccompRule())
                     .add(SandboxArgument.UID, PathConfig.NOBODY_UID)
-                    .add(SandboxArgument.GID, PathConfig.NOBODY_GID);
+                    .add(SandboxArgument.GID, PathConfig.NOBODY_GID)
+                    .add(SandboxArgument.IO_MODE, "memfd")
+                    .add(SandboxArgument.MAX_IO_INPUT_SIZE, 1L)
+                    .add(SandboxArgument.ISOLATE_FS, 1)
+                    .add(SandboxArgument.WORK_READONLY, 0);
         }
 
         @Override
@@ -351,7 +399,7 @@ public class IOSubmissionHandler extends AbstractSubmissionHandler {
                     int time = judgeResult.getCpuTime();
                     if (SandboxResult.CPU_TIME_LIMIT_EXCEEDED.equals(judgeResult.getResult())
                             || SandboxResult.REAL_TIME_LIMIT_EXCEEDED.equals(judgeResult.getResult())) {
-                        time = Math.max(judgeResult.getCpuTime(), judgeResult.getRealTime());
+                        time = judgeResult.getCpuTime();
                     }
 
                     commandResult = new CommandResult<>(new CheckpointResultMsgDTO(
@@ -372,7 +420,10 @@ public class IOSubmissionHandler extends AbstractSubmissionHandler {
                 ));
             } catch (Exception e) {
                 log.warn("", e);
-                throw e;
+                judgeLog += e + "\n";
+                commandResult = new CommandResult<>(new CheckpointResultMsgDTO(
+                        submissionId, submission.getVersion(), checkpointType, caseNo, checkpointId,
+                        SubmissionJudgeResult.SE.code, 0, 0, 0));
             }
             log.info("case {} finish", caseNo);
             return commandResult;
@@ -380,7 +431,20 @@ public class IOSubmissionHandler extends AbstractSubmissionHandler {
 
         private SubmissionJudgeResult check(int coreNo) {
             try {
-                SandboxResultDTO judgeResult = SandboxRunner.run(coreNo, workspaceDir, customCheckerRunCommand);
+                Files.createDirectory(checkerWorkspace);
+                Files.setPosixFilePermissions(checkerWorkspace,
+                        java.nio.file.attribute.PosixFilePermissions.fromString("rwxrwxrwx"));
+                Files.copy(Paths.get(inputPath), checkerInputPath);
+                Files.copy(Paths.get(answerPath), checkerAnswerPath);
+                for (Path file : List.of(checkerInputPath, checkerAnswerPath)) {
+                    Files.setPosixFilePermissions(file,
+                            java.nio.file.attribute.PosixFilePermissions.fromString("rw-r--r--"));
+                }
+                Files.copy(Paths.get(outputPath), checkerOutputPath, java.nio.file.StandardCopyOption.REPLACE_EXISTING,
+                        LinkOption.NOFOLLOW_LINKS);
+                Files.setPosixFilePermissions(checkerOutputPath,
+                        java.nio.file.attribute.PosixFilePermissions.fromString("rw-r--r--"));
+                SandboxResultDTO judgeResult = SandboxRunner.run(coreNo, checkerWorkspace.toString(), customCheckerRunCommand);
                 if (SandboxResult.SYSTEM_ERROR.equals(judgeResult.getResult())) {
                     throw new SystemErrorException(String.format("While special judging, Sandbox Internal Error #%d, signal #%d occurred", judgeResult.getError(), judgeResult.getSignal()));
                 } else if (SandboxResult.SUCCESS.equals(judgeResult.getResult())) {
@@ -392,9 +456,26 @@ public class IOSubmissionHandler extends AbstractSubmissionHandler {
                 log.warn("", e);
             } catch (Exception e) {
                 log.warn("", e);
-                throw e;
+            } finally {
+                try {
+                    com.sduoj.judger.util.WorkspaceFiles.delete(checkerWorkspace);
+                } catch (Exception cleanupFailure) {
+                    log.warn("Cannot remove private checker workspace", cleanupFailure);
+                }
             }
             return SubmissionJudgeResult.SE;
+        }
+    }
+
+    static long outputLimitForAnswer(String answerPath) throws SystemErrorException {
+        try {
+            long answerBytes = Files.size(Paths.get(answerPath));
+            if (answerBytes > (Long.MAX_VALUE - 1024L * 1024L) / 2L) {
+                return Long.MAX_VALUE;
+            }
+            return Math.max(1024L * 1024L, answerBytes * 2L);
+        } catch (Exception e) {
+            throw new SystemErrorException("Cannot determine answer file size", e);
         }
     }
 

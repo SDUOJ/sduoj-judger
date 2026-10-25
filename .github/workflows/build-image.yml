@@ -14,6 +14,14 @@ jobs:
     steps:
       - uses: actions/checkout@v7
 
+      - name: Checkout the reviewed sandbox source
+        uses: actions/checkout@v7
+        with:
+          repository: SDUOJ/sduoj-sandbox
+          ref: 28cc4a19f78263b614ea96c99ec55e9b19ad5a5e
+          path: sduoj-sandbox
+          persist-credentials: false
+
       - uses: actions/setup-java@v6
         with:
           java-version: 17
@@ -63,11 +71,15 @@ jobs:
         with:
           context: .
           file: Dockerfile
+          build-contexts: |
+            sandbox-src=./sduoj-sandbox
           platforms: linux/amd64,linux/arm64
           push: true
           provenance: false
           sbom: false
-          tags: registry.cn-beijing.aliyuncs.com/pre-sduoj/sduoj-judger:latest
+          tags: |
+            registry.cn-beijing.aliyuncs.com/pre-sduoj/sduoj-judger:${{ github.sha }}
+            registry.cn-beijing.aliyuncs.com/pre-sduoj/sduoj-judger:latest
           cache-from: type=gha
           cache-to: type=gha,mode=max
 

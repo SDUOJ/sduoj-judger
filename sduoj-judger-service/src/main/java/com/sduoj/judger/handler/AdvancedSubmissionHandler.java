@@ -109,6 +109,10 @@ public class AdvancedSubmissionHandler extends AbstractSubmissionHandler {
                 .add(SandboxArgument.EXE_PATH, "/bin/sh")
                 .add(SandboxArgument.EXE_ARGS, exeArgs)
                 .add(SandboxArgument.EXE_ENVS, exeEnvs)
+                .add(SandboxArgument.IO_MODE, "memfd")
+                .add(SandboxArgument.MAX_IO_INPUT_SIZE, 1L)
+                .add(SandboxArgument.ISOLATE_FS, 1)
+                .add(SandboxArgument.WORK_READONLY, 0)
                 .add(SandboxArgument.OUTPUT_PATH, "jt.log")
                 .add(SandboxArgument.UID, 0)
                 .add(SandboxArgument.GID, 0);

@@ -24,14 +24,36 @@ import lombok.Setter;
 @AllArgsConstructor
 public class SandboxResultDTO {
     private int cpuTime;
+    private int userCpuTime;
+    private int systemCpuTime;
     private int realTime;
-    private int memory;
+    private int wallTime;
+    private long memory;
     private int signal;
     private int exitCode;
     private int error;
     private int result;
 
+    /** Backward-compatible constructor for callers that use the legacy response shape. */
+    public SandboxResultDTO(
+            int cpuTime, int realTime, long memory, int signal, int exitCode, int error, int result) {
+        this.cpuTime = cpuTime;
+        this.userCpuTime = cpuTime;
+        this.systemCpuTime = 0;
+        this.realTime = realTime;
+        this.wallTime = realTime;
+        this.memory = memory;
+        this.signal = signal;
+        this.exitCode = exitCode;
+        this.error = error;
+        this.result = result;
+    }
+
     public int getMemory() {
-        return memory / 1024;
+        return (int) (memory / 1024);
+    }
+
+    public int getWallTime() {
+        return wallTime != 0 ? wallTime : realTime;
     }
 }
