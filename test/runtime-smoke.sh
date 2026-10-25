@@ -31,7 +31,9 @@ CPP
 /opt/gcc/13.2.0/bin/g++ -std=c++17 -O2 -static "$workspace/main.cpp" -o "$workspace/main"
 printf '17 25\n' > "$workspace/input"
 sandbox --max_cpu_time=1000 --max_real_time=3000 --max_memory=268435456 \
-    --max_output_size=65536 --exe_path="$workspace/main" \
+    --max_stack=134217728 --max_process_number=128 --max_output_size=65536 \
+    --max_io_input_size=65536 --io_mode=memfd --isolate_fs=1 --work_readonly=1 \
+    --exe_path="$workspace/main" \
     --input_path="$workspace/input" --output_path="$workspace/output" \
     --error_path="$workspace/error" --seccomp_rules=c_cpp \
     --uid=65534 --gid=65534 > "$workspace/result.json"
@@ -54,7 +56,9 @@ chmod 777 "$workspace/writable"
 for probe in network process write; do
     target="$workspace/writable/$probe.created"
     sandbox --max_cpu_time=1000 --max_real_time=3000 --max_memory=268435456 \
-        --max_output_size=65536 --exe_path="$workspace/main" \
+        --max_stack=134217728 --max_process_number=128 --max_output_size=65536 \
+        --max_io_input_size=65536 --io_mode=memfd --isolate_fs=1 --work_readonly=1 \
+        --exe_path="$workspace/main" \
         --exe_args="$probe" --exe_args="$target" \
         --input_path="$workspace/input" --output_path="$workspace/$probe.out" \
         --error_path="$workspace/$probe.err" --seccomp_rules=c_cpp \
@@ -103,7 +107,9 @@ class HelperRuntimeSmoke {
             Path input, Path output, Path error, int outputBytes, boolean restricted) throws Exception {
         var command = new ArrayList<>(List.of("/usr/bin/sandbox", "--max_cpu_time=10000",
                 "--max_real_time=15000", "--max_memory=536870912", "--max_stack=134217728",
-                "--max_output_size=" + outputBytes, "--uid=" + uid, "--gid=" + uid,
+                "--max_process_number=128", "--max_output_size=" + outputBytes,
+                "--max_io_input_size=67108864", "--io_mode=memfd", "--isolate_fs=1",
+                "--work_readonly=" + (restricted ? "1" : "0"), "--uid=" + uid, "--gid=" + uid,
                 "--exe_envs=PATH=" + System.getenv("PATH"),
                 "--exe_path=" + executable, "--input_path=" + input,
                 "--output_path=" + output, "--error_path=" + error));
