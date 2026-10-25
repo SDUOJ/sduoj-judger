@@ -307,10 +307,6 @@ public class IOSubmissionHandler extends AbstractSubmissionHandler {
             checkerOutputPath = checkerWorkspace.resolve("output");
             checkerAnswerPath = checkerWorkspace.resolve("answer");
 
-            String ioMode = runConfig.getIoMode();
-            if (ioMode != null && !ioMode.isBlank() && !"memfd".equals(ioMode)) {
-                throw new SystemErrorException("Only memfd I/O is supported for standard evaluation: " + ioMode);
-            }
             if ("c_cpp_file_io".equals(runConfig.getSeccompRule())) {
                 throw new SystemErrorException(
                         "memfd I/O mode is only supported for standard stdin/stdout tasks");

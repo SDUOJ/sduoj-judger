@@ -18,7 +18,7 @@ jobs:
         uses: actions/checkout@v7
         with:
           repository: SDUOJ/sduoj-sandbox
-          ref: 28cc4a19f78263b614ea96c99ec55e9b19ad5a5e
+          ref: b2642d0a4469118b6f56617a8c553dc07ab06801
           path: sduoj-sandbox
           persist-credentials: false
 
