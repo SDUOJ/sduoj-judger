@@ -76,6 +76,9 @@ class LspProcess:
         self._immutable_transition_guard = asyncio.Lock()
         self._immutable_transition_owner = None
         self._java_project_deletions = {}
+        self._java_retirements = {}
+        self._java_retirement_lock = asyncio.Lock()
+        self._java_retirement_error = None
         self.document_transition_metrics = {'count': 0, 'secondsTotal': 0., 'secondsMax': 0.,
                                             'cancelled': 0, 'cancelWaitSecondsTotal': 0.}
 
@@ -140,6 +143,12 @@ class LspProcess:
 
     async def _close(self):
         self.closed = True
+        retirements = [task for _, task in self._java_retirements.values()
+                       if task is not asyncio.current_task()]
+        for task in retirements:
+            task.cancel()
+        if retirements:
+            await asyncio.gather(*retirements, return_exceptions=True)
         if self.process:
             with contextlib.suppress(ProcessLookupError):
                 os.killpg(self.process.pid, signal.SIGKILL)
@@ -249,6 +258,8 @@ class LspProcess:
 
     async def _open_document(self, key, document_name, code, revision=1, sequence=0,
                              removed_workspace=None):
+        if self._java_retirement_error:
+            raise LspUnavailable('Java revision cleanup failed') from self._java_retirement_error
         if not self.alive:
             raise LspUnavailable('language server is not running')
         path = self._document_path(key, document_name, revision)
@@ -302,9 +313,52 @@ class LspProcess:
         if state and key != '__default__' and remove_directory:
             directory = state['path'].parent.parent if self.language == 'java' else state['path'].parent
             if self.java_immutable_uri:
+                await self._queue_java_retirement(key, directory)
+                tasks = [asyncio.shield(task) for owner, task in self._java_retirements.values()
+                         if owner == key]
+                if tasks:
+                    await asyncio.gather(*tasks)
+            else:
+                await asyncio.to_thread(shutil.rmtree, directory, True)
+                self._immutable_directories.discard(directory)
+
+    async def _queue_java_retirement(self, key, directory):
+        if directory in self._java_retirements:
+            return
+        if self._java_retirement_error:
+            raise LspUnavailable('Java revision cleanup backlog unavailable')
+        while len(self._java_retirements) >= 32:
+            # Backpressure follows the existing analysis deadline; a full but
+            # healthy retirement queue is not an unsafe provider failure.
+            await asyncio.shield(next(iter(self._java_retirements.values()))[1])
+
+        async def retire():
+            async with self._java_retirement_lock:
+                if any(state['path'].parent.parent == directory for state in self._documents.values()):
+                    raise LspUnavailable('Java revision cleanup still owns an active document')
                 await self._remove_java_revision_projects(directory)
-            await asyncio.to_thread(shutil.rmtree, directory, True)
-            self._immutable_directories.discard(directory)
+                await asyncio.to_thread(shutil.rmtree, directory, True)
+                self._immutable_directories.discard(directory)
+
+        async def bounded_retire():
+            try:
+                # Includes queue time. Caller cancellation must not turn an
+                # 800ms analysis deadline into a 2s cleanup failure.
+                await asyncio.wait_for(retire(), 2)
+            except asyncio.CancelledError:
+                raise
+            except Exception as error:
+                self._java_retirement_error = error
+                # Finish the job before taking the transition guard: a logical
+                # close may already hold that guard while awaiting this job.
+                asyncio.create_task(self.close())
+                raise LspUnavailable('Java revision cleanup failed') from error
+            finally:
+                self._java_retirements.pop(directory, None)
+
+        task = asyncio.create_task(bounded_retire())
+        self._java_retirements[directory] = (key, task)
+        task.add_done_callback(lambda value: value.exception() if not value.cancelled() else None)
 
     async def _remove_java_revision_projects(self, directory):
         # JDTLS creates unmanaged projects inside its own data directory. Its
@@ -405,9 +459,7 @@ class LspProcess:
                 await self._close_document(key, remove_directory=False, notify_workspace=False)
                 uri = await self._open_document(key, state['document_name'], code, revision,
                                                 sequence, removed_workspace=state)
-                await self._remove_java_revision_projects(directory)
-                await asyncio.to_thread(shutil.rmtree, directory, True)
-                self._immutable_directories.discard(directory)
+                await self._queue_java_retirement(key, directory)
                 return uri
             except Exception:
                 await self.close()

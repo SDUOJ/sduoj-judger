@@ -105,8 +105,47 @@ def test_unconfirmed_cleanup_retires_process_instead_of_reusing_project(tmp_path
             deletes.append(params)
             return None
         p.request = request
-        with pytest.raises(LspUnavailable, match='cleanup unconfirmed'):
+        with pytest.raises(LspUnavailable, match='cleanup failed'):
             await p.close_document('owned')
         assert p.closed and not p._documents
         assert 1 <= len(deletes) <= 4
+    asyncio.run(run())
+
+
+def test_retirement_is_independent_of_cancelled_caller_and_close_drains(tmp_path):
+    async def run():
+        p, old, _ = fixture(tmp_path)
+        entered, finish = asyncio.Event(), asyncio.Event()
+        async def remove(directory):
+            assert directory == old
+            entered.set()
+            await finish.wait()
+        p._remove_java_revision_projects = remove
+        await p._queue_java_retirement('owned', old)
+        await entered.wait()
+        job = p._java_retirements[old][1]
+        async def waiter():
+            await asyncio.shield(job)
+        caller = asyncio.create_task(waiter())
+        await asyncio.sleep(0)
+        caller.cancel()
+        await asyncio.gather(caller, return_exceptions=True)
+        assert not job.cancelled() and old.exists()
+        finish.set()
+        await job
+        assert not old.exists() and not p._java_retirements
+        assert p._java_retirement_error is None
+    asyncio.run(run())
+
+
+def test_retirement_refuses_active_current_revision(tmp_path):
+    async def run():
+        p, old, _ = fixture(tmp_path)
+        p._documents['owned'] = {'path': old / 'src' / 'Main.java'}
+        await p._queue_java_retirement('owned', old)
+        job = p._java_retirements[old][1]
+        with pytest.raises(LspUnavailable, match='cleanup failed'):
+            await job
+        assert p._java_retirement_error is not None
+        await asyncio.sleep(0)
     asyncio.run(run())
