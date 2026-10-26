@@ -203,12 +203,23 @@ class LspProcess:
         # Serialize project lifecycle changes within this fixed JVM. Failure of
         # one document cannot race a different document's filesystem preparation
         # and leave a staged source behind after process retirement.
-        async with self._immutable_transition_guard:
+        while True:
+            pending = [task for _, task in self._java_retirements.values()
+                       if task is not asyncio.current_task()]
+            if pending:
+                await asyncio.gather(*(asyncio.shield(task) for task in pending))
+            await self._immutable_transition_guard.acquire()
+            if not self._java_retirements:
+                break
+            self._immutable_transition_guard.release()
+        try:
             self._immutable_transition_owner = asyncio.current_task()
             try:
                 yield
             finally:
                 self._immutable_transition_owner = None
+        finally:
+            self._immutable_transition_guard.release()
 
     async def _finish_document_transition(self, operation):
         # The pool keeps its same-document lock until this returns. Cancellation

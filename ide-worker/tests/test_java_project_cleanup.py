@@ -149,3 +149,26 @@ def test_retirement_refuses_active_current_revision(tmp_path):
         assert p._java_retirement_error is not None
         await asyncio.sleep(0)
     asyncio.run(run())
+
+
+def test_next_workspace_transition_waits_for_pending_retirement(tmp_path):
+    async def run():
+        p, old, _ = fixture(tmp_path)
+        entered, finish, switched = asyncio.Event(), asyncio.Event(), asyncio.Event()
+        async def remove(directory):
+            entered.set()
+            await finish.wait()
+        p._remove_java_revision_projects = remove
+        await p._queue_java_retirement('owned', old)
+        await entered.wait()
+        async def next_transition():
+            async with p._immutable_transition():
+                assert not p._java_retirements and not old.exists()
+                switched.set()
+        task = asyncio.create_task(next_transition())
+        await asyncio.sleep(0)
+        assert not switched.is_set()
+        finish.set()
+        await task
+        assert switched.is_set()
+    asyncio.run(run())
