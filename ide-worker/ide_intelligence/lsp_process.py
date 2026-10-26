@@ -10,6 +10,7 @@ import re
 import shutil
 import time
 from uuid import uuid4
+from urllib.parse import unquote, urlsplit
 from weakref import WeakValueDictionary
 
 from .workspace import prepare, prepare_document, prepare_workspace
@@ -299,8 +300,69 @@ class LspProcess:
                                              'name': state.get('workspace_name', key)}]}})
         if state and key != '__default__' and remove_directory:
             directory = state['path'].parent.parent if self.language == 'java' else state['path'].parent
+            if self.java_immutable_uri:
+                await self._remove_java_revision_projects(directory)
             await asyncio.to_thread(shutil.rmtree, directory, True)
             self._immutable_directories.discard(directory)
+
+    async def _remove_java_revision_projects(self, directory):
+        # JDTLS creates unmanaged projects inside its own data directory. Its
+        # workspace-folder removal compares the project location with the
+        # external folder, so it does not remove those internal projects.
+        # Resolve and remove only this generated snapshot through JDTLS itself.
+        documents = (self.root.parent / 'documents').resolve()
+        directory = directory.resolve()
+        if directory.parent != documents or directory not in self._immutable_directories:
+            raise LspUnavailable('Java revision cleanup ownership mismatch')
+        try:
+            data = Path(self.command[self.command.index('-data') + 1]).resolve()
+        except (ValueError, IndexError):
+            raise LspUnavailable('Java revision cleanup data directory unavailable')
+        expected_data = (self.root.parent / (self.root.name + '-jdtls-data')).resolve()
+        if data != expected_data:
+            raise LspUnavailable('Java revision cleanup data ownership mismatch')
+
+        async def owned_projects():
+            projects = await self.request('workspace/executeCommand', {
+                'command': 'java.project.getAll', 'arguments': []}, timeout=2)
+            if not isinstance(projects, list) or not all(isinstance(uri, str) for uri in projects):
+                raise LspUnavailable('Java revision cleanup returned invalid projects')
+            owned = []
+            for uri in projects:
+                parts = urlsplit(uri)
+                if parts.scheme != 'file' or parts.netloc or parts.query or parts.fragment:
+                    continue
+                path = Path(unquote(parts.path)).resolve()
+                suffix = path.name.removeprefix(directory.name + '_')
+                if (path == directory or path.parent == data
+                        and path.name.startswith(directory.name + '_')
+                        and re.fullmatch(r'[0-9a-f]{1,8}', suffix)):
+                    owned.append(uri)
+            return owned
+
+        async def remove_and_confirm():
+            projects = await owned_projects()
+            # Closing a working copy can expose both a visible project and an
+            # unmanaged project for the same source folder. Resolve each newly
+            # observed identity after the preceding deletion job completes.
+            attempts = 0
+            while projects:
+                attempts += 1
+                if attempts > 4:
+                    raise LspUnavailable('Java revision project removal did not converge')
+                await self.request('workspace/executeCommand', {
+                    'command': 'java.project.changeImportedProjects',
+                    'arguments': [[], [], projects]}, timeout=2)
+                # The command schedules an Eclipse workspace job. Keep source
+                # bytes until the server confirms removal, including when the
+                # caller is cancelled by the unchanged operation deadline.
+                await asyncio.sleep(.02)
+                projects = await owned_projects()
+
+        try:
+            await asyncio.wait_for(remove_and_confirm(), 2)
+        except Exception as error:
+            raise LspUnavailable('Java revision project cleanup unconfirmed') from error
 
     async def update_document(self, key, code, revision):
         if self.java_immutable_uri:
@@ -320,6 +382,7 @@ class LspProcess:
                 await self._close_document(key, remove_directory=False, notify_workspace=False)
                 uri = await self._open_document(key, state['document_name'], code, revision,
                                                 sequence, removed_workspace=state)
+                await self._remove_java_revision_projects(directory)
                 await asyncio.to_thread(shutil.rmtree, directory, True)
                 self._immutable_directories.discard(directory)
                 return uri
