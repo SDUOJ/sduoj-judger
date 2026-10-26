@@ -2,6 +2,9 @@
 
 import asyncio
 import contextlib
+from collections import deque
+import copy
+import hashlib
 import json
 import os
 from pathlib import Path
@@ -79,8 +82,10 @@ class LspProcess:
         self._java_retirements = {}
         self._java_retirement_lock = asyncio.Lock()
         self._java_retirement_error = None
+        self._java_cleanup_trace = None
+        self.java_cleanup_failure = None
         self.document_transition_metrics = {'count': 0, 'secondsTotal': 0., 'secondsMax': 0.,
-                                            'cancelled': 0, 'cancelWaitSecondsTotal': 0.}
+                                            'cancelled': 0, 'cancelWaitSecondsTotal': 0., 'cancelWaitSecondsMax': 0.}
 
     @property
     def alive(self):
@@ -240,7 +245,10 @@ class LspProcess:
             if task.done() and not task.cancelled():
                 task.exception()
             self.document_transition_metrics['cancelled'] += 1
-            self.document_transition_metrics['cancelWaitSecondsTotal'] += time.monotonic() - cancel_at
+            cancel_seconds = time.monotonic() - cancel_at
+            self.document_transition_metrics['cancelWaitSecondsTotal'] += cancel_seconds
+            self.document_transition_metrics['cancelWaitSecondsMax'] = max(
+                cancel_seconds, self.document_transition_metrics['cancelWaitSecondsMax'])
             raise
         finally:
             seconds = time.monotonic() - began
@@ -343,8 +351,15 @@ class LspProcess:
             # healthy retirement queue is not an unsafe provider failure.
             await asyncio.shield(next(iter(self._java_retirements.values()))[1])
 
+        queued_at = time.monotonic()
+        acquired = False
+
         async def retire():
+            nonlocal acquired
             async with self._java_retirement_lock:
+                acquired = True
+                self._java_cleanup_trace = {'began': queued_at,
+                    'stage': 'active-document-check', 'events': deque(maxlen=64), 'eventCount': 0}
                 if any(state['path'].parent.parent == directory for state in self._documents.values()):
                     raise LspUnavailable('Java revision cleanup still owns an active document')
                 await self._remove_java_revision_projects(directory)
@@ -359,6 +374,12 @@ class LspProcess:
             except asyncio.CancelledError:
                 raise
             except Exception as error:
+                if acquired:
+                    self._record_java_cleanup_failure(error)
+                else:
+                    self._record_java_cleanup_failure(error, trace={
+                        'began': queued_at, 'stage': 'retirement-queue',
+                        'events': [], 'eventCount': 0})
                 self._java_retirement_error = error
                 # Finish the job before taking the transition guard: a logical
                 # close may already hold that guard while awaiting this job.
@@ -378,11 +399,49 @@ class LspProcess:
         if self._java_retirement_error:
             raise LspUnavailable('Java revision cleanup failed') from self._java_retirement_error
 
+    def _java_cleanup_event(self, stage, **counts):
+        trace = self._java_cleanup_trace
+        if trace is not None:
+            trace['stage'] = stage
+            trace['events'].append({'stage': stage,
+                'seconds': time.monotonic() - trace['began'], **counts})
+            trace['eventCount'] += 1
+
+    def _record_java_cleanup_failure(self, error, trace=None):
+        # Exception messages, paths, source and raw RPC parameters may contain
+        # tenant data. Retain only bounded stage/count evidence and class names.
+        if self.java_cleanup_failure is not None:
+            return
+        chain, seen = [], set()
+        current = error
+        while current is not None and id(current) not in seen and len(chain) < 8:
+            seen.add(id(current))
+            chain.append(type(current).__name__)
+            current = current.__cause__ or current.__context__
+        trace = self._java_cleanup_trace if trace is None else trace
+        self.java_cleanup_failure = {
+            'exceptionClasses': chain,
+            'documentTransitions': dict(self.document_transition_metrics),
+            'trace': ({key: copy.deepcopy(value) for key, value in trace.items()
+                       if key not in {'began', 'events'}} if trace else None)}
+        if trace:
+            self.java_cleanup_failure['trace'].update(
+                seconds=time.monotonic() - trace['began'],
+                events=list(copy.deepcopy(trace['events'])))
+
     async def _remove_java_revision_projects(self, directory):
         # JDTLS creates unmanaged projects inside its own data directory. Its
         # workspace-folder removal compares the project location with the
         # external folder, so it does not remove those internal projects.
         # Resolve and remove only this generated snapshot through JDTLS itself.
+        queue_seconds = (time.monotonic() - self._java_cleanup_trace['began']
+                         if self._java_cleanup_trace and self._java_cleanup_trace['stage'] == 'active-document-check'
+                         else 0.)
+        self._java_cleanup_trace = {'began': time.monotonic(), 'at': time.time(),
+            'queueSeconds': queue_seconds,
+            'revisionToken': hashlib.sha256(directory.name.encode()).hexdigest()[:16],
+            'stage': 'ownership-check', 'eventCount': 0, 'events': deque(maxlen=64)}
+        self._java_cleanup_event('ownership-check')
         documents = (self.root.parent / 'documents').resolve()
         directory = directory.resolve()
         if directory.parent != documents or directory not in self._immutable_directories:
@@ -396,8 +455,11 @@ class LspProcess:
             raise LspUnavailable('Java revision cleanup data ownership mismatch')
 
         async def owned_projects():
+            self._java_cleanup_event('getAll-start')
             projects = await self.request('workspace/executeCommand', {
                 'command': 'java.project.getAll', 'arguments': []}, timeout=2)
+            self._java_cleanup_event('getAll-return', projectCount=(
+                len(projects) if isinstance(projects, list) else -1))
             if not isinstance(projects, list) or not all(isinstance(uri, str) for uri in projects):
                 raise LspUnavailable('Java revision cleanup returned invalid projects')
             owned = []
@@ -411,6 +473,10 @@ class LspProcess:
                         and path.name.startswith(directory.name + '_')
                         and re.fullmatch(r'[0-9a-f]{1,8}', suffix)):
                     owned.append(uri)
+            self._java_cleanup_event(
+                'getAll-matched', ownedCount=len(owned),
+                externalCount=sum(Path(unquote(urlsplit(uri).path)).resolve() == directory for uri in owned),
+                identityToken=hashlib.sha256('\n'.join(sorted(owned)).encode()).hexdigest()[:16])
             return owned
 
         async def remove_and_confirm():
@@ -432,16 +498,21 @@ class LspProcess:
                         identity = Path(unquote(urlsplit(uri).path)).resolve()
                         identities.add(identity)
                         self._java_project_deletions[identity] = deleted
+                    self._java_cleanup_event('delete-start', attempt=attempts, ownedCount=len(projects))
                     await self.request('workspace/executeCommand', {
                         'command': 'java.project.changeImportedProjects',
                         'arguments': [[], [], projects]}, timeout=2)
+                    self._java_cleanup_event('delete-return', attempt=attempts)
                     # executeCommand returns before its WorkspaceJob. The
                     # pinned JDTLS emits ProjectsDeleted only after IProject
                     # deletion. A project list alone is not a job barrier.
                     while True:
                         with contextlib.suppress(asyncio.TimeoutError):
                             await asyncio.wait_for(deleted.wait(), .05)
+                        self._java_cleanup_event('delete-confirm-check', eventReceived=deleted.is_set())
                         current = await owned_projects()
+                        self._java_cleanup_event('delete-confirm-result', ownedCount=len(current),
+                            identityChanged=set(current) != set(projects), eventReceived=deleted.is_set())
                         if not current or set(current) != set(projects):
                             projects = current
                             break
@@ -456,7 +527,9 @@ class LspProcess:
 
         try:
             await asyncio.wait_for(remove_and_confirm(), 2)
+            self._java_cleanup_event('confirmed')
         except Exception as error:
+            self._record_java_cleanup_failure(error)
             raise LspUnavailable('Java revision project cleanup unconfirmed') from error
 
     async def update_document(self, key, code, revision):
@@ -707,6 +780,7 @@ class LspProcess:
                     if parts.scheme == 'file' and not parts.netloc:
                         deleted = self._java_project_deletions.get(Path(unquote(parts.path)).resolve())
                         if deleted is not None:
+                            self._java_cleanup_event('ProjectsDeleted-matched')
                             deleted.set()
         if method == 'textDocument/publishDiagnostics':
             for state in self._documents.values():

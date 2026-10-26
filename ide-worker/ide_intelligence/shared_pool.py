@@ -2,6 +2,7 @@
 
 import asyncio
 from collections import Counter
+import copy
 from dataclasses import dataclass, field
 import hashlib
 import os
@@ -81,6 +82,7 @@ class SharedLanguagePool:
         self._completed = Counter()
         self._cleanup_tasks = set()
         self._reservations = {}
+        self._java_cleanup_failures = {}
         self._selection = {language: asyncio.Lock() for language in LANGUAGES}
         self._language_execution = {language: asyncio.Semaphore(value)
                                     for language, value in self.concurrency.items()}
@@ -395,9 +397,11 @@ class SharedLanguagePool:
                     'pendingRequests': len(getattr(slot.process, '_pending', {})),
                     'javaImmutableUri': bool(getattr(slot.process, 'java_immutable_uri', False)),
                     'documentTransitions': dict(getattr(slot.process, 'document_transition_metrics', {})),
+                    'javaCleanupFailure': copy.deepcopy(getattr(slot.process, 'java_cleanup_failure', None)),
                     'diagnosticsReady': sum(state['diagnostics_ready'].is_set()
                         for state in getattr(slot.process, '_documents', {}).values())}
                     for (language, _), slot in self.slots.items() if slot.process],
+                'javaCleanupFailures': copy.deepcopy(list(self._java_cleanup_failures.values())),
                 'languages': {language: {'processes': self.processes[language], 'concurrency': self.concurrency[language],
                     'maxDocumentsPerProcess': self.max_documents[language], 'maxWaiters': self.waiters[language],
                     'readyProcesses': sum(bool(slot.process and slot.process.alive and slot.startup.done()
@@ -425,7 +429,18 @@ class SharedLanguagePool:
             slot.startup.cancel()
             await asyncio.gather(slot.startup, return_exceptions=True)
         if slot.process:
-            await slot.process.close()
+            try:
+                await slot.process.close()
+            finally:
+                failure = getattr(slot.process, 'java_cleanup_failure', None)
+                if failure is not None:
+                    # One first failure per configured numbered slot survives
+                    # process replacement and temporary workspace disposal.
+                    self._java_cleanup_failures.setdefault((slot.language, slot.number), {
+                        'language': slot.language, 'slot': slot.number,
+                        'evidence': copy.deepcopy(failure),
+                        'documentTransitionsAtDisposal': dict(getattr(
+                            slot.process, 'document_transition_metrics', {}))})
         await asyncio.to_thread(slot.root.cleanup)
 
     async def close(self):

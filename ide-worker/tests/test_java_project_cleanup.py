@@ -205,3 +205,110 @@ def test_pool_waits_for_native_retirements_before_every_analysis_mode(mode, oper
         finally:
             await pool.close()
     asyncio.run(run())
+
+
+def test_cleanup_evidence_retains_stages_without_server_messages_or_paths(tmp_path):
+    import json
+
+    async def run():
+        p, old, data = fixture(tmp_path)
+        secret = 'tenant-source-private-secret'
+
+        async def request(method, params, timeout):
+            if params['command'] == 'java.project.getAll':
+                return [(data / (old.name + '_abcd')).as_uri()]
+            raise LspUnavailable(secret)
+
+        p.request = request
+        with pytest.raises(LspUnavailable):
+            await p._remove_java_revision_projects(old)
+        evidence = p.java_cleanup_failure
+        assert evidence['trace']['stage'] == 'delete-start'
+        assert evidence['exceptionClasses'] == ['LspUnavailable']
+        stages = [event['stage'] for event in evidence['trace']['events']]
+        assert stages == ['ownership-check', 'getAll-start', 'getAll-return',
+                          'getAll-matched', 'delete-start']
+        encoded = json.dumps(evidence)
+        assert secret not in encoded and str(tmp_path) not in encoded and old.name not in encoded
+        p._record_java_cleanup_failure(ValueError('later failure'))
+        assert p.java_cleanup_failure is evidence
+    asyncio.run(run())
+
+
+def test_cleanup_evidence_has_bounded_ring_and_records_deleted_ack(tmp_path):
+    async def run():
+        p, old, data = fixture(tmp_path)
+        projects = [(data / (old.name + '_abcd')).as_uri()]
+
+        async def request(method, params, timeout):
+            if params['command'] == 'java.project.getAll':
+                return list(projects)
+            await p._server_message({'method': 'language/eventNotification',
+                'params': {'eventType': 210, 'data': list(projects)}})
+            projects.clear()
+
+        p.request = request
+        await p._remove_java_revision_projects(old)
+        assert any(row['stage'] == 'ProjectsDeleted-matched' for row in p._java_cleanup_trace['events'])
+        for _ in range(1000):
+            p._java_cleanup_event('synthetic-count', ownedCount=0)
+        p._record_java_cleanup_failure(RuntimeError('private detail'))
+        assert len(p.java_cleanup_failure['trace']['events']) == 64
+        assert p.java_cleanup_failure['trace']['eventCount'] > 1000
+    asyncio.run(run())
+
+
+def test_pool_keeps_first_failure_after_workspace_disposal_and_replacement():
+    from ide_intelligence.config import load_config
+    from ide_intelligence.shared_pool import SharedLanguagePool
+    from tests.test_ide_shared_pool import SharedProcess
+
+    async def run():
+        pool = SharedLanguagePool(load_config(), process_factory=SharedProcess)
+        slot = pool._new_slot('java', 0)
+        await slot.startup
+        slot.process.java_cleanup_failure = {'exceptionClasses': ['TimeoutError'],
+                                            'trace': {'stage': 'getAll-start'}}
+        original = slot.root.name
+        await pool._dispose(slot)
+        assert not __import__('pathlib').Path(original).exists()
+        pool.slots.pop(('java', 0))
+        snapshot = pool.metrics_snapshot()['javaCleanupFailures']
+        assert snapshot[0]['evidence']['trace']['stage'] == 'getAll-start'
+        snapshot[0]['evidence']['trace']['stage'] = 'mutated'
+        replacement = pool._new_slot('java', 0)
+        await replacement.startup
+        replacement.process.java_cleanup_failure = {'exceptionClasses': ['ValueError']}
+        await pool._dispose(replacement)
+        assert pool.metrics_snapshot()['javaCleanupFailures'][0]['evidence']['exceptionClasses'] == ['TimeoutError']
+        await pool.close()
+    asyncio.run(run())
+
+
+@pytest.mark.parametrize('stalled,expected', [
+    ('getAll', 'getAll-start'), ('delete', 'delete-start'), ('confirmation', 'getAll-start')])
+def test_cleanup_failure_distinguishes_rpc_stage_and_preserves_timeout_chain(tmp_path, stalled, expected):
+    async def run():
+        p, old, data = fixture(tmp_path)
+        get_count = 0
+
+        async def request(method, params, timeout):
+            nonlocal get_count
+            get_all = params['command'] == 'java.project.getAll'
+            if get_all:
+                get_count += 1
+            if (stalled == 'getAll' or stalled == 'delete' and not get_all
+                    or stalled == 'confirmation' and get_count > 1):
+                await asyncio.Event().wait()
+            return [(data / (old.name + '_abcd')).as_uri()] if get_all else None
+
+        p.request = request
+        with pytest.raises(LspUnavailable):
+            await p._remove_java_revision_projects(old)
+        evidence = p.java_cleanup_failure
+        assert evidence['trace']['stage'] == expected
+        assert evidence['exceptionClasses'] == ['TimeoutError', 'CancelledError']
+        stages = [row['stage'] for row in evidence['trace']['events']]
+        assert ('delete-return' in stages) is (stalled == 'confirmation')
+        assert evidence['trace']['seconds'] < 2.3
+    asyncio.run(run())
