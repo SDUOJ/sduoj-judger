@@ -20,10 +20,31 @@ import java.io.ByteArrayOutputStream;
 import java.nio.charset.StandardCharsets;
 import java.nio.file.Files;
 import java.nio.file.Path;
+import java.nio.file.SecureDirectoryStream;
 import java.util.zip.ZipEntry;
 import java.util.zip.ZipOutputStream;
 
 public class CasesRunHandlerTest {
+    @Test
+    public void memfdInputBoundsDoNotFollowStudentLinks() throws Exception {
+        // The cleanup route is part of the worker's Linux filesystem contract.
+        try (var entries = Files.newDirectoryStream(Path.of(System.getProperty("java.io.tmpdir")))) {
+            org.junit.Assume.assumeTrue("SecureDirectoryStream provider required",
+                    entries instanceof SecureDirectoryStream<?>);
+        }
+        Path root = Files.createTempDirectory("run-memfd-input");
+        try {
+            assertEquals(1L, CasesRunHandler.inputBytes("/dev/null"));
+            Path empty = Files.writeString(root.resolve("empty"), "");
+            assertEquals(1L, CasesRunHandler.inputBytes(empty.toString()));
+            Path input = Files.writeString(root.resolve("input"), "41\n");
+            assertEquals(3L, CasesRunHandler.inputBytes(input.toString()));
+            Path link = Files.createSymbolicLink(root.resolve("link"), input);
+            assertThrows(IllegalArgumentException.class, () -> CasesRunHandler.inputBytes(link.toString()));
+        } finally {
+            com.sduoj.judger.util.WorkspaceFiles.delete(root);
+        }
+    }
     @Test
     public void allRunsUseTheConfiguredPredefinedCheckerIncludingTextCheckers() {
         for (String name : new String[] {"fcmp.cpp", "lcmp.cpp", "ncmp.cpp"}) {

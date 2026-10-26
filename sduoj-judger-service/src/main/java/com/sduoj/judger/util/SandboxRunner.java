@@ -46,6 +46,9 @@ public class SandboxRunner {
                 String.valueOf(coreNo),
                 SANDBOX_PATH
         );
+        // sudo may discard the entrypoint environment. Pass only the verified
+        // dedicated subtree explicitly; never rely on native's host-root default.
+        command.add("--cgroup_root=" + SandboxLimits.cgroupRoot());
         command.addAll(args.getFormatArgs());
 
         ProcessUtils.CommandResult result = ShellUtils.execCmd(command, new File(cwd), TIMEOUT_IN_SECONDS);

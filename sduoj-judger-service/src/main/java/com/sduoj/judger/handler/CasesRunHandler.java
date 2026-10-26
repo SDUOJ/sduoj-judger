@@ -20,6 +20,8 @@ import com.sduoj.judger.manager.LocalCheckerManager;
 import com.sduoj.judger.util.HelperCompilation;
 import com.sduoj.judger.util.ProcessUtils;
 import com.sduoj.judger.util.RunWorkspace;
+import com.sduoj.judger.util.CheckerWorkspace;
+import com.sduoj.judger.util.SandboxLimits;
 import com.sduoj.judger.util.WorkspaceFiles;
 import com.sduoj.judgetemplate.dto.JudgeTemplateConfigDTO;
 import com.sduoj.problem.dto.ProblemCheckerConfigDTO;
@@ -32,6 +34,7 @@ import lombok.extern.slf4j.Slf4j;
 
 import org.springframework.boot.autoconfigure.condition.ConditionalOnProperty;
 import org.springframework.stereotype.Component;
+import org.springframework.beans.factory.annotation.Value;
 
 import java.io.ByteArrayInputStream;
 import java.nio.charset.StandardCharsets;
@@ -53,6 +56,10 @@ public class CasesRunHandler {
     private final RunClient client;
     private final LocalCheckerManager checkers;
     private final FilesysClient files;
+    @Value("${sduoj.judger.compile-memory-fallback-bytes:1073741824}")
+    private long compileMemoryFallbackBytes = SandboxLimits.DEFAULT_FALLBACK_BYTES;
+    @Value("${sduoj.judger.runtime-memory-fallback-bytes:1073741824}")
+    private long runtimeMemoryFallbackBytes = SandboxLimits.DEFAULT_FALLBACK_BYTES;
     private static final Pattern SPACE = Pattern.compile("\\s+");
 
     public void execute(RunSpecDTO spec) throws Exception {
@@ -120,7 +127,7 @@ public class CasesRunHandler {
                                 substitute(command, spec),
                                 Math.min(10000, compile.getMaxCpuTime()),
                                 Math.min(15000, compile.getMaxRealTime()),
-                                compile.getMaxMemory() * 1024L,
+                                SandboxLimits.compileBytes(compile.getMaxMemory(), compileMemoryFallbackBytes),
                                 null,
                                 "/dev/null",
                                 compileOut.toString(),
@@ -128,7 +135,7 @@ public class CasesRunHandler {
                                 16 * 1024 * 1024,
                                 65534,
                                 null,
-                                deadline);
+                                deadline, false);
                 judgeLog =
                         prefix(compileOut, 32768) + prefix(compileErr, 24576);
                 if (compiled == null || compiled.getResult() != 0 || compiled.getExitCode() != 0) {
@@ -205,11 +212,9 @@ public class CasesRunHandler {
                                 substitute(run.getCommand(), spec),
                                 time,
                                 real,
-                                Math.min(
-                                        512L * 1024 * 1024,
-                                        spec.getProblem().getMemoryLimit()
-                                                * run.getMaxMemoryFactor()
-                                                * 1024L),
+                                SandboxLimits.runRuntimeBytes(
+                                        spec.getProblem().getMemoryLimit(),
+                                        run.getMaxMemoryFactor(), runtimeMemoryFallbackBytes),
                                 run.getSeccompRule(),
                                 in.toString(),
                                 out.toString(),
@@ -217,7 +222,7 @@ public class CasesRunHandler {
                                 65536,
                                 65534,
                                 run.getEnvs(),
-                                deadline);
+                                deadline, true);
                 if (executed == null) throw new IllegalStateException("Missing sandbox result");
                 int result = SandboxResult.of(executed.getResult()).submissionJudgeResult.code;
                 if (Integer.valueOf(101).equals(spec.getTaskType())
@@ -393,9 +398,9 @@ public class CasesRunHandler {
                     var compiled = sandbox(helper.build(), substitute(command, spec),
                             Math.min(10000, template.getCompile().getMaxCpuTime()),
                             Math.min(15000, template.getCompile().getMaxRealTime()),
-                            template.getCompile().getMaxMemory() * 1024L, null, "/dev/null",
+                            SandboxLimits.compileBytes(template.getCompile().getMaxMemory(), compileMemoryFallbackBytes), null, "/dev/null",
                             compileOutput.toString(), compileError.toString(), 16 * 1024 * 1024,
-                            helper.uid(), null, deadline);
+                            helper.uid(), null, deadline, false);
                     if (compiled == null || compiled.getResult() != 0 || compiled.getExitCode() != 0) {
                         RunWorkspace.writeNew(failed, new byte[0]);
                         RunWorkspace.copyPrefix(compileError, error, 65536);
@@ -410,7 +415,7 @@ public class CasesRunHandler {
         var result = sandbox(directory, substitute(template.getRun().getCommand(), spec),
                 2000, 4000, 256L * 1024 * 1024, template.getRun().getSeccompRule(),
                 input.toString(), task.output("validator-" + index + ".out").toString(),
-                error.toString(), 65536, 65534, template.getRun().getEnvs(), deadline);
+                error.toString(), 65536, 65534, template.getRun().getEnvs(), deadline, true);
         if (result == null) return 5;
         return result.getResult() == 0 && result.getExitCode() == 0
                 ? 1
@@ -431,8 +436,6 @@ public class CasesRunHandler {
         ProblemCheckerConfigDTO checker = spec.getProblem().getCheckerConfig();
         Path expected = task.input(index + ".expected",
                 input.getExpectedOutput().getBytes(StandardCharsets.UTF_8));
-        Path report = task.report("checker-" + index + ".report");
-        String arguments = " " + in + " " + out + " " + expected + " " + report;
         Path output = task.output("checker-" + index + ".out");
         Path error = task.output("checker-" + index + ".err");
         if (checker != null && checker.getSpj() != null) {
@@ -451,9 +454,9 @@ public class CasesRunHandler {
                     for (String command : custom.getCompile().getCommands()) {
                         if (!client.active(spec.getSubmission().getSubmissionId(), spec.getSubmission().getVersion())) return 5;
                         SandboxResultDTO compiled = sandbox(helper.build(), substitute(command, spec),
-                                10000, 15000, custom.getCompile().getMaxMemory() * 1024L,
+                                10000, 15000, SandboxLimits.compileBytes(custom.getCompile().getMaxMemory(), compileMemoryFallbackBytes),
                                 null, "/dev/null", compileOutput.toString(), compileError.toString(),
-                                16 * 1024 * 1024, helper.uid(), null, deadline);
+                                16 * 1024 * 1024, helper.uid(), null, deadline, false);
                         if (compiled == null || compiled.getResult() != 0 || compiled.getExitCode() != 0) {
                             RunWorkspace.writeNew(failed, new byte[0]);
                             return 5;
@@ -464,12 +467,14 @@ public class CasesRunHandler {
                 }
                 RunWorkspace.writeNew(prepared, new byte[0]);
             }
-            SandboxResultDTO checked = sandbox(directory,
-                    substitute(custom.getRun().getCommand(), spec) + arguments,
-                    2000, 4000, 256L * 1024 * 1024, custom.getRun().getSeccompRule(), "/dev/null",
-                    output.toString(), error.toString(), 65536, 65534,
-                    custom.getRun().getEnvs(), deadline);
-            return checkerResult(checked);
+            try (var caseWorkspace = CheckerWorkspace.create(task.root(), directory, in, out, expected)) {
+                SandboxResultDTO checked = sandbox(caseWorkspace.root(),
+                        substitute(custom.getRun().getCommand(), spec) + caseWorkspace.arguments(),
+                        2000, 4000, 256L * 1024 * 1024, custom.getRun().getSeccompRule(), "/dev/null",
+                        output.toString(), error.toString(), 65536, 65534,
+                        custom.getRun().getEnvs(), deadline, false);
+                return checkerResult(checked);
+            }
         }
         if (usesPredefinedChecker(checker)) {
             if (!checkers.isCheckerSourceFilenameExist(checker.getSource()))
@@ -477,11 +482,13 @@ public class CasesRunHandler {
             if (!checkers.isCheckerExist(checker.getSource()))
                 checkers.compilePredefinedChecker(checker.getSource());
             String name = checker.getSource().substring(0, checker.getSource().indexOf('.'));
-            SandboxResultDTO checked = sandbox(task.checker(),
-                    PathConfig.CHECKER_DIR + "/" + name + arguments,
-                    2000, 4000, 256L * 1024 * 1024, null, "/dev/null",
-                    output.toString(), error.toString(), 65536, 65534, null, deadline);
-            return checkerResult(checked);
+            try (var caseWorkspace = CheckerWorkspace.create(task.root(), task.checker(), in, out, expected)) {
+                SandboxResultDTO checked = sandbox(caseWorkspace.root(),
+                        PathConfig.CHECKER_DIR + "/" + name + caseWorkspace.arguments(),
+                        2000, 4000, 256L * 1024 * 1024, null, "/dev/null",
+                        output.toString(), error.toString(), 65536, 65534, null, deadline, false);
+                return checkerResult(checked);
+            }
         }
         throw new IllegalArgumentException("Missing problem checker configuration");
     }
@@ -515,7 +522,8 @@ public class CasesRunHandler {
             long outputBytes,
             int uid,
             String[] environment,
-            Instant deadline)
+            Instant deadline,
+            boolean readonlyWork)
             throws Exception {
         long remaining = Duration.between(Instant.now(), deadline).toMillis();
         if (remaining <= 0) throw new IllegalStateException("Run execution deadline exceeded");
@@ -530,6 +538,7 @@ public class CasesRunHandler {
                                 "-c",
                                 CpuConfig.getCpuSet().iterator().next().toString(),
                                 PathConfig.SANDBOX_PATH,
+                                "--cgroup_root=" + SandboxLimits.cgroupRoot(),
                                 "--max_cpu_time=" + cpu,
                                 "--max_real_time=" + real,
                                 "--max_memory=" + memory,
@@ -538,7 +547,11 @@ public class CasesRunHandler {
                                 "--exe_path=" + executable[0],
                                 "--input_path=" + input,
                                 "--output_path=" + output,
-                                "--error_path=" + stderr));
+                                "--error_path=" + stderr,
+                                "--io_mode=memfd",
+                                "--isolate_fs=1",
+                                "--work_readonly=" + (readonlyWork ? 1 : 0),
+                                "--max_io_input_size=" + inputBytes(input)));
         if (rule != null && !rule.isBlank()) argv.add("--seccomp_rules=" + rule);
         if (uid <= 0) throw new IllegalArgumentException("Run sandbox identity must not be root");
         argv.add("--uid=" + uid);
@@ -556,6 +569,16 @@ public class CasesRunHandler {
         if (result.exitCode != 0)
             throw new IllegalStateException("Sandbox invocation failed: " + result.stderr);
         return JsonUtils.toObject(result.stdout, SandboxResultDTO.class);
+    }
+
+    static long inputBytes(String input) throws Exception {
+        if ("/dev/null".equals(input)) return 1L;
+        var path = Path.of(input);
+        var attributes = Files.readAttributes(path, java.nio.file.attribute.BasicFileAttributes.class,
+                LinkOption.NOFOLLOW_LINKS);
+        if (!attributes.isRegularFile() || attributes.size() > 5L * 1024 * 1024)
+            throw new IllegalArgumentException("Run input is not a bounded regular file");
+        return Math.max(1L, attributes.size());
     }
 
     public static String prefix(Path path, int bytes) throws Exception {

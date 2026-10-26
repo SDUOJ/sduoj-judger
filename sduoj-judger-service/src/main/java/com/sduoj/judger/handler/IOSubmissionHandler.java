@@ -20,6 +20,7 @@ import com.sduoj.judger.exception.CompileErrorException;
 import com.sduoj.judger.exception.SystemErrorException;
 import com.sduoj.judger.util.FileUtils;
 import com.sduoj.judger.util.SandboxRunner;
+import com.sduoj.judger.util.SandboxLimits;
 import com.sduoj.judgetemplate.dto.JudgeTemplateConfigDTO;
 import com.sduoj.judgetemplate.enums.JudgeTemplateTypeEnum;
 import com.sduoj.problem.dto.ProblemCheckerConfigDTO;
@@ -34,6 +35,7 @@ import com.sduoj.submission.enums.SubmissionJudgeResult;
 import lombok.AllArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Component;
+import org.springframework.beans.factory.annotation.Value;
 
 import java.nio.file.Files;
 import java.nio.file.LinkOption;
@@ -55,6 +57,11 @@ import java.util.stream.Collectors;
 @Slf4j
 @Component
 public class IOSubmissionHandler extends AbstractSubmissionHandler {
+    @Value("${sduoj.judger.compile-memory-fallback-bytes:1073741824}")
+    private long compileMemoryFallbackBytes = SandboxLimits.DEFAULT_FALLBACK_BYTES;
+    @Value("${sduoj.judger.runtime-memory-fallback-bytes:1073741824}")
+    private long runtimeMemoryFallbackBytes = SandboxLimits.DEFAULT_FALLBACK_BYTES;
+
 
     @Override
     public JudgeTemplateTypeEnum getSupportJudgeTemplateType() {
@@ -231,7 +238,7 @@ public class IOSubmissionHandler extends AbstractSubmissionHandler {
                 Argument _args = Argument.build()
                         .add(SandboxArgument.MAX_CPU_TIME, compileConfig.getMaxCpuTime())
                         .add(SandboxArgument.MAX_REAL_TIME, compileConfig.getMaxRealTime())
-                        .add(SandboxArgument.MAX_MEMORY, compileConfig.getMaxMemory() * 1024L)
+                        .add(SandboxArgument.MAX_MEMORY, SandboxLimits.compileBytes(compileConfig.getMaxMemory(), compileMemoryFallbackBytes))
                         .add(SandboxArgument.MAX_STACK, 128 * 1024 * 1024L)
                         .add(SandboxArgument.MAX_OUTPUT_SIZE, 20 * 1024 * 1024L) // 20MB
                         .add(SandboxArgument.EXE_PATH, _commands[0])
@@ -314,7 +321,7 @@ public class IOSubmissionHandler extends AbstractSubmissionHandler {
 
             String[] commands = WHITESPACE_PATTERN.split(runConfig.getCommand().trim());
 
-            long runMemory = memoryLimit * runConfig.getMaxMemoryFactor() * 1024L;
+            long runMemory = SandboxLimits.runtimeBytes(memoryLimit, runConfig.getMaxMemoryFactor(), runtimeMemoryFallbackBytes);
             long answerOutputLimit = outputLimitForAnswer(answerPath);
             long inputBytes;
             try {
@@ -359,7 +366,7 @@ public class IOSubmissionHandler extends AbstractSubmissionHandler {
             customCheckerRunCommand = Argument.build()
                     .add(SandboxArgument.MAX_CPU_TIME, timeLimit * customCheckerConfig.getMaxCpuTimeFactor())
                     .add(SandboxArgument.MAX_REAL_TIME, timeLimit * customCheckerConfig.getMaxRealTimeFactor())
-                    .add(SandboxArgument.MAX_MEMORY, Math.max(64 * 1024 * 1024L, memoryLimit * customCheckerConfig.getMaxMemoryFactor() * 1024L))
+                    .add(SandboxArgument.MAX_MEMORY, Math.max(64 * 1024 * 1024L, SandboxLimits.runtimeBytes(memoryLimit, customCheckerConfig.getMaxMemoryFactor(), runtimeMemoryFallbackBytes)))
                     .add(SandboxArgument.MAX_OUTPUT_SIZE, answerOutputLimit)
                     .add(SandboxArgument.MAX_STACK, 128L * 1024 * 1024)
                     .add(SandboxArgument.EXE_PATH, checkerExecutable)

@@ -159,6 +159,9 @@ public class HelperCompilationTest {
             Path out = first.output("helper.compile.out");
             Path err = first.output("helper.compile.err");
             String json = succeeds(new ProcessBuilder("/usr/bin/sandbox",
+                    "--cgroup_root=" + SandboxLimits.cgroupRoot(),
+                    "--io_mode=memfd", "--isolate_fs=1", "--work_readonly=0",
+                    "--max_io_input_size=1", "--max_process_number=128",
                     "--uid=" + helper.uid(), "--gid=" + helper.uid(),
                     "--exe_path=/opt/gcc/13.2.0/bin/g++", "--exe_args=src/main.cc",
                     "--exe_args=-static", "--exe_args=-o", "--exe_args=src/main",
