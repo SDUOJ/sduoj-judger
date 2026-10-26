@@ -25,4 +25,4 @@ log/
 data/
 workspace/
 # Generated full Linux JUnit dependency packet, never release source.
-/linux-test-packet/
+/linux-test-packet*/
