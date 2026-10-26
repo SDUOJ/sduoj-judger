@@ -172,3 +172,36 @@ def test_next_workspace_transition_waits_for_pending_retirement(tmp_path):
         await task
         assert switched.is_set()
     asyncio.run(run())
+
+
+@pytest.mark.parametrize('mode', ['hold', 'release'])
+@pytest.mark.parametrize('operation', ['completion', 'diagnostics'])
+def test_pool_waits_for_native_retirements_before_every_analysis_mode(mode, operation):
+    from ide_intelligence.config import load_config
+    from ide_intelligence.shared_pool import SharedLanguagePool
+    from tests.test_ide_pool import Store, session
+    from tests.test_ide_shared_pool import SharedProcess
+
+    class Guarded(SharedProcess):
+        retired = False
+
+        async def finish_java_retirements(self):
+            await asyncio.sleep(.001)
+            self.retired = True
+
+        async def completion_for(self, *args):
+            assert self.retired
+            return await super().completion_for(*args)
+
+        async def diagnostics_for(self, *args):
+            assert self.retired
+            return []
+
+    async def run():
+        pool = SharedLanguagePool(load_config(), process_factory=Guarded, diagnostics_mode=mode)
+        try:
+            result = await pool.execute(Store(), session(), operation, {'line': 1, 'column': 1}, 1000)
+            assert result['status'] == 'ready'
+        finally:
+            await pool.close()
+    asyncio.run(run())

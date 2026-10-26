@@ -316,6 +316,9 @@ class SharedLanguagePool:
             doc.uri, doc.revision = '', 0
 
     async def _operation(self, store, session, latest, slot, doc, operation, request):
+        finish_retirements = getattr(slot.process, 'finish_java_retirements', None)
+        if finish_retirements:
+            await finish_retirements()
         with measure('lsp_' + operation + '_seconds', session.language):
             if operation == 'completion':
                 value = normalize_completion(await slot.process.completion_for(

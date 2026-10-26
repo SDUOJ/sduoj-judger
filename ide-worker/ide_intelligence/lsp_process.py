@@ -371,6 +371,13 @@ class LspProcess:
         self._java_retirements[directory] = (key, task)
         task.add_done_callback(lambda value: value.exception() if not value.cancelled() else None)
 
+    async def finish_java_retirements(self):
+        pending = [task for _, task in self._java_retirements.values()]
+        if pending:
+            await asyncio.gather(*(asyncio.shield(task) for task in pending))
+        if self._java_retirement_error:
+            raise LspUnavailable('Java revision cleanup failed') from self._java_retirement_error
+
     async def _remove_java_revision_projects(self, directory):
         # JDTLS creates unmanaged projects inside its own data directory. Its
         # workspace-folder removal compares the project location with the
