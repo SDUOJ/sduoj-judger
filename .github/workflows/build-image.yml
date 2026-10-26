@@ -22,6 +22,11 @@ jobs:
           path: sduoj-sandbox
           persist-credentials: false
 
+      - name: Require read access to the matching private server sources
+        env:
+          SERVER_SOURCE_TOKEN: ${{ secrets.SDUOJ_SERVER_SOURCE_TOKEN }}
+        run: test -n "$SERVER_SOURCE_TOKEN"
+
       - name: Checkout the matching server interface source
         uses: actions/checkout@v7
         with:
@@ -29,6 +34,7 @@ jobs:
           ref: 79fb092b4434e3009d408060bbf1aabba5e56376
           path: sduoj-server-sources
           persist-credentials: false
+          token: ${{ secrets.SDUOJ_SERVER_SOURCE_TOKEN }}
 
       - uses: actions/setup-java@v6
         with:
