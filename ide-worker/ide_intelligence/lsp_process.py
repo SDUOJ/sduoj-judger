@@ -75,6 +75,7 @@ class LspProcess:
         self._immutable_directories = set()
         self._immutable_transition_guard = asyncio.Lock()
         self._immutable_transition_owner = None
+        self._java_project_deletions = {}
         self.document_transition_metrics = {'count': 0, 'secondsTotal': 0., 'secondsMax': 0.,
                                             'cancelled': 0, 'cancelWaitSecondsTotal': 0.}
 
@@ -346,18 +347,40 @@ class LspProcess:
             # unmanaged project for the same source folder. Resolve each newly
             # observed identity after the preceding deletion job completes.
             attempts = 0
-            while projects:
-                attempts += 1
-                if attempts > 4:
-                    raise LspUnavailable('Java revision project removal did not converge')
-                await self.request('workspace/executeCommand', {
-                    'command': 'java.project.changeImportedProjects',
-                    'arguments': [[], [], projects]}, timeout=2)
-                # The command schedules an Eclipse workspace job. Keep source
-                # bytes until the server confirms removal, including when the
-                # caller is cancelled by the unchanged operation deadline.
-                await asyncio.sleep(.02)
-                projects = await owned_projects()
+            deleted = asyncio.Event()
+            identities = {directory}
+            self._java_project_deletions[directory] = deleted
+            try:
+                while projects:
+                    attempts += 1
+                    if attempts > 4:
+                        raise LspUnavailable('Java revision project removal did not converge')
+                    deleted.clear()
+                    for uri in projects:
+                        identity = Path(unquote(urlsplit(uri).path)).resolve()
+                        identities.add(identity)
+                        self._java_project_deletions[identity] = deleted
+                    await self.request('workspace/executeCommand', {
+                        'command': 'java.project.changeImportedProjects',
+                        'arguments': [[], [], projects]}, timeout=2)
+                    # executeCommand returns before its WorkspaceJob. The
+                    # pinned JDTLS emits ProjectsDeleted only after IProject
+                    # deletion. A project list alone is not a job barrier.
+                    while True:
+                        with contextlib.suppress(asyncio.TimeoutError):
+                            await asyncio.wait_for(deleted.wait(), .05)
+                        current = await owned_projects()
+                        if not current or set(current) != set(projects):
+                            projects = current
+                            break
+                        # A concurrent workspace removal may already have
+                        # consumed this project before executeCommand resolves
+                        # it. That no-op emits no deletion event; absence in the
+                        # native project list is the corresponding completion.
+                        deleted.clear()
+            finally:
+                for identity in identities:
+                    self._java_project_deletions.pop(identity, None)
 
         try:
             await asyncio.wait_for(remove_and_confirm(), 2)
@@ -607,6 +630,14 @@ class LspProcess:
 
     async def _server_message(self, message):
         method, params = message['method'], message.get('params', {})
+        if method == 'language/eventNotification' and params.get('eventType') == 210:
+            for uri in params.get('data', []):
+                if isinstance(uri, str):
+                    parts = urlsplit(uri)
+                    if parts.scheme == 'file' and not parts.netloc:
+                        deleted = self._java_project_deletions.get(Path(unquote(parts.path)).resolve())
+                        if deleted is not None:
+                            deleted.set()
         if method == 'textDocument/publishDiagnostics':
             for state in self._documents.values():
                 if params.get('uri') == state['uri']:
