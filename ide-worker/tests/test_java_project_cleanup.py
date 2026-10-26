@@ -235,6 +235,39 @@ def test_cleanup_evidence_retains_stages_without_server_messages_or_paths(tmp_pa
     asyncio.run(run())
 
 
+def test_private_failure_log_is_bounded_private_and_survives_slot_removal(tmp_path, monkeypatch):
+    import shutil
+    from ide_intelligence import lsp_process
+    output = tmp_path / 'private-evidence'
+    monkeypatch.setattr(lsp_process, '_JAVA_FAILURE_LOG_DIRECTORY', output)
+    p, old, data = fixture(tmp_path / 'slot')
+    log = data / '.metadata' / '.log'
+    log.parent.mkdir(parents=True)
+    log.write_bytes(b'x' * 200000)
+    p._record_java_cleanup_failure(TimeoutError())
+    saved = p.java_cleanup_failure['privateLog']
+    assert saved['status'] == 'saved' and saved['bytes'] == 131072 and saved['truncated']
+    assert output.stat().st_mode & 0o777 == 0o700
+    assert (output / saved['file']).stat().st_mode & 0o777 == 0o600
+    shutil.rmtree(tmp_path / 'slot')
+    assert (output / saved['file']).exists()
+    for number in range(7):
+        (output / str(number)).touch()
+    assert p._preserve_java_failure_log()['status'] == 'retention-limit'
+
+
+def test_private_failure_log_refuses_symlink_metadata(tmp_path, monkeypatch):
+    from ide_intelligence import lsp_process
+    monkeypatch.setattr(lsp_process, '_JAVA_FAILURE_LOG_DIRECTORY', tmp_path / 'private-evidence')
+    p, old, data = fixture(tmp_path / 'slot')
+    data.mkdir()
+    foreign = tmp_path / 'foreign'
+    foreign.mkdir()
+    (foreign / '.log').write_text('private source')
+    (data / '.metadata').symlink_to(foreign, target_is_directory=True)
+    assert p._preserve_java_failure_log()['status'] == 'ownership-rejected'
+
+
 def test_cleanup_evidence_has_bounded_ring_and_records_deleted_ack(tmp_path):
     async def run():
         p, old, data = fixture(tmp_path)

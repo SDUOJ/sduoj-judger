@@ -9,6 +9,7 @@ import json
 import os
 from pathlib import Path
 import signal
+import stat
 import re
 import shutil
 import time
@@ -36,6 +37,7 @@ _STANDARD_HEADERS = (frozenset(name + '.h' for name in _C_HEADERS)
         'thread tuple type_traits typeindex typeinfo unordered_map unordered_set '
         'utility valarray variant vector version bits/stdc++.h').split()))
 _UNSAFE_PREAMBLE_CHAR = re.compile(r'[\x00-\x08\x0b\x0c\x0e-\x1f\x85\u2028\u2029\ufeff]')
+_JAVA_FAILURE_LOG_DIRECTORY = Path('/tmp/sduoj-ide-cleanup-evidence')
 _STANDARD_INCLUDE = re.compile(r'#[ \t]*include[ \t]*<([A-Za-z0-9_./+]+)>[ \t]*')
 _DECLARATION_START = re.compile(r'(?:int|void|char|float|double|long|short|signed|unsigned|bool|class|struct|union|enum|typedef|using|namespace|template|extern|static|const|volatile|auto|inline|constexpr)\b')
 
@@ -407,6 +409,39 @@ class LspProcess:
                 'seconds': time.monotonic() - trace['began'], **counts})
             trace['eventCount'] += 1
 
+    def _preserve_java_failure_log(self):
+        # Raw logs may include tenant data; only digest metadata enters health.
+        try:
+            data = Path(self.command[self.command.index('-data') + 1])
+            expected = self.root.parent / (self.root.name + '-jdtls-data')
+            if data.resolve() != expected.resolve() or (data / '.metadata').is_symlink():
+                return {'status': 'ownership-rejected'}
+            output = _JAVA_FAILURE_LOG_DIRECTORY
+            output.mkdir(mode=0o700, exist_ok=True)
+            info = output.lstat()
+            if (not stat.S_ISDIR(info.st_mode) or info.st_uid != os.getuid()
+                    or stat.S_IMODE(info.st_mode) != 0o700):
+                return {'status': 'private-directory-rejected'}
+            if len(list(output.iterdir())) >= 8:
+                return {'status': 'retention-limit'}
+            fd = os.open(data / '.metadata' / '.log', os.O_RDONLY | os.O_NOFOLLOW)
+            try:
+                if not stat.S_ISREG(os.fstat(fd).st_mode):
+                    return {'status': 'log-not-regular'}
+                size = os.fstat(fd).st_size
+                os.lseek(fd, max(0, size - 131072), os.SEEK_SET)
+                tail = os.read(fd, 131072)
+            finally:
+                os.close(fd)
+            name = uuid4().hex + '.log'
+            fd = os.open(output / name, os.O_WRONLY | os.O_CREAT | os.O_EXCL | os.O_NOFOLLOW, 0o600)
+            with os.fdopen(fd, 'wb') as stream:
+                stream.write(tail)
+            return {'status': 'saved', 'file': name, 'bytes': len(tail),
+                    'truncated': size > len(tail), 'sha256': hashlib.sha256(tail).hexdigest()}
+        except (OSError, ValueError, IndexError) as error:
+            return {'status': 'unavailable', 'exceptionClass': type(error).__name__}
+
     def _record_java_cleanup_failure(self, error, trace=None):
         # Exception messages, paths, source and raw RPC parameters may contain
         # tenant data. Retain only bounded stage/count evidence and class names.
@@ -421,6 +456,7 @@ class LspProcess:
         trace = self._java_cleanup_trace if trace is None else trace
         self.java_cleanup_failure = {
             'exceptionClasses': chain,
+            'privateLog': self._preserve_java_failure_log(),
             'documentTransitions': dict(self.document_transition_metrics),
             'trace': ({key: copy.deepcopy(value) for key, value in trace.items()
                        if key not in {'began', 'events'}} if trace else None)}
