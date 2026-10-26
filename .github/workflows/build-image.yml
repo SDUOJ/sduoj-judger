@@ -18,8 +18,16 @@ jobs:
         uses: actions/checkout@v7
         with:
           repository: SDUOJ/sduoj-sandbox
-          ref: b58c2362857fd5f2c22f8cd5d9a53e8bebdabc47
+          ref: 951f96158c55d197911ccb5efa6fa37a9b492abc
           path: sduoj-sandbox
+          persist-credentials: false
+
+      - name: Checkout the matching server interface source
+        uses: actions/checkout@v7
+        with:
+          repository: SDUOJ/sduoj-server-private
+          ref: 79fb092b4434e3009d408060bbf1aabba5e56376
+          path: sduoj-server-sources
           persist-credentials: false
 
       - uses: actions/setup-java@v6
@@ -36,7 +44,7 @@ jobs:
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: |
-          ./gradlew build --scan
+          ./gradlew -PsduojServerSource="$GITHUB_WORKSPACE/sduoj-server-sources" build --scan
 
       - name: To disable the cache of sduoj-server packages
         run: rm -rfv ~/.gradle/caches/modules*/**/com.sduoj*/**
@@ -113,5 +121,5 @@ jobs:
           docker run --rm -i --network none \
             --cap-add SYS_ADMIN --security-opt apparmor=unconfined \
             --cgroupns=private --memory=1536m --memory-swap=1536m --pids-limit=512 \
-            --entrypoint /usr/local/bin/sduoj-judge-entrypoint "$IMAGE_REF" \
-            /bin/bash -s -- "$EXPECTED_ARCH" < test/runtime-smoke.sh
+            --entrypoint /usr/bin/tini "$IMAGE_REF" \
+            -- /usr/local/bin/sduoj-judge-entrypoint /bin/bash -s -- "$EXPECTED_ARCH" < test/runtime-smoke.sh

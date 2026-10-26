@@ -88,7 +88,7 @@ ENV NACOS_ADDR="127.0.0.1:8848" \
     JAVA_OPT="" \
     JAVA_OPT_EXT=""
 
-ENTRYPOINT ["/usr/bin/tini", "--"]
+ENTRYPOINT ["/usr/bin/tini", "--", "/usr/local/bin/sduoj-judge-entrypoint"]
 
 CMD /wait                                                          \
  && JAVA_OPT="${JAVA_OPT} -jar sduoj-judger.jar"                   \

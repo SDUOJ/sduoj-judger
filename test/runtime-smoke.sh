@@ -81,6 +81,53 @@ print(json.dumps({'denied_probe': probe, 'sandbox': result}))
 PY
 done
 
+# Compile and execute every supported JDK in the final image. A simple version
+# check misses native initialization failures such as JDK17's local socketpair.
+for version in 8 17 21; do
+    java_work="$workspace/java$version"
+    mkdir "$java_work"
+    chmod 777 "$java_work"
+    cat > "$java_work/Main.java" <<'JAVA'
+import java.util.Scanner;
+public class Main {
+    public static void main(String[] args) {
+        Scanner input = new Scanner(System.in);
+        System.out.println(input.nextInt() + input.nextInt());
+    }
+}
+JAVA
+    (
+        cd "$java_work"
+        sandbox --max_cpu_time=10000 --max_real_time=30000 --max_memory=1073741824 \
+            --max_stack=134217728 --max_process_number=128 --max_output_size=1048576 \
+            --max_io_input_size=65536 --io_mode=memfd --isolate_fs=1 --work_readonly=0 \
+            --exe_path="/opt/java/openjdk$version/bin/javac" \
+            --exe_args=-J-Xmx128m --exe_args=-J-XX:ActiveProcessorCount=2 --exe_args=Main.java \
+            --input_path=/dev/null --output_path="$workspace/javac$version.out" \
+            --error_path="$workspace/javac$version.err" --uid=65534 --gid=65534 \
+            > "$workspace/javac$version.json"
+        sandbox --max_cpu_time=10000 --max_real_time=15000 --max_memory=1073741824 \
+            --max_stack=134217728 --max_process_number=128 --max_output_size=65536 \
+            --max_io_input_size=65536 --io_mode=memfd --isolate_fs=1 --work_readonly=1 \
+            --exe_path="/opt/java/openjdk$version/bin/java" \
+            --exe_args=-Xmx128m --exe_args=-XX:ActiveProcessorCount=2 --exe_args=Main \
+            --input_path="$workspace/input" --output_path="$workspace/java$version.out" \
+            --error_path="$workspace/java$version.err" --uid=65534 --gid=65534 \
+            > "$workspace/java$version.json"
+    )
+    python3 - "$workspace" "$version" <<'PY'
+import json
+from pathlib import Path
+import sys
+root, version = Path(sys.argv[1]), sys.argv[2]
+for phase in ('javac', 'java'):
+    result = json.loads((root / (phase + version + '.json')).read_text())
+    assert all(result[key] == 0 for key in ('result', 'exit_code', 'error', 'signal')), result
+assert (root / ('java' + version + '.out')).read_text() == '42\n'
+print(json.dumps({'jdk': version, 'compilation': True, 'execution': True}))
+PY
+done
+
 # Exercise the helper classes shipped in this exact image, including their Linux ownership rules.
 mkdir "$workspace/helper-classes"
 (
