@@ -268,6 +268,30 @@ def test_private_failure_log_refuses_symlink_metadata(tmp_path, monkeypatch):
     assert p._preserve_java_failure_log()['status'] == 'ownership-rejected'
 
 
+def test_java_index_startup_establishes_lifecycle_then_index_then_normal_close(tmp_path):
+    async def run():
+        p, old, data = fixture(tmp_path)
+        calls = []
+        async def opened(key, filename, source, revision):
+            calls.append(('open', key))
+            assert filename == 'Main.java' and revision == 1
+            assert source == 'public class Main { public static void main(String[] args) { String value = new String(); } }'
+        async def completed(key, line, column):
+            calls.append(('completion', key))
+            assert (line, column) == (1, 1)
+        async def request(method, params, timeout):
+            calls.append(('index', params['command']))
+            assert method == 'workspace/executeCommand' and params['arguments'] == []
+            assert timeout == 30
+        async def closed(key):
+            calls.append(('close', key))
+        p.open_document, p.completion_for, p.request, p.close_document = opened, completed, request, closed
+        await p._prepare_java_index()
+        assert [kind for kind, value in calls] == ['open', 'completion', 'index', 'close']
+        assert {value for kind, value in calls if kind != 'index'} == {'__trusted_java_startup__'}
+    asyncio.run(run())
+
+
 def test_cleanup_evidence_has_bounded_ring_and_records_deleted_ack(tmp_path):
     async def run():
         p, old, data = fixture(tmp_path)

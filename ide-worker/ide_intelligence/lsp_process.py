@@ -86,6 +86,7 @@ class LspProcess:
         self._java_retirement_error = None
         self._java_cleanup_trace = None
         self.java_cleanup_failure = None
+        self.java_index_startup_seconds = None
         self.document_transition_metrics = {'count': 0, 'secondsTotal': 0., 'secondsMax': 0.,
                                             'cancelled': 0, 'cancelWaitSecondsTotal': 0., 'cancelWaitSecondsMax': 0.}
 
@@ -94,6 +95,7 @@ class LspProcess:
         return self.process is not None and self.process.returncode is None and not self.closed
 
     async def start(self, code, revision=1):
+        startup_deadline = time.monotonic() + 30
         if not self.command:
             raise LspUnavailable('language server command is not configured')
         try:
@@ -133,11 +135,29 @@ class LspProcess:
                 }},
             }, timeout=30 if self.language == 'java' else 5)
             await self.notify('initialized', {})
+            if self.java_immutable_uri:
+                began = time.monotonic()
+                await asyncio.wait_for(self._prepare_java_index(),
+                    max(.001, startup_deadline - time.monotonic()))
+                self.java_index_startup_seconds = time.monotonic() - began
             if self.document_name is not None:
                 await self.open_document('__default__', self.document_name, code, revision)
         except BaseException:
             await self.close()
             raise
+
+    async def _prepare_java_index(self):
+        # JDT executeCommand synchronously waits for JRT indexing on its RPC
+        # reader. Empty-workspace getAll returns before the first Java project
+        # starts that index. Establish the trusted lifecycle during startup,
+        # then wait for the index before admitting tenant document revisions.
+        key = '__trusted_java_startup__'
+        await self.open_document(key, 'Main.java',
+            'public class Main { public static void main(String[] args) { String value = new String(); } }', 1)
+        await self.completion_for(key, 1, 1)
+        await self.request('workspace/executeCommand', {
+            'command': 'java.project.getAll', 'arguments': []}, timeout=30)
+        await self.close_document(key)
 
     async def close(self):
         if self.java_immutable_uri and self._immutable_transition_owner is not asyncio.current_task():

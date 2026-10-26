@@ -396,6 +396,7 @@ class SharedLanguagePool:
                 'transports': [{'language': language,
                     'pendingRequests': len(getattr(slot.process, '_pending', {})),
                     'javaImmutableUri': bool(getattr(slot.process, 'java_immutable_uri', False)),
+                    'javaIndexStartupSeconds': getattr(slot.process, 'java_index_startup_seconds', None),
                     'documentTransitions': dict(getattr(slot.process, 'document_transition_metrics', {})),
                     'javaCleanupFailure': copy.deepcopy(getattr(slot.process, 'java_cleanup_failure', None)),
                     'diagnosticsReady': sum(state['diagnostics_ready'].is_set()
