@@ -12,6 +12,20 @@ jobs:
     steps:
       - uses: actions/checkout@v7
 
+      - name: Require read access to the matching private server sources
+        env:
+          SERVER_SOURCE_TOKEN: ${{ secrets.SDUOJ_SERVER_SOURCE_TOKEN }}
+        run: test -n "$SERVER_SOURCE_TOKEN"
+
+      - name: Checkout the matching server interface source
+        uses: actions/checkout@v7
+        with:
+          repository: SDUOJ/sduoj-server-private
+          ref: e016fc733cc0a9a0ec8a463e5710a19eed0d5db3
+          path: sduoj-server-sources
+          persist-credentials: false
+          token: ${{ secrets.SDUOJ_SERVER_SOURCE_TOKEN }}
+
       - uses: actions/setup-java@v6
         with:
           java-version: 17
@@ -26,7 +40,7 @@ jobs:
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: |
-          ./gradlew build --scan
+          ./gradlew -PsduojServerSource="$GITHUB_WORKSPACE/sduoj-server-sources" build --scan
 
       - name: To disable the cache of sduoj-server packages
         run: rm -rfv ~/.gradle/caches/modules*/**/com.sduoj*/**

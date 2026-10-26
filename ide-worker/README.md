@@ -11,7 +11,7 @@ one Debug runtime. It registers one `ide-worker` service instance only after
 all five components acquire their Redis leases. Config changes require a
 controlled restart; debugger memory is never migrated or replayed. See
 `sduoj-deploy/docs/IDE_UNIFIED_WORKER_RELEASE.md` for the independent dev lab,
-eight-replica ARM candidate, cgroup-v1 accounting, and release gates.
+current ARM64/cgroup-v2 single-Worker contract and release gates. The older eight-replica/cgroup-v1 documents are historical and do not qualify this candidate.
 
 `python -m sduoj_ide_worker --role lsp --language cpp` consumes the language
 entry queue and its own hot-session queue. `--role debug` consumes its own
@@ -48,3 +48,7 @@ R7 base. It leaves `/opt/judge-rootfs`, native compiler/sandbox, templates, adap
 and artifact inventory unchanged. A new image ID requires fresh candidate
 qualification and two complete four-language rounds, permission/native isolation
 and capacity checks. Historical R7 receipts are provenance, not R8 acceptance.
+
+## Build scope
+
+The full `Dockerfile` and broad `Dockerfile.overlay` are developer reconstruction paths, not interchangeable with the accepted image chain. In particular, a full uidmap install can restore setuid helpers and does not establish the R7 filecap permission contract. The tested release uses exact-parent derivations: R6→R7 permission-only `Dockerfile.cgroup-v2`, followed by the reviewed control-plane-only overlay. Parent IDs, helper content/mode/xattr, native/rootfs/adapter inventories and every changed external source are locked and verified before acceptance. Reconstructing from arbitrary upstream tags requires complete qualification again.
