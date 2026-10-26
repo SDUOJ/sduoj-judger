@@ -25,3 +25,26 @@ remain only for rollback during migration and are not imported by this worker.
 The Redis protocol is versioned JSON. Source and input are never logged.
 Docker resource limits, language process counts and debug admission quotas are
 explicit. Historical toolchain tests do not qualify this new transport.
+
+Debug CPU accounting uses two separate cgroups. The jail contains the compiler,
+namespace supervisor, debugger adapters and user target; its reported CPU seconds
+are their aggregate lifetime usage. The jail is capped at one CPU core, its
+memory and PID limits remain enforced, and every running generation has the
+existing authoritative `runLimitSeconds` wall deadline. Hard session lifetime,
+idle expiry, heartbeat loss and verified whole-tree cleanup remain independent.
+Compilation also keeps its existing native compiler CPU/wall limits. Aggregate
+jail CPU is a resource statistic, not an independent target-only CPU measurement
+and not the guardian's control budget.
+
+The profile's `cpu_seconds` bounds only the trusted external guardian's cumulative
+CPU in its own reserved cgroup. Exceeding it emits a typed infrastructure event
+and terminates with `DEBUG_GUARDIAN_CPU_LIMIT`, followed by the same verified jail
+cleanup. A target loop cannot consume this control budget or replace the reason
+with a subsequent EOF. No browser field controls this value. This fixes the
+fixed 30-second aggregate cutoff that preempted Python/Java run wall deadlines.
+
+`Dockerfile.r8-control` copies only the three external control files onto an exact
+R7 base. It leaves `/opt/judge-rootfs`, native compiler/sandbox, templates, adapters
+and artifact inventory unchanged. A new image ID requires fresh candidate
+qualification and two complete four-language rounds, permission/native isolation
+and capacity checks. Historical R7 receipts are provenance, not R8 acceptance.

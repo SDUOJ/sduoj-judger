@@ -1,0 +1,12 @@
+# Only the external trusted control plane changes. BASE must resolve to the
+# exact frozen R7 image ID recorded by the build owner before starting Docker.
+# Do not run prepare_image or copy into /opt/judge-rootfs: compiler, adapters,
+# native sandbox and their existing artifact inventory stay byte-identical.
+ARG BASE
+FROM ${BASE}
+USER root
+COPY ide-worker/ide_debug/guardian.py /opt/sduoj-ide/ide_debug/guardian.py
+COPY ide-worker/ide_debug/launcher.py /opt/sduoj-ide/ide_debug/launcher.py
+COPY ide-worker/ide_debug/runtime.py /opt/sduoj-ide/ide_debug/runtime.py
+USER ide
+CMD ["--role", "all"]

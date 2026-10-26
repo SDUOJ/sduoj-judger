@@ -753,6 +753,7 @@ class Runtime:
             "compileError",
             "failed",
             "guardianLost",
+            "guardianCpuLimit",
             "runTimeout",
         ):
             session.stopped.set()
@@ -768,6 +769,8 @@ class Runtime:
                     reason = body.get("code")
                     if not isinstance(reason, str) or reason not in COMPILE_CODES:
                         reason = "DEBUG_COMPILE_FAILED"
+                elif kind == "guardianCpuLimit":
+                    reason = "DEBUG_GUARDIAN_CPU_LIMIT"
                 task = asyncio.create_task(
                     self.terminate(session, reason, already_closing=True)
                 )

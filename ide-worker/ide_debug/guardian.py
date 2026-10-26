@@ -73,7 +73,13 @@ def main():
             if os.waitpid(child, os.WNOHANG)[0]:
                 child = None
                 break
-            if cg.usage()["cpuSeconds"] >= spec["cpuSeconds"]:
+            # Control work has its own accounting domain. The jail includes
+            # compilation, adapters and target descendants, so its lifetime CPU
+            # must not consume this guardian-only infrastructure budget. Target
+            # execution remains bounded by the jail's one-core rate, each run
+            # generation's authoritative wall deadline and hard/idle lifetime.
+            if trusted.usage()["cpuSeconds"] >= spec["guardianCpuSeconds"]:
+                reply({"event": "guardianCpuLimit"})
                 break
             readable, _, _ = select.select(
                 [control],

@@ -129,7 +129,7 @@ class Sandbox:
                     "pids": self.profile.pids,
                     "lifetime": self.policy.lifetime,
                     "idle": self.policy.idle,
-                    "cpuSeconds": self.profile.cpu_seconds,
+                    "guardianCpuSeconds": self.profile.cpu_seconds,
                 }
             )
         )
@@ -240,6 +240,8 @@ class Sandbox:
                         future.set_result(value)
                 elif value.get("event") == "runTimeout":
                     self.event("runTimeout", {})
+                elif value.get("event") == "guardianCpuLimit":
+                    self.event("guardianCpuLimit", {})
                 elif "error" in value:
                     self.event("failed", {"code": "DEBUG_GUARDIAN_FAILED"})
         finally:
