@@ -31,7 +31,7 @@ jobs:
         uses: actions/checkout@v7
         with:
           repository: SDUOJ/sduoj-server-private
-          ref: 79fb092b4434e3009d408060bbf1aabba5e56376
+          ref: e016fc733cc0a9a0ec8a463e5710a19eed0d5db3
           path: sduoj-server-sources
           persist-credentials: false
           token: ${{ secrets.SDUOJ_SERVER_SOURCE_TOKEN }}
