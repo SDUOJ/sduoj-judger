@@ -1,0 +1,15 @@
+# The build context is the workspace parent. Send only reviewed worker sources
+# and the explicit seccomp policy; never send private dev state or credentials.
+**
+!sduoj-judger
+!sduoj-judger/ide-worker
+!sduoj-judger/ide-worker/**
+!sduoj-deploy
+!sduoj-deploy/templates
+!sduoj-deploy/templates/debug
+!sduoj-deploy/templates/debug/arm64-debug-v1.candidate.policy
+**/__pycache__
+**/__pycache__/**
+**/.pytest_cache
+**/.pytest_cache/**
+**/*.pyc

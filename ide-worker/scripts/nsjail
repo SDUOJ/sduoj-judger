@@ -1,0 +1,3 @@
+#!/bin/sh
+# The private loader bundle keeps management-tool ABI separate from Judger ABI.
+exec /opt/nsjail-runtime/lib/ld-linux-aarch64.so.1 --library-path /opt/nsjail-runtime/lib /opt/nsjail-runtime/nsjail "$@"

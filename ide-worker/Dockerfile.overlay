@@ -1,0 +1,17 @@
+# Reproducible control-plane-only update of an already frozen judge/toolchain image.
+# BASE is a registry digest or a local alias whose imageId is checked against
+# the release lock before building (BuildKit cannot FROM a bare local imageId).
+ARG BASE
+FROM ${BASE}
+USER root
+COPY ide-worker/ide_intelligence/ /opt/sduoj-ide/ide_intelligence/
+COPY ide-worker/ide_debug/ /opt/sduoj-ide/ide_debug/
+COPY ide-worker/sduoj_ide_worker/ /opt/sduoj-ide/sduoj_ide_worker/
+COPY ide-worker/scripts/ /opt/sduoj-ide/scripts/
+COPY ide-worker/ide_debug/ /opt/judge-rootfs/opt/sduoj-debug/ide_debug/
+ARG JUDGE_IMAGE_ID
+RUN python3 scripts/prepare_image.py --judge-image "$JUDGE_IMAGE_ID" \
+    && python3 -c 'import redis.asyncio,pydantic,httpx' \
+    && chmod 0755 scripts/entrypoint.py scripts/nsjail
+USER ide
+CMD ["--role", "all"]

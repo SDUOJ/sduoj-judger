@@ -1,0 +1,196 @@
+{
+  "date": "2026-10-24",
+  "status": "initial extraction; worker-specific changes follow",
+  "files": [
+    {
+      "source": "sduoj-autolab/ide_intelligence/shared_pool.py",
+      "target": "sduoj-judger/ide-worker/ide_intelligence/shared_pool.py",
+      "sha256": "969f94ba921fd0e1682b13d5dc91aab622c2a24d523ce6bc98b6b9f37be32205"
+    },
+    {
+      "source": "sduoj-autolab/ide_intelligence/config.py",
+      "target": "sduoj-judger/ide-worker/ide_intelligence/config.py",
+      "sha256": "b1c0e271d4df558938cb6357eff822d9647d62e27a0390751eea93d9f02fbad0"
+    },
+    {
+      "source": "sduoj-autolab/ide_intelligence/models.py",
+      "target": "sduoj-judger/ide-worker/ide_intelligence/models.py",
+      "sha256": "98238b6fd1bed62873ef1a8fba331c99c38fd0109c137233dc8f41f12a53bb35"
+    },
+    {
+      "source": "sduoj-autolab/ide_intelligence/__init__.py",
+      "target": "sduoj-judger/ide-worker/ide_intelligence/__init__.py",
+      "sha256": "59b172d9d7e9315d5d09cce68df16b8841319b212778f775ffeec4c7e56cfcc8"
+    },
+    {
+      "source": "sduoj-autolab/ide_intelligence/redis_connection.py",
+      "target": "sduoj-judger/ide-worker/ide_intelligence/redis_connection.py",
+      "sha256": "e9f4e559cd32d5bbd7b19cca16b8f9a793c293bef7a896f490468de84705646d"
+    },
+    {
+      "source": "sduoj-autolab/ide_intelligence/rate_limit.py",
+      "target": "sduoj-judger/ide-worker/ide_intelligence/rate_limit.py",
+      "sha256": "619696bdaf5493414dc6a946f4a0f31303c00424ed62383ebe0971f90a9fae2c"
+    },
+    {
+      "source": "sduoj-autolab/ide_intelligence/toolchain.py",
+      "target": "sduoj-judger/ide-worker/ide_intelligence/toolchain.py",
+      "sha256": "c9031e358f9bcd739d5fc699329e7d6796e4b4139c6e5e570f62c7ad3f607efc"
+    },
+    {
+      "source": "sduoj-autolab/ide_intelligence/lsp_process.py",
+      "target": "sduoj-judger/ide-worker/ide_intelligence/lsp_process.py",
+      "sha256": "b2516cced521be4f3de9a456db69bc752afa74a25193a5e3ccc3a274818a0a93"
+    },
+    {
+      "source": "sduoj-autolab/ide_intelligence/admission.py",
+      "target": "sduoj-judger/ide-worker/ide_intelligence/admission.py",
+      "sha256": "e6ffa3cd9a928d0014825e1a101b7b377d9b53ec9506c9981113452a4f8c572c"
+    },
+    {
+      "source": "sduoj-autolab/ide_intelligence/workspace.py",
+      "target": "sduoj-judger/ide-worker/ide_intelligence/workspace.py",
+      "sha256": "d656678d676311c6e06e67ad2f8152d1098abdc0fa58a8ef8c8e50322d8823df"
+    },
+    {
+      "source": "sduoj-autolab/ide_intelligence/session_store.py",
+      "target": "sduoj-judger/ide-worker/ide_intelligence/session_store.py",
+      "sha256": "0356f6c5698e191761e8dec3432144e7e3dd054556eb747061493c505457f677"
+    },
+    {
+      "source": "sduoj-autolab/ide_intelligence/performance.py",
+      "target": "sduoj-judger/ide-worker/ide_intelligence/performance.py",
+      "sha256": "6fb46d836fc31040ea0b94e4cff8d3ef03c77f09cb29e7729ae4116828c5ae13"
+    },
+    {
+      "source": "sduoj-autolab/ide_intelligence/pool.py",
+      "target": "sduoj-judger/ide-worker/ide_intelligence/pool.py",
+      "sha256": "2d25da6e6d2c3b24e181c34444b922eb95a4b49bdb343b27f89867ec2c0bc83b"
+    },
+    {
+      "source": "sduoj-autolab/ide_intelligence/languages.py",
+      "target": "sduoj-judger/ide-worker/ide_intelligence/languages.py",
+      "sha256": "14f765b2b609878c798e4ff26a8e6a69a59888b15595fd30065db116e20ad1a8"
+    },
+    {
+      "source": "sduoj-autolab/ide_debug/store.py",
+      "target": "sduoj-judger/ide-worker/ide_debug/store.py",
+      "sha256": "235b0a9f51c4e256a6429bb7a044f63a3e0399449c40fed9c4bfb3fd2d14b3a3"
+    },
+    {
+      "source": "sduoj-autolab/ide_debug/runner.py",
+      "target": "sduoj-judger/ide-worker/ide_debug/runner.py",
+      "sha256": "0efc3042ca2d3ff9e2663722ac850b36ac1b76cd627398db134f57c26cc774cf"
+    },
+    {
+      "source": "sduoj-autolab/ide_debug/config.py",
+      "target": "sduoj-judger/ide-worker/ide_debug/config.py",
+      "sha256": "eab7b356f6b5ab0e22ee9fbab7acfc9a394cbef814876def4950addbb53859dd"
+    },
+    {
+      "source": "sduoj-autolab/ide_debug/node_lock.py",
+      "target": "sduoj-judger/ide-worker/ide_debug/node_lock.py",
+      "sha256": "649166d4f9bb662f01eda8029f3d9668bc4c283f2d11096c0b8c55e51af8f415"
+    },
+    {
+      "source": "sduoj-autolab/ide_debug/models.py",
+      "target": "sduoj-judger/ide-worker/ide_debug/models.py",
+      "sha256": "15270c5d6911e5de91d2400bf41c79dd40d2104603338191d85d97c140bde7b7"
+    },
+    {
+      "source": "sduoj-autolab/ide_debug/cgroups.py",
+      "target": "sduoj-judger/ide-worker/ide_debug/cgroups.py",
+      "sha256": "46a9d6cf6118d3a680917eb2e2a2102ee8e7ab0604f5753043f4536e19a86860"
+    },
+    {
+      "source": "sduoj-autolab/ide_debug/__init__.py",
+      "target": "sduoj-judger/ide-worker/ide_debug/__init__.py",
+      "sha256": "7c79626ffe8e203e7af5705bc03c363293c0fcd415aac722b1f0bdbc64b2cf7e"
+    },
+    {
+      "source": "sduoj-autolab/ide_debug/runtime.py",
+      "target": "sduoj-judger/ide-worker/ide_debug/runtime.py",
+      "sha256": "8824d6c5798b7e0e45b7e4c798f00c3e67fb97078d44abb57cd5d9da721f55a6"
+    },
+    {
+      "source": "sduoj-autolab/ide_debug/authorization.py",
+      "target": "sduoj-judger/ide-worker/ide_debug/authorization.py",
+      "sha256": "8942e2db6b03186542a76fad6e624de07c8eae1249d7b1d36a831a0613928ba5"
+    },
+    {
+      "source": "sduoj-autolab/ide_debug/guardian.py",
+      "target": "sduoj-judger/ide-worker/ide_debug/guardian.py",
+      "sha256": "2756a1b3c5fb2fe4032275a629c7337119b059dcb80b2a664869f6f81c353375"
+    },
+    {
+      "source": "sduoj-autolab/ide_debug/resolver.py",
+      "target": "sduoj-judger/ide-worker/ide_debug/resolver.py",
+      "sha256": "dc41b0bcaa70b8fff687700191fbb0765c4649b29a1fb6720f913c0e5e770b83"
+    },
+    {
+      "source": "sduoj-autolab/ide_debug/process_identity.py",
+      "target": "sduoj-judger/ide-worker/ide_debug/process_identity.py",
+      "sha256": "ee9d197c393b172a0b902618d11b138841ef0e7b4160efef857c4c37d2303f12"
+    },
+    {
+      "source": "sduoj-autolab/ide_debug/launcher.py",
+      "target": "sduoj-judger/ide-worker/ide_debug/launcher.py",
+      "sha256": "f52856026220d9617f33fc048a0d894288aed77cfd8f9ee9178eb001618b47ea"
+    },
+    {
+      "source": "sduoj-autolab/ide_debug/watch.py",
+      "target": "sduoj-judger/ide-worker/ide_debug/watch.py",
+      "sha256": "3b8e4923c25f9db5e5c8ef97f4cf8c2ca2840aa8ab4f9b828cdf57b751fb44eb"
+    },
+    {
+      "source": "sduoj-autolab/ide_debug/profiles.py",
+      "target": "sduoj-judger/ide-worker/ide_debug/profiles.py",
+      "sha256": "d825020b3c4d33f935b28806a2fd2ca2ba54f801809b906d5a943f444aeeebd4"
+    },
+    {
+      "source": "sduoj-autolab/ide_debug/judge_compile.py",
+      "target": "sduoj-judger/ide-worker/ide_debug/judge_compile.py",
+      "sha256": "0dea918e335646322c05bccbebb3a424c362f63c274f0e1da79c1f6fa3034521"
+    },
+    {
+      "source": "sduoj-autolab/ide_debug/recover.py",
+      "target": "sduoj-judger/ide-worker/ide_debug/recover.py",
+      "sha256": "932a5ed079bcde2c17de34e2df28bbeb76b552ae30700079ca263d52250c7f81"
+    },
+    {
+      "source": "sduoj-autolab/ide_debug/python_entry.py",
+      "target": "sduoj-judger/ide-worker/ide_debug/python_entry.py",
+      "sha256": "5e84c03c04615e198ec72338b695b7371a1588b83bf6fb8cf29df8927e7348c7"
+    },
+    {
+      "source": "sduoj-autolab/ide_debug/adapters/java.py",
+      "target": "sduoj-judger/ide-worker/ide_debug/adapters/java.py",
+      "sha256": "de6502c22e386e3b722fa5302063c60ec98b37039fa9a5eb15590332c9e62342"
+    },
+    {
+      "source": "sduoj-autolab/ide_debug/adapters/__init__.py",
+      "target": "sduoj-judger/ide-worker/ide_debug/adapters/__init__.py",
+      "sha256": "da82cbafeb25adb0e402657670ccdfb82bdebeb38c47bab82f13ad504afd35dd"
+    },
+    {
+      "source": "sduoj-autolab/ide_debug/adapters/native.py",
+      "target": "sduoj-judger/ide-worker/ide_debug/adapters/native.py",
+      "sha256": "e42f0f981a80aec21eee9e60e0af38b7804fb73f67d05a8065fd7b5ac1d3908f"
+    },
+    {
+      "source": "sduoj-autolab/ide_debug/adapters/DebugBridge.java",
+      "target": "sduoj-judger/ide-worker/ide_debug/adapters/DebugBridge.java",
+      "sha256": "4b95dbe612a66f23fc5c76d48f450b0b6860b5b080ac64111c125a71aed7db0e"
+    },
+    {
+      "source": "sduoj-autolab/ide_debug/adapters/mi.py",
+      "target": "sduoj-judger/ide-worker/ide_debug/adapters/mi.py",
+      "sha256": "8a8cd8da676df3bf27c2aa6a998c32118d196cc1c06ab91c674aa992242f0822"
+    },
+    {
+      "source": "sduoj-autolab/ide_debug/adapters/python.py",
+      "target": "sduoj-judger/ide-worker/ide_debug/adapters/python.py",
+      "sha256": "e31a201d6c18f7a6a3ca349a889d6b10469daf6f2d0c9664793ada375cb476c3"
+    }
+  ]
+}

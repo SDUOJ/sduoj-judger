@@ -1,0 +1,57 @@
+[
+  {
+    "id": "6",
+    "version": 24,
+    "shellScript": "{\n  \"user\": {\n    \"compile\": {\n      \"srcName\": \"main.cc\",\n      \"maxCpuTime\": 3000,\n      \"maxRealTime\": 5000,\n      \"maxMemory\": 524288,\n      \"commands\": [\n          \"/usr/bin/g++ --define-macro=ONLINE_JUDGE --optimize=2 --no-warnings -fmax-errors=3 --std=c++14 -static --output=main main.cc\"\n      ]\n    },\n    \"run\": {\n      \"command\": \"main\",\n      \"seccompRule\": \"c_cpp\"\n    }\n  }\n}"
+  },
+  {
+    "id": "13",
+    "version": 7,
+    "shellScript": "{\n  \"user\": {\n    \"compile\": {\n      \"srcName\": \"main.py\",\n      \"maxCpuTime\": 3000,\n      \"maxRealTime\": 5000,\n      \"maxMemory\": 262144,\n      \"commands\": [\n        \"/opt/python/3.6/bin/python -m py_compile main.py\"\n      ]\n    },\n    \"run\": {\n      \"command\": \"/opt/python/3.6/bin/python __pycache__/main.cpython-36.pyc\",\n      \"seccompRule\": \"general\",\n      \"maxRealTimeFactor\": 3,\n      \"maxCpuTimeFactor\": 3\n    }\n  }\n}"
+  },
+  {
+    "id": "14",
+    "version": 6,
+    "shellScript": "{\n\t\"user\": {\n  \t\"compile\": {\n    \t\"srcName\": \"Main.java\",\n      \"maxCpuTime\": 3000,\n      \"maxRealTime\": 5000,\n      \"maxMemory\": 0,\n      \"commands\": [\n      \t\"/opt/java/openjdk8/bin/javac Main.java -encoding UTF8\"\n      ]\n    },\n    \"run\": {\n    \t\"command\": \"/opt/java/openjdk8/bin/java -Dfile.encoding=UTF-8 -XX:MaxRAM={problemMemoryLimit}k -Djava.security.manager -Djava.awt.headless=true Main\",\n      \"maxMemoryFactor\": 0,\n      \"maxCpuTimeFactor\": 2,\n      \"maxRealTimeFactor\": 2\n    }\n  }\n}"
+  },
+  {
+    "id": "19",
+    "version": 16,
+    "shellScript": "{\n\t\"user\": {\n\t\t\"compile\": {\n\t\t\t\"srcName\": \"main.c\",\n\t\t\t\"maxCpuTime\": 3000,\n\t\t\t\"maxRealTime\": 5000,\n\t\t\t\"maxMemory\":  524288,\n\t\t\t\"commands\": [\n                           \"/usr/bin/gcc --define-macro=ONLINE_JUDGE --optimize=2 --no-warnings -fmax-errors=3 -fno-asm -s --std=c11 -static --output=main main.c -lm\"\n      ]\n\t\t},\n\t\t\"run\": {\n\t\t\t\"command\": \"main\",\n\t\t\t\"seccompRule\": \"c_cpp\"\n\t\t}\n\t}\n}"
+  },
+  {
+    "id": "32",
+    "version": 13,
+    "shellScript": "{\n  \"user\": {\n    \"compile\": {\n      \"srcName\": \"main.cc\",\n      \"maxCpuTime\": 5000,\n      \"maxRealTime\": 7000,\n      \"maxMemory\": 524288,\n      \"commands\": [\n          \"/usr/bin/g++ --define-macro=ONLINE_JUDGE --optimize=2 --no-warnings -fmax-errors=3 --std=c++17 -static --output=main main.cc\"\n      ]\n    },\n    \"run\": {\n      \"command\": \"main\",\n      \"seccompRule\": \"c_cpp\"\n    }\n  }\n}\n"
+  },
+  {
+    "id": "37",
+    "version": 1,
+    "shellScript": "{\n\t\"user\": {\n  \t\"compile\": {\n      \"srcName\": \"Main.java\",\n      \"maxCpuTime\": 3000,\n      \"maxRealTime\": 5000,\n      \"maxMemory\": 0,\n      \"commands\": [\n      \t\"/opt/java/openjdk17/bin/javac Main.java -encoding UTF8\"\n      ]\n    },\n    \"run\": {\n      \"command\": \"/opt/java/openjdk17/bin/java -Dfile.encoding=UTF-8 -XX:MaxRAM={problemMemoryLimit}k -Djava.awt.headless=true Main\",\n      \"maxMemoryFactor\": 0,\n      \"maxCpuTimeFactor\": 2,\n      \"maxRealTimeFactor\": 2\n    }\n  }\n}"
+  },
+  {
+    "id": "38",
+    "version": 6,
+    "shellScript": "{\n  \"user\": {\n    \"compile\": {\n      \"srcName\": \"main.py\",\n      \"maxCpuTime\": 3000,\n      \"maxRealTime\": 5000,\n      \"maxMemory\": 262144,\n      \"commands\": [\n        \"/opt/python/3.11/bin/python -m py_compile main.py\"\n      ]\n    },\n    \"run\": {\n      \"command\": \"/opt/python/3.11/bin/python __pycache__/main.cpython-311.pyc\",\n      \"seccompRule\": \"general\",\n      \"maxRealTimeFactor\": 3,\n      \"maxCpuTimeFactor\": 3\n    }\n  }\n}"
+  },
+  {
+    "id": "42",
+    "version": 16,
+    "shellScript": "{\n  \"user\": {\n    \"compile\": {\n      \"srcName\": \"main.py\",\n      \"maxCpuTime\": 3000,\n      \"maxRealTime\": 5000,\n      \"maxMemory\": 262144,\n      \"commands\": [\n        \"/opt/pypy/3.10/bin/python -m py_compile main.py\"\n      ]\n    },\n    \"run\": {\n      \"command\": \"/opt/pypy/3.10/bin/python __pycache__/main.pypy310.pyc\",\n      \"seccompRule\": \"general\",\n      \"maxRealTimeFactor\": 2,\n      \"maxCpuTimeFactor\": 2\n    }\n  }\n}"
+  },
+  {
+    "id": "50",
+    "version": 12,
+    "shellScript": "{\n  \"user\": {\n    \"compile\": {\n      \"srcName\": \"main.cc\",\n      \"maxCpuTime\": 5000,\n      \"maxRealTime\": 7000,\n      \"maxMemory\": 524288,\n      \"commands\": [\n        \"/opt/gcc/13.2.0/bin/g++ -Wl,-rpath -Wl,/opt/gcc/13.2.0/lib64 --define-macro=ONLINE_JUDGE --optimize=2 --no-warnings -fmax-errors=3 --std=c++20 -static --output=main main.cc\"\n      ]\n    },\n    \"run\": {\n      \"command\": \"main\",\n      \"seccompRule\": \"c_cpp\"\n    }\n  }\n}\n"
+  },
+  {
+    "id": "51",
+    "version": 0,
+    "shellScript": "{\n\t\"user\": {\n  \t\"compile\": {\n      \"srcName\": \"Main.java\",\n      \"maxCpuTime\": 3000,\n      \"maxRealTime\": 5000,\n      \"maxMemory\": 0,\n      \"commands\": [\n      \t\"/opt/java/openjdk21/bin/javac Main.java -encoding UTF8\"\n      ]\n    },\n    \"run\": {\n      \"command\": \"/opt/java/openjdk21/bin/java -Dfile.encoding=UTF-8 -XX:MaxRAM={problemMemoryLimit}k -Djava.awt.headless=true Main\",\n      \"maxMemoryFactor\": 0,\n      \"maxCpuTimeFactor\": 2,\n      \"maxRealTimeFactor\": 2\n    }\n  }\n}"
+  },
+  {
+    "id": "52",
+    "version": 1,
+    "shellScript": "{\n  \"user\": {\n    \"compile\": {\n      \"srcName\": \"main.py\",\n      \"maxCpuTime\": 3000,\n      \"maxRealTime\": 5000,\n      \"maxMemory\": 262144,\n      \"commands\": [\n        \"/opt/python/3.12-csp/bin/python -m py_compile main.py\"\n      ]\n    },\n    \"run\": {\n      \"command\": \"/opt/python/3.12-csp/bin/python __pycache__/main.cpython-312.pyc\",\n      \"seccompRule\": \"general\",\n      \"maxRealTimeFactor\": 3,\n      \"maxCpuTimeFactor\": 3\n    }\n  }\n}"
+  }
+]

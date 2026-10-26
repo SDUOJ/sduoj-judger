@@ -1,0 +1,7 @@
+# Permission-only derivation: compiler/rootfs/native sandbox remain R6 bytes.
+ARG ACCEPTED_WORKER_IMAGE
+FROM ${ACCEPTED_WORKER_IMAGE}
+USER root
+COPY ide_debug/cgroups.py /opt/sduoj-ide/ide_debug/cgroups.py
+RUN python3 -c "import os,struct;from pathlib import Path;[(p.chmod(0o755),os.setxattr(p,'security.capability',struct.pack('<IIIII',0x02000001,1<<b,0,0,0))) for p,b in [(Path('/usr/bin/newuidmap'),7),(Path('/usr/bin/newgidmap'),6)]]"
+USER 10001:10001

@@ -1,0 +1,22 @@
+# Build from locally frozen images; the orchestration receipt verifies their IDs.
+# NATIVE_BUILD is produced by the pinned Ubuntu18/GCC7 native source build.
+ARG BASE
+ARG NATIVE_BUILD
+FROM ${NATIVE_BUILD} AS native
+FROM ${BASE}
+USER root
+COPY ide-worker/ide_intelligence/ /opt/sduoj-ide/ide_intelligence/
+COPY ide-worker/ide_debug/ /opt/sduoj-ide/ide_debug/
+COPY ide-worker/sduoj_ide_worker/ /opt/sduoj-ide/sduoj_ide_worker/
+COPY ide-worker/scripts/ /opt/sduoj-ide/scripts/
+COPY ide-worker/ide_debug/ /opt/judge-rootfs/opt/sduoj-debug/ide_debug/
+COPY --from=native /output/fixed-sandbox /opt/judge-rootfs/opt/sduoj-sandbox/bin/sandbox
+COPY native/source-manifest.json /opt/sduoj-ide/compile-sandbox-source.json
+ARG SANDBOX_SHA256
+ARG JUDGE_IMAGE_ID
+RUN python3 -c 'import hashlib,sys; from pathlib import Path; assert hashlib.sha256(Path("/opt/judge-rootfs/opt/sduoj-sandbox/bin/sandbox").read_bytes()).hexdigest() == sys.argv[1]' "$SANDBOX_SHA256" \
+    && python3 scripts/prepare_image.py --judge-image "$JUDGE_IMAGE_ID" \
+    && python3 -c 'import redis.asyncio,pydantic,httpx' \
+    && chmod 0755 scripts/entrypoint.py scripts/nsjail
+USER ide
+CMD ["--role", "all"]
