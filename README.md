@@ -29,3 +29,5 @@ The CI workflows pin matching sandbox and private server source commits. Configu
 Local build uses `./gradlew -PsduojServerSource=/absolute/path/to/matching-server build`. The final image is verified on its native architecture using `test/runtime-smoke.sh`, including actual Java8/17/21 compilation/execution and trusted helper isolation. New image IDs require their own runtime acceptance; an old image's receipt does not qualify a rebuilt image.
 
 See `ide-worker/README.md` for the independent IDE runtime and candidate/qualified manifest distinction.
+
+Host-network execution VMs must set `SDUOJ_JUDGER_CPU_NODE_INDEX=1` for each Judger/Run container with its own disjoint cpuset. The optional positive index selects a slice inside that container's effective cpuset; unset retains legacy DNS node discovery. Invalid values or slices exceeding the cpuset fail startup. `CPU_PER_JUDGER` still sets the slice width.

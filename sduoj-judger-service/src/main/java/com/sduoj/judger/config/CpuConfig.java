@@ -75,16 +75,10 @@ public class CpuConfig {
             log.info("CpuSet: {}", cpus);
 
             // 分配 cpu 给当前 judger
-            int containerNodeIndex = DockerContainers.getContainerNodeIndex();
+            int containerNodeIndex = CpuAssignment.nodeIndex(
+                    System.getenv("SDUOJ_JUDGER_CPU_NODE_INDEX"), DockerContainers::getContainerNodeIndex);
             log.info("Getting {} CPUs for current container#{}", CPU_PER_JUDGER, containerNodeIndex);
-            int fromIndex = (containerNodeIndex - 1) * CPU_PER_JUDGER;
-            int toIndex = containerNodeIndex * CPU_PER_JUDGER;
-            if (cpus.size() < toIndex) {
-                log.error("Not enough {} CPUs for current container#{} in {}",
-                        CPU_PER_JUDGER, containerNodeIndex, cpus);
-                throw new SystemErrorException("Not enough CPUs for current container");
-            }
-            CpuConfig.cpus = cpus.subList(fromIndex, toIndex);
+            CpuConfig.cpus = CpuAssignment.select(cpus, CPU_PER_JUDGER, containerNodeIndex);
             log.info("CpuConfig Initialize: {}", CpuConfig.cpus);
 
             return true;
