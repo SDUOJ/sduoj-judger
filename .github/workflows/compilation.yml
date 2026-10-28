@@ -44,3 +44,44 @@ jobs:
 
       - name: To disable the cache of sduoj-server packages
         run: rm -rfv ~/.gradle/caches/modules*/**/com.sduoj*/**
+
+      - name: Summarize actual JUnit results
+        if: always()
+        shell: python
+        run: |
+          import json
+          import os
+          import pathlib
+          import xml.etree.ElementTree as ET
+
+          reports = []
+          for source in sorted(pathlib.Path('sduoj-judger-service/build/test-results/test').glob('TEST-*.xml')):
+              suite = ET.parse(source).getroot()
+              cases = []
+              for case in suite.findall('testcase'):
+                  status = next((kind for kind in ('failure', 'error', 'skipped') if case.find(kind) is not None), 'passed')
+                  cases.append({'class': case.get('classname'), 'name': case.get('name'), 'status': status})
+              reports.append({'path': str(source), 'tests': int(suite.get('tests', 0)), 'failures': int(suite.get('failures', 0)), 'errors': int(suite.get('errors', 0)), 'skipped': int(suite.get('skipped', 0)), 'cases': cases})
+          totals = {key: sum(report[key] for report in reports) for key in ('tests', 'failures', 'errors', 'skipped')}
+          totals['passed'] = totals['tests'] - totals['failures'] - totals['errors'] - totals['skipped']
+          result = {'sourceRef': os.environ['GITHUB_SHA'], 'runnerOS': os.environ['RUNNER_OS'], 'totals': totals, 'reports': reports}
+          destination = pathlib.Path('sduoj-judger-service/build/ci-test-summary.json')
+          destination.parent.mkdir(parents=True, exist_ok=True)
+          destination.write_text(json.dumps(result, indent=2) + '\n')
+          print(json.dumps(result))
+          with open(os.environ['GITHUB_STEP_SUMMARY'], 'a') as summary:
+              summary.write('## Judger JUnit results\n\n' + json.dumps(totals) + '\n')
+          if not reports or totals['tests'] == 0:
+              raise SystemExit('No executed Judger JUnit XML reports found')
+
+      - name: Preserve JUnit XML and HTML reports
+        if: always()
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02
+        with:
+          name: judger-junit-results
+          path: |
+            sduoj-judger-service/build/ci-test-summary.json
+            sduoj-judger-service/build/test-results/test/
+            sduoj-judger-service/build/reports/tests/test/
+          if-no-files-found: error
+          retention-days: 14
