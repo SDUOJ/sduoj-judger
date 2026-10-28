@@ -42,6 +42,14 @@ jobs:
         run: |
           ./gradlew -PsduojServerSource="$GITHUB_WORKSPACE/sduoj-server-sources" build --scan
 
+      - name: Exercise Linux root worker permission branches
+        run: |
+          cp -a sduoj-judger-service/build/test-results/test sduoj-judger-service/build/test-results/unprivileged
+          sudo id -u > sduoj-judger-service/build/ci-test-worker-uid.txt
+          sudo --preserve-env=JAVA_HOME,GITHUB_TOKEN env GRADLE_USER_HOME="$RUNNER_TEMP/judger-root-gradle" \
+            ./gradlew -PsduojServerSource="$GITHUB_WORKSPACE/sduoj-server-sources" \
+            :sduoj-judger-service:test --rerun-tasks --no-daemon
+
       - name: To disable the cache of sduoj-server packages
         run: rm -rfv ~/.gradle/caches/modules*/**/com.sduoj*/**
 
@@ -65,6 +73,9 @@ jobs:
           totals = {key: sum(report[key] for report in reports) for key in ('tests', 'failures', 'errors', 'skipped')}
           totals['passed'] = totals['tests'] - totals['failures'] - totals['errors'] - totals['skipped']
           result = {'sourceRef': os.environ['GITHUB_SHA'], 'runnerOS': os.environ['RUNNER_OS'], 'totals': totals, 'reports': reports}
+          worker_uid = pathlib.Path('sduoj-judger-service/build/ci-test-worker-uid.txt')
+          result['workerUid'] = worker_uid.read_text().strip() if worker_uid.exists() else None
+          result['expectedLinuxInapplicable'] = ['insecureProviderDoesNotFallBackToPathBasedDeletion: default Linux provider supports SecureDirectoryStream; opposite-provider coverage is recorded separately']
           destination = pathlib.Path('sduoj-judger-service/build/ci-test-summary.json')
           destination.parent.mkdir(parents=True, exist_ok=True)
           destination.write_text(json.dumps(result, indent=2) + '\n')
@@ -81,7 +92,9 @@ jobs:
           name: judger-junit-results
           path: |
             sduoj-judger-service/build/ci-test-summary.json
+            sduoj-judger-service/build/ci-test-worker-uid.txt
             sduoj-judger-service/build/test-results/test/
+            sduoj-judger-service/build/test-results/unprivileged/
             sduoj-judger-service/build/reports/tests/test/
           if-no-files-found: error
           retention-days: 14
