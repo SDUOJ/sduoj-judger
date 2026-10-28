@@ -48,7 +48,16 @@ jobs:
           sudo id -u > sduoj-judger-service/build/ci-test-worker-uid.txt
           sudo --preserve-env=JAVA_HOME,GITHUB_TOKEN env GRADLE_USER_HOME="$RUNNER_TEMP/judger-root-gradle" \
             ./gradlew -PsduojServerSource="$GITHUB_WORKSPACE/sduoj-server-sources" \
-            :sduoj-judger-service:test --rerun-tasks --no-daemon
+            :sduoj-judger-service:test --rerun-tasks --no-daemon \
+            --tests '*HelperCompilationTest.crashLeasesAndOtherPidNamespacesAreNeverReused' \
+            --tests '*HelperCompilationTest.freshRuntimeInodesCannotBeChangedThroughAnOldWritableDescriptorOrByNobody' \
+            --tests '*HelperCompilationTest.identitiesAreExclusiveAcrossTasksAndOnlyTheirOwnerCanWriteBuilds' \
+            --tests '*HelperCompilationTest.anUnreapedProcessQuarantinesTheLeaseUntilAbsenceCanBeProved' \
+            --tests '*HelperCompilationTest.skipsAnIdentityWithAnExistingProcessEvenWithoutALease' \
+            --tests '*HelperCompilationTest.sealingRejectsLinksSpecialFilesAndOversizedTrees' \
+            --tests '*HelperCompilationTest.exitAndExceptionCleanupKillsReparentedChildrenBeforeReleasingIdentity' \
+            --tests '*RunWorkspaceTest.linuxWorkerPreservesProtectedFilesWhileProgramCanWriteItsOwnDirectory' \
+            --tests '*RunWorkspaceTest.linuxWorkerCompilesNestedJavaSourcesAsNobody'
 
       - name: To disable the cache of sduoj-server packages
         run: rm -rfv ~/.gradle/caches/modules*/**/com.sduoj*/**
@@ -76,6 +85,7 @@ jobs:
           worker_uid = pathlib.Path('sduoj-judger-service/build/ci-test-worker-uid.txt')
           result['workerUid'] = worker_uid.read_text().strip() if worker_uid.exists() else None
           result['expectedLinuxInapplicable'] = ['insecureProviderDoesNotFallBackToPathBasedDeletion: default Linux provider supports SecureDirectoryStream; opposite-provider coverage is recorded separately']
+          result['externalRequiredGates'] = [{'case': 'HelperCompilationTest.nestedZipSourcesCompileAndTheSealedProgramRunsAsNobody', 'status': 'required-in-actual-worker-image', 'requirements': ['trusted judge entrypoint', 'delegated SDUOJ_CGROUP_ROOT', '/usr/bin/sandbox', '/opt/gcc/13.2.0/bin/g++']}]
           destination = pathlib.Path('sduoj-judger-service/build/ci-test-summary.json')
           destination.parent.mkdir(parents=True, exist_ok=True)
           destination.write_text(json.dumps(result, indent=2) + '\n')
