@@ -1,0 +1,656 @@
+{
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "schemaVersion",
+    "repository",
+    "productSource",
+    "platform",
+    "registryRepository",
+    "immutableTag",
+    "configSha256",
+    "diffIds",
+    "archiveSha256",
+    "archiveBytes",
+    "releaseId",
+    "releaseTag",
+    "parts",
+    "qualification",
+    "component",
+    "archiveTags",
+    "manifestDigest",
+    "layers"
+  ],
+  "properties": {
+    "schemaVersion": {
+      "const": 1
+    },
+    "repository": {
+      "const": "SDUOJ/sduoj-judger"
+    },
+    "productSource": {
+      "type": "string",
+      "pattern": "^[0-9a-f]{40}$"
+    },
+    "platform": {
+      "enum": [
+        "linux/amd64",
+        "linux/arm64"
+      ]
+    },
+    "registryRepository": {
+      "const": "registry.cn-beijing.aliyuncs.com/pre-sduoj/sduoj-judger"
+    },
+    "immutableTag": {
+      "type": "string",
+      "pattern": "^(staging-)?(judger|ide-worker|execution-vm-manager)-[0-9]{8}-[0-9a-f]{12}-[0-9a-f]{12}-(amd64|arm64)$"
+    },
+    "configSha256": {
+      "type": "string",
+      "pattern": "^[0-9a-f]{64}$"
+    },
+    "diffIds": {
+      "type": "array",
+      "minItems": 1,
+      "items": {
+        "type": "string",
+        "pattern": "^sha256:[0-9a-f]{64}$"
+      }
+    },
+    "archiveSha256": {
+      "type": "string",
+      "pattern": "^[0-9a-f]{64}$"
+    },
+    "archiveBytes": {
+      "type": "integer",
+      "minimum": 1,
+      "maximum": 42949672960
+    },
+    "releaseId": {
+      "type": "integer",
+      "minimum": 1
+    },
+    "releaseTag": {
+      "type": "string"
+    },
+    "parts": {
+      "type": "array",
+      "minItems": 1,
+      "maxItems": 64,
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": [
+          "ordinal",
+          "assetId",
+          "name",
+          "bytes",
+          "sha256"
+        ],
+        "properties": {
+          "ordinal": {
+            "type": "integer",
+            "minimum": 0
+          },
+          "assetId": {
+            "type": "integer",
+            "minimum": 1
+          },
+          "name": {
+            "type": "string",
+            "pattern": "^image\\.tar\\.part-[0-9]{3}$"
+          },
+          "bytes": {
+            "type": "integer",
+            "minimum": 1,
+            "exclusiveMaximum": 2147483648
+          },
+          "sha256": {
+            "type": "string",
+            "pattern": "^[0-9a-f]{64}$"
+          }
+        }
+      }
+    },
+    "qualification": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "status",
+        "receipts"
+      ],
+      "properties": {
+        "status": {
+          "enum": [
+            "candidate-only",
+            "candidate-staging-only",
+            "qualified"
+          ]
+        },
+        "receipts": {
+          "type": "array",
+          "minItems": 7,
+          "maxItems": 11,
+          "items": {
+            "type": "object",
+            "additionalProperties": false,
+            "required": [
+              "gate",
+              "status",
+              "assetId",
+              "sha256",
+              "productSource",
+              "configSha256"
+            ],
+            "properties": {
+              "gate": {
+                "enum": [
+                  "image-config-layer-verification",
+                  "image-disclosure-review",
+                  "image-smoke",
+                  "native-formal",
+                  "native-run",
+                  "worker-runtime-junit",
+                  "ide-api",
+                  "ide-browser",
+                  "ide-debug-lsp",
+                  "ide-isolation",
+                  "ide-capacity",
+                  "ide-900s",
+                  "ide-recovery",
+                  "manager-nonroot",
+                  "manager-boot-assets",
+                  "manager-feature",
+                  "combined-release"
+                ]
+              },
+              "status": {
+                "enum": [
+                  "pass",
+                  "pending",
+                  "fail"
+                ]
+              },
+              "assetId": {
+                "type": "integer",
+                "minimum": 1
+              },
+              "sha256": {
+                "type": "string",
+                "pattern": "^[0-9a-f]{64}$"
+              },
+              "productSource": {
+                "type": "string",
+                "pattern": "^[0-9a-f]{40}$"
+              },
+              "configSha256": {
+                "type": "string",
+                "pattern": "^[0-9a-f]{64}$"
+              }
+            }
+          }
+        }
+      }
+    },
+    "component": {
+      "enum": [
+        "judger",
+        "ide-worker",
+        "execution-vm-manager"
+      ]
+    },
+    "archiveTags": {
+      "type": [
+        "array",
+        "null"
+      ],
+      "items": {
+        "type": "string"
+      }
+    },
+    "manifestDigest": {
+      "type": [
+        "string",
+        "null"
+      ],
+      "pattern": "^sha256:[0-9a-f]{64}$"
+    },
+    "layers": {
+      "type": "array",
+      "minItems": 1,
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": [
+          "mediaType",
+          "blobSha256",
+          "blobBytes",
+          "diffId",
+          "uncompressedBytes"
+        ],
+        "properties": {
+          "mediaType": {
+            "type": "string"
+          },
+          "blobSha256": {
+            "type": "string",
+            "pattern": "^sha256:[0-9a-f]{64}$"
+          },
+          "blobBytes": {
+            "type": "integer",
+            "minimum": 1
+          },
+          "diffId": {
+            "type": "string",
+            "pattern": "^sha256:[0-9a-f]{64}$"
+          },
+          "uncompressedBytes": {
+            "type": "integer",
+            "minimum": 1
+          }
+        }
+      }
+    }
+  },
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "allOf": [
+    {
+      "if": {
+        "properties": {
+          "component": {
+            "const": "judger"
+          }
+        }
+      },
+      "then": {
+        "properties": {
+          "qualification": {
+            "properties": {
+              "receipts": {
+                "minItems": 7,
+                "maxItems": 7,
+                "allOf": [
+                  {
+                    "contains": {
+                      "properties": {
+                        "gate": {
+                          "const": "image-config-layer-verification"
+                        }
+                      },
+                      "required": [
+                        "gate"
+                      ]
+                    }
+                  },
+                  {
+                    "contains": {
+                      "properties": {
+                        "gate": {
+                          "const": "image-disclosure-review"
+                        }
+                      },
+                      "required": [
+                        "gate"
+                      ]
+                    }
+                  },
+                  {
+                    "contains": {
+                      "properties": {
+                        "gate": {
+                          "const": "image-smoke"
+                        }
+                      },
+                      "required": [
+                        "gate"
+                      ]
+                    }
+                  },
+                  {
+                    "contains": {
+                      "properties": {
+                        "gate": {
+                          "const": "combined-release"
+                        }
+                      },
+                      "required": [
+                        "gate"
+                      ]
+                    }
+                  },
+                  {
+                    "contains": {
+                      "properties": {
+                        "gate": {
+                          "const": "native-formal"
+                        }
+                      },
+                      "required": [
+                        "gate"
+                      ]
+                    }
+                  },
+                  {
+                    "contains": {
+                      "properties": {
+                        "gate": {
+                          "const": "native-run"
+                        }
+                      },
+                      "required": [
+                        "gate"
+                      ]
+                    }
+                  },
+                  {
+                    "contains": {
+                      "properties": {
+                        "gate": {
+                          "const": "worker-runtime-junit"
+                        }
+                      },
+                      "required": [
+                        "gate"
+                      ]
+                    }
+                  }
+                ]
+              }
+            }
+          }
+        }
+      }
+    },
+    {
+      "if": {
+        "properties": {
+          "component": {
+            "const": "ide-worker"
+          }
+        }
+      },
+      "then": {
+        "properties": {
+          "qualification": {
+            "properties": {
+              "receipts": {
+                "minItems": 11,
+                "maxItems": 11,
+                "allOf": [
+                  {
+                    "contains": {
+                      "properties": {
+                        "gate": {
+                          "const": "image-config-layer-verification"
+                        }
+                      },
+                      "required": [
+                        "gate"
+                      ]
+                    }
+                  },
+                  {
+                    "contains": {
+                      "properties": {
+                        "gate": {
+                          "const": "image-disclosure-review"
+                        }
+                      },
+                      "required": [
+                        "gate"
+                      ]
+                    }
+                  },
+                  {
+                    "contains": {
+                      "properties": {
+                        "gate": {
+                          "const": "image-smoke"
+                        }
+                      },
+                      "required": [
+                        "gate"
+                      ]
+                    }
+                  },
+                  {
+                    "contains": {
+                      "properties": {
+                        "gate": {
+                          "const": "combined-release"
+                        }
+                      },
+                      "required": [
+                        "gate"
+                      ]
+                    }
+                  },
+                  {
+                    "contains": {
+                      "properties": {
+                        "gate": {
+                          "const": "ide-api"
+                        }
+                      },
+                      "required": [
+                        "gate"
+                      ]
+                    }
+                  },
+                  {
+                    "contains": {
+                      "properties": {
+                        "gate": {
+                          "const": "ide-browser"
+                        }
+                      },
+                      "required": [
+                        "gate"
+                      ]
+                    }
+                  },
+                  {
+                    "contains": {
+                      "properties": {
+                        "gate": {
+                          "const": "ide-debug-lsp"
+                        }
+                      },
+                      "required": [
+                        "gate"
+                      ]
+                    }
+                  },
+                  {
+                    "contains": {
+                      "properties": {
+                        "gate": {
+                          "const": "ide-isolation"
+                        }
+                      },
+                      "required": [
+                        "gate"
+                      ]
+                    }
+                  },
+                  {
+                    "contains": {
+                      "properties": {
+                        "gate": {
+                          "const": "ide-capacity"
+                        }
+                      },
+                      "required": [
+                        "gate"
+                      ]
+                    }
+                  },
+                  {
+                    "contains": {
+                      "properties": {
+                        "gate": {
+                          "const": "ide-900s"
+                        }
+                      },
+                      "required": [
+                        "gate"
+                      ]
+                    }
+                  },
+                  {
+                    "contains": {
+                      "properties": {
+                        "gate": {
+                          "const": "ide-recovery"
+                        }
+                      },
+                      "required": [
+                        "gate"
+                      ]
+                    }
+                  }
+                ]
+              }
+            }
+          }
+        }
+      }
+    },
+    {
+      "if": {
+        "properties": {
+          "component": {
+            "const": "execution-vm-manager"
+          }
+        }
+      },
+      "then": {
+        "properties": {
+          "qualification": {
+            "properties": {
+              "receipts": {
+                "minItems": 7,
+                "maxItems": 7,
+                "allOf": [
+                  {
+                    "contains": {
+                      "properties": {
+                        "gate": {
+                          "const": "image-config-layer-verification"
+                        }
+                      },
+                      "required": [
+                        "gate"
+                      ]
+                    }
+                  },
+                  {
+                    "contains": {
+                      "properties": {
+                        "gate": {
+                          "const": "image-disclosure-review"
+                        }
+                      },
+                      "required": [
+                        "gate"
+                      ]
+                    }
+                  },
+                  {
+                    "contains": {
+                      "properties": {
+                        "gate": {
+                          "const": "image-smoke"
+                        }
+                      },
+                      "required": [
+                        "gate"
+                      ]
+                    }
+                  },
+                  {
+                    "contains": {
+                      "properties": {
+                        "gate": {
+                          "const": "combined-release"
+                        }
+                      },
+                      "required": [
+                        "gate"
+                      ]
+                    }
+                  },
+                  {
+                    "contains": {
+                      "properties": {
+                        "gate": {
+                          "const": "manager-nonroot"
+                        }
+                      },
+                      "required": [
+                        "gate"
+                      ]
+                    }
+                  },
+                  {
+                    "contains": {
+                      "properties": {
+                        "gate": {
+                          "const": "manager-boot-assets"
+                        }
+                      },
+                      "required": [
+                        "gate"
+                      ]
+                    }
+                  },
+                  {
+                    "contains": {
+                      "properties": {
+                        "gate": {
+                          "const": "manager-feature"
+                        }
+                      },
+                      "required": [
+                        "gate"
+                      ]
+                    }
+                  }
+                ]
+              }
+            }
+          }
+        }
+      }
+    },
+    {
+      "if": {
+        "properties": {
+          "qualification": {
+            "properties": {
+              "status": {
+                "const": "candidate-staging-only"
+              }
+            }
+          }
+        }
+      },
+      "then": {
+        "properties": {
+          "immutableTag": {
+            "pattern": "^staging-"
+          }
+        }
+      },
+      "else": {
+        "properties": {
+          "immutableTag": {
+            "not": {
+              "pattern": "^staging-"
+            }
+          }
+        }
+      }
+    }
+  ]
+}
