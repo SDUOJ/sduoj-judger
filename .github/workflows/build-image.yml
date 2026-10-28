@@ -24,8 +24,8 @@ jobs:
 
       - name: Require read access to the matching private server sources
         env:
-          SERVER_SOURCE_TOKEN: ${{ secrets.SDUOJ_SERVER_SOURCE_TOKEN }}
-        run: test -n "$SERVER_SOURCE_TOKEN"
+          SERVER_SOURCE_KEY: ${{ secrets.SDUOJ_SERVER_SOURCE_KEY }}
+        run: test -n "$SERVER_SOURCE_KEY"
 
       - name: Checkout the matching server interface source
         uses: actions/checkout@v7
@@ -34,7 +34,7 @@ jobs:
           ref: e016fc733cc0a9a0ec8a463e5710a19eed0d5db3
           path: sduoj-server-sources
           persist-credentials: false
-          token: ${{ secrets.SDUOJ_SERVER_SOURCE_TOKEN }}
+          ssh-key: ${{ secrets.SDUOJ_SERVER_SOURCE_KEY }}
 
       - uses: actions/setup-java@v6
         with:

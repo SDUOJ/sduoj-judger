@@ -24,7 +24,7 @@ Nacos/RPC secrets, queue endpoints and Snowflake node IDs are environment-specif
 
 ## Reproducible builds
 
-The CI workflows pin matching sandbox and private server source commits. Set a read-only `SDUOJ_SERVER_SOURCE_TOKEN` repository secret for the private source checkout; fork workflows without that credential cannot build the private dependency and fail explicitly. Publish the pinned source commits before dispatching the dependent image build. Never silently fall back to mutable SNAPSHOT interfaces.
+The CI workflows pin matching sandbox and private server source commits. Configure a dedicated read-only deploy key on the private server repository and store its private key in the Judger `SDUOJ_SERVER_SOURCE_KEY` Actions secret for the pinned checkout; fork workflows without that credential cannot build the private dependency and fail explicitly. Publish the pinned source commits before dispatching the dependent image build. Never silently fall back to mutable SNAPSHOT interfaces.
 
 Local build uses `./gradlew -PsduojServerSource=/absolute/path/to/matching-server build`. The final image is verified on its native architecture using `test/runtime-smoke.sh`, including actual Java8/17/21 compilation/execution and trusted helper isolation. New image IDs require their own runtime acceptance; an old image's receipt does not qualify a rebuilt image.
 
