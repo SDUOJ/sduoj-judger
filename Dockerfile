@@ -4,8 +4,10 @@ ARG IDE_DEBUG_TOOLS_IMAGE
 
 # Upstream SDK images are build inputs only. The published worker remains this
 # original Ubuntu/Java17 image; no separate IDE image is published.
-FROM ${IDE_TOOLS_IMAGE} AS ide-tools
-FROM ${IDE_DEBUG_TOOLS_IMAGE} AS ide-debug-tools
+# IDE is ARM64-only until separately qualified. The amd64 final build copies
+# these SDK payloads as inert files; its formal/Run path never executes them.
+FROM --platform=linux/arm64 ${IDE_TOOLS_IMAGE} AS ide-tools
+FROM --platform=linux/arm64 ${IDE_DEBUG_TOOLS_IMAGE} AS ide-debug-tools
 FROM ubuntu:${UBUNTU_VERSION} as basic
 # metadata
 LABEL maintainer="SDUOJ-Team"
@@ -114,6 +116,10 @@ COPY ide-worker/extraction.json /opt/sduoj-ide/extraction.json
 RUN /opt/java/openjdk17/bin/javac -d /opt/sduoj-debug/bridge /opt/sduoj-ide/ide_debug/adapters/DebugBridge.java \
  && chmod 0555 /opt/sduoj-ide/scripts/entrypoint.py /opt/sduoj-ide/scripts/nsjail
 
+COPY docker/worker-entrypoint.sh /usr/local/bin/sduoj-worker-entrypoint
+COPY docker/start-judger.sh /usr/local/bin/sduoj-start-judger
+RUN chmod 0555 /usr/local/bin/sduoj-worker-entrypoint /usr/local/bin/sduoj-start-judger
+
 WORKDIR /app
 
 # copy sduoj-judger.jar
@@ -129,14 +135,6 @@ ENV NACOS_ADDR="127.0.0.1:8848" \
     JAVA_OPT="" \
     JAVA_OPT_EXT=""
 
-ENTRYPOINT ["/usr/bin/tini", "--", "/usr/local/bin/sduoj-judge-entrypoint"]
+ENTRYPOINT ["/usr/bin/tini", "--", "/usr/local/bin/sduoj-worker-entrypoint"]
 
-CMD /wait                                                          \
- && JAVA_OPT="${JAVA_OPT} -jar sduoj-judger.jar"                   \
- && JAVA_OPT="${JAVA_OPT} ${JAVA_OPT_EXT}"                         \
- && JAVA_OPT="${JAVA_OPT} --sduoj.config.active=$ACTIVE"           \
- && JAVA_OPT="${JAVA_OPT} --sduoj.config.nacos-addr=$NACOS_ADDR"   \
- && echo "SDUOJ is starting. Logs are in '/app/logs/judger.log'"   \
- && echo "Run: java ${JAVA_OPT}"                                   \
- && mkdir -p /app/logs                                             \
- && exec java ${JAVA_OPT} >> /app/logs/judger.log 2>&1
+CMD ["/usr/local/bin/sduoj-start-judger"]
