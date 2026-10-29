@@ -24,7 +24,7 @@ def file_digest(path):
 
 def command(*args, binary=False):
     result = subprocess.run(args, capture_output=True, text=not binary, check=False)
-    check(result.returncode == 0, 'Command failed: ' + args[0] + ' ' + args[1])
+    check(result.returncode == 0, 'Command failed: ' + args[0] + ' ' + args[1] + ': ' + (result.stderr.decode(errors='replace') if binary else result.stderr)[-1500:])
     return result.stdout
 
 def strict_manifest(m):
@@ -107,6 +107,7 @@ def main():
     parser.add_argument('--publish', action='store_true')
     parser.add_argument('--report', required=True)
     args = parser.parse_args()
+    pathlib.Path(args.report).write_text(json.dumps({'published': False, 'productionQualified': False, 'phase': 'validation-started'}) + '\n')
     path = pathlib.Path(args.manifest)
     check(re.fullmatch(r'scripts/exact-artifacts/manifests/[A-Za-z0-9_.-]+\.json', str(path)), 'Manifest must be checked-in reviewed path')
     tracked = command('git', 'ls-files', '--error-unmatch', str(path)).strip()
