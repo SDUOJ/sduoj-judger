@@ -1,12 +1,4 @@
 ARG UBUNTU_VERSION=18.04
-FROM ubuntu:${UBUNTU_VERSION} AS sandbox-build
-RUN apt-get update -qq \
- && apt-get install -y -qq --no-install-recommends build-essential libseccomp-dev \
- && rm -rf /var/lib/apt/lists/*
-WORKDIR /src
-COPY --from=sandbox-src . .
-RUN rm -rf build && make -j4
-
 FROM ubuntu:${UBUNTU_VERSION} as basic
 # metadata
 LABEL maintainer="SDUOJ-Team"
@@ -60,10 +52,10 @@ COPY --from=ghcr.io/sduoj/judging-containers:pypy-3.10-v7.3.15 /opt/ /opt/
 COPY --from=ghcr.io/sduoj/judging-containers:ubuntu-18.04_gcc-13.2.0 /opt/ /opt/
 # install Rust
 COPY --from=ghcr.io/sduoj/judging-containers:ubuntu-18.04_rust-1.78.0 /opt/ /opt/
-# install sduoj-sandbox built from the reviewed source commit
-COPY --from=sandbox-build /src/build/bin/sandbox /opt/sduoj-sandbox/bin/sandbox
-COPY --from=sandbox-src docker/judge-entrypoint.sh /usr/local/bin/sduoj-judge-entrypoint
-RUN chmod 0755 /usr/local/bin/sduoj-judge-entrypoint
+# install sduoj-sandbox and its trusted entrypoint from the original producer
+COPY --from=ghcr.io/sduoj/judging-containers:ubuntu-18.04_sduoj-sandbox /opt/ /opt/
+RUN test -x /opt/sduoj-sandbox/bin/judge-entrypoint \
+ && ln -s /opt/sduoj-sandbox/bin/judge-entrypoint /usr/local/bin/sduoj-judge-entrypoint
 # install docker-compose-wait
 COPY --from=ghcr.io/sduoj/docker-compose-wait:latest /wait /wait
 

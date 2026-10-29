@@ -42,10 +42,6 @@ dependencies {
 
 
 dependencyManagement {
-    dependencies {
-        // Matching server composite exports this API dependency without a version.
-        dependency("com.google.code.findbugs:jsr305:3.0.2")
-    }
     imports {
         mavenBom("org.springframework.boot:spring-boot-dependencies:${Versions.springBoot}")
         mavenBom("org.springframework.cloud:spring-cloud-dependencies:${Versions.springCloud}")

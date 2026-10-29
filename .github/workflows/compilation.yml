@@ -12,20 +12,6 @@ jobs:
     steps:
       - uses: actions/checkout@v7
 
-      - name: Require read access to the matching private server sources
-        env:
-          SERVER_SOURCE_KEY: ${{ secrets.SDUOJ_SERVER_SOURCE_KEY }}
-        run: test -n "$SERVER_SOURCE_KEY"
-
-      - name: Checkout the matching server interface source
-        uses: actions/checkout@v7
-        with:
-          repository: SDUOJ/sduoj-server-private
-          ref: e016fc733cc0a9a0ec8a463e5710a19eed0d5db3
-          path: sduoj-server-sources
-          persist-credentials: false
-          ssh-key: ${{ secrets.SDUOJ_SERVER_SOURCE_KEY }}
-
       - uses: actions/setup-java@v6
         with:
           java-version: 17
@@ -40,14 +26,16 @@ jobs:
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: |
-          ./gradlew -PsduojServerSource="$GITHUB_WORKSPACE/sduoj-server-sources" build --scan
+          ./gradlew build --scan
 
       - name: Exercise Linux root worker permission branches
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: |
           cp -a sduoj-judger-service/build/test-results/test sduoj-judger-service/build/test-results/unprivileged
           sudo id -u > sduoj-judger-service/build/ci-test-worker-uid.txt
           sudo --preserve-env=JAVA_HOME,GITHUB_TOKEN env GRADLE_USER_HOME="$RUNNER_TEMP/judger-root-gradle" \
-            ./gradlew -PsduojServerSource="$GITHUB_WORKSPACE/sduoj-server-sources" \
+            ./gradlew \
             :sduoj-judger-service:test --rerun-tasks --no-daemon \
             --tests '*HelperCompilationTest.crashLeasesAndOtherPidNamespacesAreNeverReused' \
             --tests '*HelperCompilationTest.freshRuntimeInodesCannotBeChangedThroughAnOldWritableDescriptorOrByNobody' \

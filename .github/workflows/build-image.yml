@@ -4,49 +4,15 @@ on:
   push:
     branches:
       - master
-  workflow_dispatch:
-    inputs:
-      mode:
-        type: choice
-        options: [build, exact-artifact]
-        default: build
-      exact_manifest:
-        type: string
-        default: ''
-      exact_publish:
-        type: boolean
-        default: false
+  workflow_dispatch: # add manual trigger button
 
 jobs:
   docker:
-    if: github.event_name != 'workflow_dispatch' || inputs.mode != 'exact-artifact'
     runs-on: ubuntu-latest
     outputs:
       image_digest: ${{ steps.image.outputs.digest }}
     steps:
       - uses: actions/checkout@v7
-
-      - name: Checkout the reviewed sandbox source
-        uses: actions/checkout@v7
-        with:
-          repository: SDUOJ/sduoj-sandbox
-          ref: 951f96158c55d197911ccb5efa6fa37a9b492abc
-          path: sduoj-sandbox
-          persist-credentials: false
-
-      - name: Require read access to the matching private server sources
-        env:
-          SERVER_SOURCE_KEY: ${{ secrets.SDUOJ_SERVER_SOURCE_KEY }}
-        run: test -n "$SERVER_SOURCE_KEY"
-
-      - name: Checkout the matching server interface source
-        uses: actions/checkout@v7
-        with:
-          repository: SDUOJ/sduoj-server-private
-          ref: e016fc733cc0a9a0ec8a463e5710a19eed0d5db3
-          path: sduoj-server-sources
-          persist-credentials: false
-          ssh-key: ${{ secrets.SDUOJ_SERVER_SOURCE_KEY }}
 
       - uses: actions/setup-java@v6
         with:
@@ -62,7 +28,7 @@ jobs:
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: |
-          ./gradlew -PsduojServerSource="$GITHUB_WORKSPACE/sduoj-server-sources" build --scan
+          ./gradlew build --scan
 
       - name: To disable the cache of sduoj-server packages
         run: rm -rfv ~/.gradle/caches/modules*/**/com.sduoj*/**
@@ -97,15 +63,9 @@ jobs:
         with:
           context: .
           file: Dockerfile
-          build-contexts: |
-            sandbox-src=./sduoj-sandbox
           platforms: linux/amd64,linux/arm64
           push: true
-          provenance: false
-          sbom: false
-          tags: |
-            registry.cn-beijing.aliyuncs.com/pre-sduoj/sduoj-judger:${{ github.sha }}
-            registry.cn-beijing.aliyuncs.com/pre-sduoj/sduoj-judger:latest
+          tags: registry.cn-beijing.aliyuncs.com/pre-sduoj/sduoj-judger:latest
           cache-from: type=gha
           cache-to: type=gha,mode=max
 
@@ -141,56 +101,3 @@ jobs:
             --cgroupns=private --memory=1536m --memory-swap=1536m --pids-limit=512 \
             --entrypoint /usr/bin/tini "$IMAGE_REF" \
             -- /usr/local/bin/sduoj-judge-entrypoint /bin/bash -s -- "$EXPECTED_ARCH" < test/runtime-smoke.sh
-
-  exact-artifact:
-    if: github.event_name == 'workflow_dispatch' && inputs.mode == 'exact-artifact'
-    concurrency:
-      group: judger-exact-artifact-publication
-      cancel-in-progress: false
-    runs-on: ubuntu-latest
-    timeout-minutes: 45
-    permissions:
-      # GitHub requires push permission to read unpublished draft releases.
-      contents: write
-    steps:
-      - uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683
-      - name: Verify exact artifact validator contracts
-        run: python3 scripts/exact-artifacts/test_exact_artifacts.py
-      - name: Reject unqualified publish before registry authentication
-        env:
-          EXACT_MANIFEST: ${{ inputs.exact_manifest }}
-          EXACT_PUBLISH: ${{ inputs.exact_publish }}
-        run: |
-          python3 - <<'PY'
-          import json, os, pathlib, re
-          value = os.environ['EXACT_MANIFEST']
-          assert re.fullmatch(r'scripts/exact-artifacts/manifests/[A-Za-z0-9_.-]+\.json', value)
-          document = json.loads(pathlib.Path(value).read_text())
-          assert os.environ['EXACT_PUBLISH'] != 'true' or document['qualification']['status'] in ('candidate-staging-only', 'qualified'), 'candidate-only cannot publish'
-          PY
-      - name: Set up registry manifest inspection
-        uses: docker/setup-buildx-action@f87e5991a6d7451dcb8d9637bfbc97413f497069
-      - name: Authenticate with the existing registry identity
-        if: inputs.exact_publish
-        uses: docker/login-action@81c6f93d4bc991e510b342a00b419b3bb4efc5c6
-        with:
-          registry: registry.cn-beijing.aliyuncs.com
-          username: ${{ secrets.DOCKER_USERNAME }}
-          password: ${{ secrets.DOCKER_PASSWORD }}
-      - name: Verify locked assets and optionally publish exact bytes
-        env:
-          GH_TOKEN: ${{ github.token }}
-          EXACT_MANIFEST: ${{ inputs.exact_manifest }}
-          EXACT_PUBLISH: ${{ inputs.exact_publish }}
-        run: |
-          publish=()
-          if [ "$EXACT_PUBLISH" = true ]; then publish=(--publish); fi
-          python3 scripts/exact-artifacts/publish.py --manifest "$EXACT_MANIFEST" "${publish[@]}" --report exact-artifact-report.json
-      - name: Preserve exact artifact publication receipt
-        if: always()
-        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02
-        with:
-          name: exact-artifact-report
-          path: exact-artifact-report.json
-          if-no-files-found: error
-          retention-days: 14
