@@ -24,9 +24,11 @@ Nacos/RPC secrets, queue endpoints and Snowflake node IDs are environment-specif
 
 ## Reproducible builds
 
-The CI workflows pin matching sandbox and private server source commits. Configure a dedicated read-only deploy key on the private server repository and store its private key in the Judger `SDUOJ_SERVER_SOURCE_KEY` Actions secret for the pinned checkout; fork workflows without that credential cannot build the private dependency and fail explicitly. Publish the pinned source commits before dispatching the dependent image build. Never silently fall back to mutable SNAPSHOT interfaces.
+Develop directly on the existing `master` branch without additional branches or pull requests. `stable` is the separately maintained OSS line. Agents and subagents follow the same rule.
 
-Local build uses `./gradlew -PsduojServerSource=/absolute/path/to/matching-server build`. The final image is verified on its native architecture using `test/runtime-smoke.sh`, including actual Java8/17/21 compilation/execution and trusted helper isolation. New image IDs require their own runtime acceptance; an old image's receipt does not qualify a rebuilt image.
+Locally, first run the server's documented `publishToMavenLocal` tasks with a matching `Versions.sduoj`, then run `./gradlew build --scan` here. In GitHub Actions, publish the server common/interface packages to GitHub Packages before building Judger; record the consumed coordinates and artifact checksums. Use the existing package credentials, without a Deploy key, extra source checkout or composite build. Sandbox comes from the original judging-containers producer and Dockerfile COPY chain.
+
+The final image is verified on its native architecture using `test/runtime-smoke.sh`, including actual Java8/17/21 compilation/execution and trusted helper isolation. New image IDs require their own runtime acceptance; an old image's receipt does not qualify a rebuilt image.
 
 See `ide-worker/README.md` for the independent IDE runtime and candidate/qualified manifest distinction.
 
