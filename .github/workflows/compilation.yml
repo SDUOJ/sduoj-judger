@@ -34,7 +34,7 @@ jobs:
         run: |
           cp -a sduoj-judger-service/build/test-results/test sduoj-judger-service/build/test-results/unprivileged
           sudo id -u > sduoj-judger-service/build/ci-test-worker-uid.txt
-          sudo --preserve-env=JAVA_HOME,GITHUB_TOKEN env GRADLE_USER_HOME="$RUNNER_TEMP/judger-root-gradle" \
+          sudo --preserve-env=JAVA_HOME,GITHUB_TOKEN,GITHUB_REPOSITORY env GRADLE_USER_HOME="$RUNNER_TEMP/judger-root-gradle" \
             ./gradlew \
             :sduoj-judger-service:test --rerun-tasks --no-daemon \
             --tests '*HelperCompilationTest.crashLeasesAndOtherPidNamespacesAreNeverReused' \
