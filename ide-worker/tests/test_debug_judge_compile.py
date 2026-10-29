@@ -24,17 +24,20 @@ def receipt(**updates):
 def test_exact_template_units_and_formal_sandbox_arguments(row):
     source = json.loads(row["shellScript"])["user"]["compile"]
     limits = compile.CompileLimits.template(row)
-    argv = limits.argv(["/usr/bin/compiler", "--output=main", "main.c"], "/usr/bin:/bin")
+    argv = limits.argv(["/usr/bin/compiler", "--output=main", "main.c"], "/usr/bin:/bin",
+                       cgroup_root="/compile-cgroup", pids=64)
     assert argv[0] == "/usr/bin/sandbox"
     assert f'--max_cpu_time={source["maxCpuTime"]}' in argv
     assert f'--max_real_time={source["maxRealTime"]}' in argv
-    assert f'--max_memory={source["maxMemory"] * 1024}' in argv
+    assert f'--max_memory={source["maxMemory"] * 1024 or 1024**3}' in argv
     assert "--max_stack=134217728" in argv
     assert "--max_output_size=20971520" in argv
     assert "--exe_args=--output=main" in argv
-    assert "--input_path=/dev/null" in argv and "--output_path=compiler.out" in argv
+    assert "--input_path=/dev/null" in argv and "--output_path=/control/compiler.out" in argv
     assert "--exe_envs=PATH=/usr/bin:/bin" in argv
-    assert not any(arg.startswith(("--uid=", "--gid=", "--seccomp_rules=", "--max_process_number=")) for arg in argv)
+    assert "--max_process_number=64" in argv and "--cgroup_root=/compile-cgroup" in argv
+    assert "--io_mode=memfd" in argv and "--isolate_fs=1" in argv
+    assert not any(arg.startswith(("--uid=", "--gid=", "--seccomp_rules=")) for arg in argv)
 
 
 @pytest.mark.parametrize("updates,code", [
@@ -77,6 +80,18 @@ def test_output_is_bounded_and_cannot_follow_symlinks_or_fifos(tmp_path):
     (tmp_path / "compiler.out").symlink_to(tmp_path / "private.log")
     with pytest.raises(OSError):
         compile.compiler_output(tmp_path)
+
+
+def test_compiler_stderr_is_public_but_infrastructure_logs_are_private(tmp_path):
+    (tmp_path / "compiler.err").write_text("main.c:3: error: expected expression\n")
+    (tmp_path / "compiler.out").write_text("compiler progress\n")
+    (tmp_path / "sandbox.log").write_text("PRIVATE host path and native setup log")
+    result = compile.compiler_output(tmp_path)
+    assert result["output"] == "main.c:3: error: expected expression\ncompiler progress\n"
+    assert not result["truncated"] and "PRIVATE" not in result["output"]
+    (tmp_path / "compiler.err").write_bytes(b"e" * compile.PUBLIC_BYTES)
+    result = compile.compiler_output(tmp_path)
+    assert result == {"output": "e" * compile.PUBLIC_BYTES, "truncated": True}
     (tmp_path / "compiler.out").unlink()
     os.mkfifo(tmp_path / "compiler.out")
     with pytest.raises(ValueError, match="output"):
@@ -121,7 +136,9 @@ def test_sandbox_protocol_and_watchdog_reap_control_process(tmp_path, monkeypatc
     monkeypatch.setattr(compile, "SANDBOX", str(sandbox))
     monkeypatch.setattr(compile.os, "getuid", lambda: 0)
     monkeypatch.setattr(compile.os, "geteuid", lambda: 0)
-    (tmp_path / "compiler.out").write_text("source.c:1: error: expected expression\n")
+    (tmp_path / "compiler.err").write_text("source.c:1: error: expected expression\n")
+    read_output = compile.compiler_output
+    monkeypatch.setattr(compile, "compiler_output", lambda path: read_output(tmp_path))
     calls, killed = [], []
 
     class Process:
@@ -166,9 +183,12 @@ def test_sandbox_protocol_and_watchdog_reap_control_process(tmp_path, monkeypatc
     monkeypatch.setattr(compile.asyncio, "wait_for", short_watchdog)
     spec = {
         "compileSandboxSha256": hashlib.sha256(sandbox.read_bytes()).hexdigest(),
-        "compileLimits": {"cpu_ms": 3000, "real_ms": 5000, "memory_bytes": 0},
+        "compileLimits": {"cpu_ms": 3000, "real_ms": 5000, "memory_bytes": 512 * 1024**2},
         "compile": ["/usr/bin/gcc", "main.c", "-g", "-O0"],
         "compilePathEnv": "/usr/bin:/bin",
+        "compileMode": "official-v2-separate",
+        "compileCgroupRoot": "/compile-cgroup",
+        "compilePids": 64,
     }
     result = asyncio.run(compile.compile_source(spec, str(tmp_path)))
     if expected is None:

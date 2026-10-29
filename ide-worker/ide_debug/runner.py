@@ -1,10 +1,11 @@
-"""Runs INSIDE the jail. Compilers, adapters and target share its resource cap.
+"""Runs inside the runtime jail after the separate compile phase has exited.
 
 The outer agent only supplies a previously authorized profile and frozen source.
 Target stdout never shares this JSON control pipe. No shell commands are used.
 """
 
 import asyncio
+import hashlib
 import json
 import os
 from pathlib import Path
@@ -17,7 +18,7 @@ from ide_debug.watch import inspect_paths
 from ide_debug.adapters.native import Native
 from ide_debug.adapters.python import Python
 from ide_debug.adapters.java import Java
-from ide_debug.judge_compile import compile_source
+from ide_debug.runtime_artifacts import materialize
 
 OUTPUT_LIMIT = 196608
 output_bytes = 0
@@ -161,23 +162,22 @@ async def main():
     await asyncio.get_running_loop().connect_read_pipe(lambda: protocol, sys.stdin)
     init = json.loads(await reader.readline())
     spec = init["spec"]
-    if sys.argv[1:] != ["--adapter-only"]:
+    if sys.argv[1:] == ["--prepared-artifacts"]:
         try:
             namespace_identity()
-            source = Path("/work/" + spec["source"])
-            source.write_text(spec["code"])
-            # The service's private umask is 0077; only this source must be
-            # readable by the compiler's separate nobody identity.
-            source.chmod(0o644)
-            failure = await compile_source(spec)
-        except (OSError, ValueError, RuntimeError):
-            failure = {"code": "DEBUG_COMPILE_SANDBOX_FAILED", "output": ""}
-        if failure:
-            emit("compileError", failure)
+            materialize('/artifacts', '/work',
+                        manifest_sha256=spec['preparedArtifactSha256'],
+                        source_sha256=hashlib.sha256(spec['code'].encode()).hexdigest(),
+                        template_sha256=spec['preparedTemplateSha256'],
+                        native_sha256=spec['compileSandboxSha256'])
+        except (OSError, ValueError, RuntimeError, KeyError, TypeError):
+            emit('compileError', {'code': 'DEBUG_COMPILE_SANDBOX_FAILED', 'output': ''})
             return
         emit("compiled", {})
         await supervise_adapter(spec, reader)
         return
+    if sys.argv[1:] != ['--adapter-only']:
+        raise RuntimeError('Verified compile artifact handoff required')
     drop_adapter_identity()
     adapter = {"c": Native, "cpp": Native, "python": Python, "java": Java}[
         spec["language"]

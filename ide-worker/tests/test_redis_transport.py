@@ -25,7 +25,7 @@ def client():
 
 
 async def close_client(redis):
-    await getattr(redis, 'aclose', redis.close)()
+    await getattr(redis, 'aclose', redis.close)(close_connection_pool=True)
 
 
 def test_authoritative_owner_epoch_and_revision_snapshot():

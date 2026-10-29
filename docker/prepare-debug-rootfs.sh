@@ -16,4 +16,5 @@ for name in lib32 lib64; do
     fi
 done
 mkdir -p "$destination/work" "$destination/tmp" "$destination/proc" \
-    "$destination/dev/pts" "$destination/sys/fs/cgroup"
+    "$destination/dev/pts" "$destination/sys/fs/cgroup" \
+    "$destination/compile-cgroup" "$destination/control" "$destination/artifacts"

@@ -62,7 +62,7 @@ COPY --from=ghcr.io/sduoj/judging-containers:ubuntu-18.04_gcc-13.2.0 /opt/ /opt/
 # install Rust
 COPY --from=ghcr.io/sduoj/judging-containers:ubuntu-18.04_rust-1.78.0 /opt/ /opt/
 # install sduoj-sandbox and its trusted entrypoint from the original producer
-COPY --from=ghcr.io/sduoj/judging-containers:ubuntu-18.04_sduoj-sandbox /opt/ /opt/
+COPY --from=ghcr.io/sduoj/judging-containers:ubuntu-18.04_sduoj-sandbox@sha256:22b82b2feac96fd7d8a3b5157e866b81e0534b88408b786218495628c996c15c /opt/ /opt/
 RUN test -x /opt/sduoj-sandbox/bin/judge-entrypoint \
  && ln -s /opt/sduoj-sandbox/bin/judge-entrypoint /usr/local/bin/sduoj-judge-entrypoint
 # install docker-compose-wait
@@ -83,6 +83,17 @@ RUN --mount=type=bind,source=docker/prepare-debug-rootfs.sh,target=/prepare-debu
     sh /prepare-debug-rootfs.sh
 FROM judge-runtime AS final
 COPY --from=debug-rootfs /prepared-debug-rootfs/ /opt/judge-rootfs/
+
+# Only the optional IDE role uses subordinate identity mapping. Keep the helper
+# file capabilities exact; the control process itself remains unprivileged.
+RUN apt-get update -qq \
+ && apt-get install -y -qq --no-install-recommends uidmap \
+ && rm -rf /var/lib/apt/lists/* \
+ && groupadd --gid 10001 ide \
+ && useradd --uid 10001 --gid 10001 --no-create-home --shell /usr/sbin/nologin ide \
+ && printf 'ide:100000:65536\n' > /etc/subuid \
+ && printf 'ide:100000:65536\n' > /etc/subgid \
+ && /opt/python/3.11/bin/python -c "import os,struct; from pathlib import Path; [(p.chmod(0o755),os.setxattr(p,'security.capability',struct.pack('<IIIII',0x02000001,1<<b,0,0,0))) for p,b in [(Path('/usr/bin/newuidmap'),7),(Path('/usr/bin/newgidmap'),6)]]"
 
 # Relocatable upstream SDK payloads. Node and clangd carry private loaders;
 # Python wheels are unpacked into the existing Judger Python 3.11 runtime
@@ -112,12 +123,25 @@ RUN mkdir -p /opt/sduoj-ide/deps /opt/ide-sdk/bin \
 # operator-approved manifest and fail closed otherwise.
 COPY ide-worker/ide_intelligence /opt/sduoj-ide/ide_intelligence
 COPY ide-worker/ide_debug /opt/sduoj-ide/ide_debug
+COPY ide-worker/ide_debug/runtime.policy /opt/sduoj-ide/debug.policy
+COPY ide-worker/ide_debug/compile.policy /opt/sduoj-ide/compile.policy
 COPY ide-worker/sduoj_ide_worker /opt/sduoj-ide/sduoj_ide_worker
 COPY ide-worker/scripts /opt/sduoj-ide/scripts
 COPY ide-worker/toolchain-templates.json /opt/sduoj-ide/toolchain-templates.json
 COPY ide-worker/extraction.json /opt/sduoj-ide/extraction.json
 RUN /opt/java/openjdk17/bin/javac -d /opt/sduoj-debug/bridge /opt/sduoj-ide/ide_debug/adapters/DebugBridge.java \
+ && mkdir -p /usr/local/libexec \
+ && cc -static -O2 -Wall -Wextra -Werror -o /usr/local/libexec/sduoj-debug-bootstrap /opt/sduoj-ide/scripts/cgroup_bootstrap.c \
+ && chmod 0555 /usr/local/libexec/sduoj-debug-bootstrap \
  && chmod 0555 /opt/sduoj-ide/scripts/entrypoint.py /opt/sduoj-ide/scripts/nsjail
+
+COPY ide-worker/ide_debug/ /opt/judge-rootfs/opt/sduoj-debug/ide_debug/
+COPY --from=ide-debug-tools /artifacts/gdb-runtime /opt/judge-rootfs/opt/sduoj-debug/gdb-runtime
+COPY --from=ide-debug-tools /artifacts/debugpy /opt/judge-rootfs/opt/sduoj-debug/debugpy
+RUN cp -a /opt/sduoj-debug/bridge /opt/judge-rootfs/opt/sduoj-debug/bridge \
+ && cp -a /opt/judge-rootfs/opt/sduoj-debug/debugpy/. /opt/judge-rootfs/opt/python/3.11/lib/python3.11/site-packages/ \
+ && /opt/python/3.11/bin/python /opt/sduoj-ide/scripts/inventory_debug_rootfs.py /opt/judge-rootfs > /opt/sduoj-ide/debug-runtime-inventory.json \
+ && /opt/python/3.11/bin/python /opt/sduoj-ide/scripts/prepare_image.py --runtime-inventory /opt/sduoj-ide/debug-runtime-inventory.json
 
 COPY docker/worker-entrypoint.sh /usr/local/bin/sduoj-worker-entrypoint
 COPY docker/start-judger.sh /usr/local/bin/sduoj-start-judger

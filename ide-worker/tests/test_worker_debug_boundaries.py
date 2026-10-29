@@ -28,6 +28,8 @@ def test_process_cap_is_per_cgroup_not_shared_uid_rlimit(monkeypatch):
     config = nsjail_config(profile, Policy(subuid=100000, subgid=100000))
     assert 'rlimit_nproc_type: INF' in config
     assert 'rlimit_nproc: 64' not in config
+    assert 'rlimit_nofile: 256' in config
+    assert 'rlimit_stack_type: VALUE' in config
     # Launcher.start still passes profile.pids to the independent guardian's
     # cgroup creation; this change does not remove the per-sandbox PID cap.
 

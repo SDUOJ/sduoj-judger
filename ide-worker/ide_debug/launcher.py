@@ -5,18 +5,18 @@ import json
 import math
 import os
 from pathlib import Path
-import shutil
 import socket
 import sys
-from .cgroups import delegated_paths, Cgroups
-from .profiles import DebugError
+from .cgroups import delegated_paths, Cgroups, SessionDomain
+from .profiles import DebugError, verify_compile_policy, validate_phase_budget
+from .compile_artifacts import _remove_private
 
 
 def quote(value):
     return json.dumps(str(value))
 
 
-def nsjail_config(profile, policy):
+def nsjail_config(profile, policy, artifacts=None):
     """No caller-supplied config fragments, host mounts, network or env."""
     if (not policy.subuid or not policy.subgid or os.getuid() == 0
             or os.geteuid() != os.getuid() or os.getegid() != os.getgid()
@@ -48,7 +48,9 @@ def nsjail_config(profile, policy):
         "rlimit_stack: 128",
         "rlimit_stack_type: VALUE",
         "rlimit_fsize: 64",
-        "rlimit_nofile: 128",
+        # The unchanged official sandbox sets NOFILE soft/hard to 256.
+        # A lower inherited hard cap cannot be raised inside a user namespace.
+        "rlimit_nofile: 256",
         # RLIMIT_NPROC counts the UID across all containers/sessions. Reusing
         # the service/subordinate UIDs would make unrelated sandboxes exhaust
         # one another. The per-instance pids cgroup is the hard process cap.
@@ -81,7 +83,32 @@ def nsjail_config(profile, policy):
         entries.append(
             f'mount {{ src: "/dev/{device}" dst: "/dev/{device}" is_bind: true rw: true nosuid: true noexec: true }}'
         )
+    if artifacts is not None:
+        entries = [entry for entry in entries if not entry.startswith('exec_bin ')]
+        entries += [f'mount {{ src: {quote(artifacts)} dst: "/artifacts" is_bind: true rw: false nosuid: true nodev: true noexec: true }}',
+                    f'exec_bin {{ path: {quote(profile.python)} arg: {quote(profile.runner)} arg: "--prepared-artifacts" }}']
     return "\n".join(entries) + "\n"
+
+
+def compile_config(profile, policy, export, cgroup):
+    config = nsjail_config(profile, policy)
+    config = config.replace('hostname: "debug"', 'hostname: "compile"')
+    config = config.replace(f'time_limit: {math.ceil(policy.lifetime)}',
+                            f'time_limit: {profile.compile_seconds + 10}')
+    config = config.replace('disable_no_new_privs: false', 'disable_no_new_privs: true')
+    config = config.replace(f'seccomp_policy_file: {quote(profile.seccomp)}',
+                            f'seccomp_policy_file: {quote(profile.compile_seccomp)}')
+    old_work = next(line for line in config.splitlines() if line.startswith('mount { dst: "/work"'))
+    config = config.replace(old_work,
+        f'mount {{ dst: "/work" fstype: "tmpfs" options: "size={profile.artifact_max_bytes},mode=0700" rw: true nosuid: true nodev: true noexec: true }}')
+    config = config.replace(f'exec_bin {{ path: {quote(profile.python)} arg: {quote(profile.runner)} }}',
+        f'exec_bin {{ path: {quote(profile.python)} arg: "-m" arg: "ide_debug.compile_phase" }}')
+    config += 'envar: "PYTHONPATH=/opt/sduoj-debug"\n'
+    for capability in ('SYS_ADMIN', 'SYS_CHROOT', 'SETPCAP'):
+        config += f'cap: "CAP_{capability}"\n'
+    config += f'mount {{ src: {quote(export)} dst: "/control" is_bind: true rw: true nosuid: true nodev: true noexec: true }}\n'
+    config += f'mount {{ src: {quote(cgroup)} dst: "/compile-cgroup" is_bind: true rw: true nosuid: true nodev: true noexec: true }}\n'
+    return config
 
 
 class Sandbox:
@@ -108,11 +135,28 @@ class Sandbox:
         self.guardian_stderr_error = None
 
     async def start(self, spec):
+        validate_phase_budget(self.profile, self.policy)
+        verify_compile_policy(self.profile.compile_seccomp, self.profile.compile_policy_sha256)
         self.directory.mkdir(mode=0o700)
+        export = self.directory / "export"
+        export.mkdir(mode=0o700)
         config = self.directory / "nsjail.cfg"
-        config.write_text(nsjail_config(self.profile, self.policy))
+        config.write_text(nsjail_config(self.profile, self.policy, export / "artifacts"))
         config.chmod(0o600)
         paths = delegated_paths(self.policy, self.id)
+        compile_path = self.directory / "compile.cfg"
+        compile_path.write_text(compile_config(self.profile, self.policy, export,
+                                               Path(paths['memory']) / 'compile'))
+        compile_path.chmod(0o600)
+        wire = dict(spec, compile=self.profile.compile, source=self.profile.source,
+            language=self.profile.language, python=self.profile.python,
+            targetPython=self.profile.target_python, debugger=self.profile.debugger,
+            javaOptions=self.profile.java_options, compileSeconds=self.profile.compile_seconds,
+            compileLimits=self.profile.compile_limits,
+            compileSandboxSha256=self.profile.compile_sandbox_sha256,
+            compilePathEnv=self.profile.compile_path_env, compileMode='official-v2-separate',
+            compileCgroupRoot='/compile-cgroup', compilePids=self.profile.pids,
+            templateSha256=self.profile.template_hash, artifactMaxBytes=self.profile.artifact_max_bytes)
         guardian_spec = self.directory / "guardian.json"
         guardian_spec.write_text(
             json.dumps(
@@ -125,6 +169,10 @@ class Sandbox:
                     "guardianMemory": self.policy.guardian_memory,
                     "nsjail": self.policy.nsjail,
                     "config": str(config),
+                    "compileConfig": str(compile_path),
+                    "export": str(export),
+                    "wire": wire,
+                    "subuid": self.policy.subuid,
                     "memory": self.profile.startup,
                     "pids": self.profile.pids,
                     "lifetime": self.policy.lifetime,
@@ -151,7 +199,7 @@ class Sandbox:
                     *procs,
                     sys.executable,
                     "-m",
-                    "ide_debug.guardian",
+                    "ide_debug.phase_guardian",
                     str(guardian_spec),
                     str(child.fileno()),
                     pass_fds=(child.fileno(),),
@@ -180,22 +228,6 @@ class Sandbox:
             asyncio.create_task(self.read_adapter()),
         ])
         await asyncio.wait_for(asyncio.shield(self.ready), 5)
-        wire = dict(
-            spec,
-            compile=self.profile.compile,
-            source=self.profile.source,
-            language=self.profile.language,
-            python=self.profile.python,
-            targetPython=self.profile.target_python,
-            debugger=self.profile.debugger,
-            javaOptions=self.profile.java_options,
-            compileSeconds=self.profile.compile_seconds,
-            compileLimits=self.profile.compile_limits,
-            compileSandboxSha256=self.profile.compile_sandbox_sha256,
-            compilePathEnv=self.profile.compile_path_env,
-        )
-        self.process.stdin.write(json.dumps({"spec": wire}).encode() + b"\n")
-        await self.process.stdin.drain()
 
     async def read_stderr(self):
         try:
@@ -323,6 +355,21 @@ class Sandbox:
             self.close_task = asyncio.create_task(self._close())
         return await asyncio.shield(self.close_task)
 
+    def remove_directory(self):
+        # Frozen trees intentionally have 0555 directories. They must be
+        # removed through owned directory descriptors, without following links.
+        if not self.directory.exists():
+            return True
+        parent = os.open(self.directory.parent, os.O_RDONLY | os.O_DIRECTORY |
+                         os.O_CLOEXEC | os.O_NOFOLLOW)
+        try:
+            _remove_private(parent, self.directory.name)
+        except OSError:
+            return False
+        finally:
+            os.close(parent)
+        return not self.directory.exists()
+
     async def _close(self):
         self.closed = True
         # Closing control is unconditionally interpreted as whole-tree death.
@@ -335,8 +382,7 @@ class Sandbox:
         if not hasattr(self, "process"):
             if hasattr(self, "trusted"):
                 await asyncio.to_thread(self.trusted.remove)
-            shutil.rmtree(self.directory, ignore_errors=True)
-            return True
+            return self.remove_directory()
 
         async def exited():
             # Process.wait may wait for inherited stdout EOF even after the
@@ -356,8 +402,9 @@ class Sandbox:
             # Guardian may have been OOM-killed. The agent is outside the global
             # student/guardian parent and can still perform a whole-group kill.
             try:
-                groups = Cgroups(
-                    delegated_paths(self.policy, self.id), self.policy.cgroup_version
+                groups = SessionDomain(
+                    delegated_paths(self.policy, self.id), self.policy.cgroup_version,
+                    subuid=self.policy.subuid
                 )
                 existing = {k: v for k, v in groups.paths.items() if v.exists()}
                 if existing:
@@ -384,5 +431,5 @@ class Sandbox:
                     if (target / "cgroup.procs").read_text().strip():
                         return False
                     target.rmdir()
-            shutil.rmtree(self.directory, ignore_errors=True)
+            clean = self.remove_directory()
         return clean

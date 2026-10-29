@@ -1,6 +1,7 @@
 """One persistent GDB for one private process tree. No console/evaluate API."""
 
 import asyncio
+import codecs
 import json
 import os
 import re
@@ -18,6 +19,8 @@ class Native:
         self.frame = 0
         self.stop = asyncio.Event()
         self.stderr_tail = bytearray()
+        self.output_decoder = codecs.getincrementaldecoder('utf-8')('replace')
+        self.terminated = False
 
     async def start(self, spec):
         self.source = spec["source"]
@@ -53,6 +56,7 @@ class Native:
             await self.rpc("-gdb-set confirm off")
             await self.rpc("-gdb-set print elements 100")
             await self.rpc("-gdb-set may-call-functions off")
+            await self.rpc('-interpreter-exec console "set substitute-path /work/tree /work"')
             await self.rpc("-inferior-tty-set " + json.dumps(os.ttyname(slave)))
             await self.command("setBreakpoints", {"lines": spec["breakpoints"]})
             await self.rpc("-break-insert -t main")
@@ -110,7 +114,7 @@ class Native:
                 elif record["kind"] == "*" and record["name"] == "stopped":
                     body = record["body"]
                     if str(body.get("reason", "")).startswith("exited"):
-                        self.emit("terminated", {"reason": body["reason"]})
+                        self.finish({"reason": body["reason"]})
                     else:
                         self.references.clear()
                         self.emit(
@@ -126,7 +130,32 @@ class Native:
             for future in list(self.pending.values()):
                 if not future.done():
                     future.set_exception(EOFError("GDB disconnected"))
-            self.emit("terminated", {})
+            self.finish({})
+
+    def drain_output(self, budget=262144):
+        # Inferior exit follows its final write. Drain its separate PTY before
+        # publishing terminal, without waiting for a slave FD retained by GDB.
+        while budget > 0:
+            try:
+                data = os.read(self.master, min(8192, budget))
+            except OSError:
+                return
+            if not data:
+                return
+            budget -= len(data)
+            text = self.output_decoder.decode(data)
+            if text:
+                self.emit('output', {'output': text, 'category': 'stdout'})
+
+    def finish(self, body):
+        if self.terminated:
+            return
+        self.drain_output()
+        tail = self.output_decoder.decode(b'', final=True)
+        if tail:
+            self.emit('output', {'output': tail, 'category': 'stdout'})
+        self.terminated = True
+        self.emit('terminated', body)
 
     async def output(self):
         # A single reader watches the PTY. It does not run blocking executor
@@ -135,15 +164,8 @@ class Native:
         loop = asyncio.get_running_loop()
 
         def readable():
-            try:
-                data = os.read(self.master, 8192)
-                if data:
-                    self.emit(
-                        "output",
-                        {"output": data.decode(errors="replace"), "category": "stdout"},
-                    )
-            except OSError:
-                pass
+            if not self.terminated:
+                self.drain_output(8192)
 
         loop.add_reader(self.master, readable)
         try:

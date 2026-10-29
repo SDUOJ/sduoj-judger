@@ -9,11 +9,62 @@ import json
 import os
 from pathlib import Path
 import re
+import stat
 from dataclasses import dataclass, field
 import math
 from ide_intelligence.toolchain import parse_template, _argv, ToolchainUnavailable
 from .config import MiB
 from .judge_compile import CompileLimits
+
+
+def phase_startup_budget(runtime_startup, compile_bytes, *, artifact_max_bytes=64 * MiB,
+                         compile_setup_bytes=64 * MiB):
+    """One kernel-domain grant; only two artifact copies may survive to runtime.
+
+    The drained compiler workspace and diagnostic body must be removed before
+    runtime starts. Limits are candidate inputs, never browser overrides.
+    """
+    if (any(type(value) is not int or value <= 0 or value % os.sysconf("SC_PAGE_SIZE")
+            for value in (runtime_startup, compile_bytes, artifact_max_bytes, compile_setup_bytes)) or
+            not 32 * MiB <= runtime_startup <= 8 * 1024 * MiB or
+            compile_bytes > 8 * 1024 * MiB or artifact_max_bytes > 64 * MiB or
+            compile_setup_bytes != 64 * MiB):
+        raise ValueError("Invalid compile/runtime phase budget")
+    return max(compile_bytes + compile_setup_bytes, runtime_startup + 2 * artifact_max_bytes)
+
+
+def validate_phase_budget(profile, policy):
+    required = phase_startup_budget(profile.runtime_startup,
+        profile.compile_limits["memory_bytes"], artifact_max_bytes=profile.artifact_max_bytes,
+        compile_setup_bytes=profile.compile_setup_bytes)
+    if (profile.startup != required or policy.cgroup_version != 2 or
+            required + policy.guardian_memory > policy.budget - policy.reserve or
+            required + policy.guardian_memory > policy.hard):
+        raise DebugError("DEBUG_COMPILE_PHASE_BUDGET_INVALID", 503)
+    return required
+
+
+def verify_compile_policy(path, expected):
+    """Bind setup permissions to the reviewed file before accepting a profile."""
+    target = Path(path)
+    if (not target.is_absolute() or ".." in target.parts or
+            not re.fullmatch(r"[a-f0-9]{64}", str(expected))):
+        raise DebugError("DEBUG_COMPILE_POLICY_NOT_VERIFIED", 503)
+    try:
+        fd = os.open(target, os.O_RDONLY | os.O_CLOEXEC | os.O_NOFOLLOW | os.O_NONBLOCK)
+        with os.fdopen(fd, "rb") as stream:
+            info = os.fstat(stream.fileno())
+            if (not stat.S_ISREG(info.st_mode) or info.st_mode & 0o022 or
+                    info.st_uid not in (0, os.getuid()) or not 0 < info.st_size <= 65536):
+                raise ValueError("Untrusted compile policy")
+            raw = stream.read(65537)
+            after = os.fstat(stream.fileno())
+            if (len(raw) != info.st_size or hashlib.sha256(raw).hexdigest() != expected or
+                    (info.st_dev, info.st_ino, info.st_size, info.st_mtime_ns, info.st_ctime_ns) !=
+                    (after.st_dev, after.st_ino, after.st_size, after.st_mtime_ns, after.st_ctime_ns)):
+                raise ValueError("Compile policy identity changed")
+    except (OSError, ValueError) as error:
+        raise DebugError("DEBUG_COMPILE_POLICY_NOT_VERIFIED", 503) from error
 
 
 def sandbox_binary(root):
@@ -115,6 +166,11 @@ class Profile:
     compile_limits: dict = field(default_factory=dict)
     compile_sandbox_sha256: str = ""
     compile_path_env: str = ""
+    runtime_startup: int = 0
+    artifact_max_bytes: int = 64 * MiB
+    compile_setup_bytes: int = 64 * MiB
+    compile_seccomp: str = ""
+    compile_policy_sha256: str = ""
 
     @classmethod
     def resolve(cls, manifest, template, language, parameters=None):
@@ -168,7 +224,13 @@ class Profile:
                 raise ValueError("Artifact digest required")
             if not re.fullmatch(r"[a-f0-9]{64}", profile.compile_sandbox_sha256):
                 raise ValueError("Verified judge sandbox digest required")
-            limits.argv(argv, profile.compile_path_env)
+            limits.argv(argv, profile.compile_path_env, cgroup_root="/compile-cgroup", pids=profile.pids)
+            if profile.startup != phase_startup_budget(profile.runtime_startup, limits.memory_bytes,
+                    artifact_max_bytes=profile.artifact_max_bytes, compile_setup_bytes=profile.compile_setup_bytes):
+                raise ValueError("Phase startup grant must include compiler and artifact overhead")
+            if (not re.fullmatch(r"[a-f0-9]{64}", profile.compile_policy_sha256) or
+                    not Path(profile.compile_seccomp).is_absolute() or ".." in Path(profile.compile_seccomp).parts):
+                raise ValueError("Trusted separate compile policy required")
             # Use the authoritative judge wall-time multiplier, never a browser limit.
             from dataclasses import replace
 
@@ -258,6 +320,8 @@ def load_manifest(path):
             raise DebugError("DEBUG_COMPILE_SANDBOX_NOT_VERIFIED", 503)
         root = Path(entry["rootfs"])
         policy = Path(entry["seccomp"])
+        verify_compile_policy(entry.get("compile_seccomp", ""),
+                              entry.get("compile_policy_sha256"))
         for item in (root, policy):
             if (
                 not item.is_absolute()
@@ -278,6 +342,7 @@ def load_manifest(path):
         if (
             identity.get("artifactDigest") != entry["artifact_digest"]
             or identity.get("sandboxSha256") != entry["compile_sandbox_sha256"]
+            or identity.get("compilePolicySha256") != entry["compile_policy_sha256"]
             or identity.get("templates", {}).get(key) != expected
         ):
             raise DebugError("DEBUG_ARTIFACT_IDENTITY", 503)

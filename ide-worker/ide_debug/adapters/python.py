@@ -1,6 +1,7 @@
 """Private debugpy DAP connection; only normalized operations reach the adapter."""
 
 import asyncio
+import codecs
 import json
 
 
@@ -10,6 +11,8 @@ class Python:
         self.initialized = asyncio.Event()
         self.thread_id = 1
         self.entry_breakpoint = False
+        self.terminated = False
+        self.output_tasks = []
 
     async def start(self, spec):
         self.source = "/work/" + spec["source"]
@@ -27,10 +30,11 @@ class Python:
             stdout=asyncio.subprocess.PIPE,
             stderr=asyncio.subprocess.PIPE,
         )
-        self.tasks = [
+        self.output_tasks = [
             asyncio.create_task(self.output(self.process.stdout, "stdout")),
             asyncio.create_task(self.output(self.process.stderr, "stderr")),
         ]
+        self.tasks = list(self.output_tasks)
         for attempt in range(100):
             try:
                 self.reader, self.writer = await asyncio.open_connection(
@@ -108,28 +112,44 @@ class Python:
                     elif name in ("stopped", "terminated"):
                         if name == "stopped":
                             self.thread_id = message.get("body", {}).get("threadId", 1)
-                        self.emit(name, message.get("body", {}))
+                        if name == 'terminated':
+                            await self.finish(message.get('body', {}))
+                        else:
+                            self.emit(name, message.get("body", {}))
                     elif name == "continued":
                         self.emit("running", {})
                 elif message.get("type") == "request":
                     # No runInTerminal or host-side reverse launch.
                     raise ValueError("Unexpected DAP reverse request")
         except (EOFError, asyncio.IncompleteReadError):
-            self.emit("terminated", {})
+            await self.finish({})
         finally:
             for future in list(self.pending.values()):
                 if not future.done():
                     future.set_exception(EOFError("debugpy disconnected"))
 
+    async def finish(self, body):
+        if self.terminated:
+            return
+        self.terminated = True
+        if self.output_tasks:
+            # A descendant may hold a pipe open; keep a finite drain window
+            # while the independent guardian deadlines remain active.
+            await asyncio.wait(self.output_tasks, timeout=1)
+        self.emit('terminated', body)
+
     async def output(self, stream, category):
+        decoder = codecs.getincrementaldecoder('utf-8')('replace')
         while True:
             value = await stream.read(8192)
             if not value:
+                tail = decoder.decode(b'', final=True)
+                if tail:
+                    self.emit('output', {'output': tail, 'category': category})
                 return
-            self.emit(
-                "output",
-                {"output": value.decode(errors="replace"), "category": category},
-            )
+            text = decoder.decode(value)
+            if text:
+                self.emit('output', {'output': text, 'category': category})
 
     async def command(self, op, args):
         if op == "setBreakpoints":

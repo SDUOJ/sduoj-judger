@@ -10,6 +10,8 @@ import pytest
 from ide_debug.config import Policy, MiB, GiB
 from ide_debug.models import Create, Command
 from ide_debug.profiles import DebugError, Profile, debug_compile
+from ide_debug.profiles import phase_startup_budget
+from ide_debug.judge_compile import CompileLimits
 from ide_debug.runtime import Runtime
 
 TEMPLATES = json.loads(
@@ -32,7 +34,12 @@ def manifest(row=ROW, language="c"):
             "python": "/usr/bin/python3",
             "debugger": ["/usr/bin/gdb"],
             "hard": 128 * MiB,
-            "startup": 256 * MiB,
+            "startup": phase_startup_budget(256 * MiB, CompileLimits.template(row).memory_bytes),
+            "runtime_startup": 256 * MiB,
+            "artifact_max_bytes": 64 * MiB,
+            "compile_setup_bytes": 64 * MiB,
+            "compile_seccomp": "/etc/compile.policy",
+            "compile_policy_sha256": "c" * 64,
             "floor": 32 * MiB,
             "margin": 8 * MiB,
             "pids": 64,
@@ -174,7 +181,7 @@ async def wait_for(predicate, timeout=1):
 
 def policy(**overrides):
     return replace(
-        Policy(), budget=GiB, hard=2 * GiB, reserve=32 * MiB, host_floor=0, **overrides
+        Policy(cgroup_version=2), budget=GiB, hard=2 * GiB, reserve=32 * MiB, host_floor=0, **overrides
     )
 
 

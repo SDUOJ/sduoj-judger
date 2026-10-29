@@ -35,7 +35,7 @@ class CompileLimits:
         if (type(self.cpu_ms) is not int or not 0 < self.cpu_ms <= 60000
                 or type(self.real_ms) is not int or not 0 < self.real_ms <= 60000
                 or type(self.memory_bytes) is not int
-                or not 0 <= self.memory_bytes <= 8 * 1024**3):
+                or not 0 < self.memory_bytes <= 8 * 1024**3):
             raise ValueError("Invalid judge compile limits")
 
     @classmethod
@@ -49,16 +49,19 @@ class CompileLimits:
         if values[2] > 8 * 1024 * 1024:
             raise ValueError("Invalid judge compile memory")
         # Judge templates use KiB, whereas the native sandbox consumes bytes.
-        # Java's zero retains the judge meaning; the outer cgroup remains finite.
-        return cls(values[0], values[1], values[2] * 1024)
+        # Same explicit physical fallback as SandboxLimits.compileBytes. Zero
+        # must never reach the native CLI as an unlimited/zero allocation.
+        return cls(values[0], values[1], values[2] * 1024 or 1024**3)
 
-    def argv(self, command, path_env):
+    def argv(self, command, path_env, *, cgroup_root, pids, diagnostics="/control"):
         if (not isinstance(command, list) or not command
                 or any(not isinstance(arg, str) or "\x00" in arg for arg in command)
                 or not command[0].startswith("/") or len(command) > 256
                 or not isinstance(path_env, str) or not path_env
                 or any(c in path_env for c in ("\x00", "\n", "\r"))):
             raise ValueError("Invalid approved compile command")
+        if cgroup_root != "/compile-cgroup" or diagnostics != "/control" or type(pids) is not int or not 2 <= pids <= 1024:
+            raise ValueError("Explicit owned compiler domain and finite PID limit required")
         return [
             SANDBOX,
             f"--max_cpu_time={self.cpu_ms}",
@@ -66,11 +69,19 @@ class CompileLimits:
             f"--max_memory={self.memory_bytes}",
             "--max_stack=134217728",
             f"--max_output_size={OUTPUT_BYTES}",
+            "--max_io_input_size=65536",
+            "--io_mode=memfd",
+            "--isolate_fs=1",
+            "--work_readonly=0",
+            f"--max_process_number={pids}",
+            f"--cgroup_root={cgroup_root}",
             f"--exe_path={command[0]}",
             *[f"--exe_args={arg}" for arg in command[1:]],
             f"--exe_envs=PATH={path_env}",
             "--input_path=/dev/null",
-            "--output_path=compiler.out",
+            "--output_path=/control/compiler.out",
+            "--error_path=/control/compiler.err",
+            "--log_path=/control/sandbox.log",
         ]
 
 
@@ -97,24 +108,24 @@ def classify(result):
 
 def compiler_output(work):
     """Only compiler diagnostics are public, never sandbox.log or launcher stderr."""
-    path = Path(work) / "compiler.out"
-    try:
-        # Compiler-owned files cannot redirect the trusted reader to another path.
-        fd = os.open(path, os.O_RDONLY | os.O_NOFOLLOW | os.O_NONBLOCK)
+    data = bytearray()
+    # GCC, javac and py_compile normally diagnose on stderr. Both official
+    # output files share one public byte budget; infrastructure logs never do.
+    for name in ("compiler.err", "compiler.out"):
+        try:
+            fd = os.open(Path(work) / name, os.O_RDONLY | os.O_NOFOLLOW | os.O_NONBLOCK)
+        except FileNotFoundError:
+            continue
         with os.fdopen(fd, "rb") as stream:
             import stat
             if not stat.S_ISREG(os.fstat(stream.fileno()).st_mode):
                 raise ValueError("Invalid compiler output")
-            data = stream.read(PUBLIC_BYTES + 1)
-        return {
-            "output": data[:PUBLIC_BYTES].decode(errors="replace"),
-            "truncated": len(data) > PUBLIC_BYTES,
-        }
-    except FileNotFoundError:
-        return {"output": "", "truncated": False}
+            data.extend(stream.read(max(0, PUBLIC_BYTES + 1 - len(data))))
+    return {"output": bytes(data[:PUBLIC_BYTES]).decode(errors="replace"),
+            "truncated": len(data) > PUBLIC_BYTES}
 
 
-async def compile_source(spec, work="/work"):
+async def compile_source(spec, work="/work", diagnostics="/control"):
     """Return a public failure event or None. Never execute the compiler directly."""
     failure = {"code": "DEBUG_COMPILE_SANDBOX_FAILED", "output": ""}
     try:
@@ -124,7 +135,11 @@ async def compile_source(spec, work="/work"):
         if hashlib.sha256(Path(SANDBOX).read_bytes()).hexdigest() != expected:
             return failure
         limits = CompileLimits(**spec["compileLimits"])
-        argv = limits.argv(spec["compile"], spec["compilePathEnv"])
+        if spec.get("compileMode") != "official-v2-separate":
+            raise ValueError("Separate official compile phase required")
+        argv = limits.argv(spec["compile"], spec["compilePathEnv"],
+                           cgroup_root=spec["compileCgroupRoot"], pids=spec["compilePids"],
+                           diagnostics=diagnostics)
         print(json.dumps({"stage": "compile-start", "sandboxSha256": expected,
                           "compiler": spec["compile"][0], "cpuMs": limits.cpu_ms,
                           "realMs": limits.real_ms, "memoryBytes": limits.memory_bytes}),
@@ -198,7 +213,7 @@ async def compile_source(spec, work="/work"):
                               "result", "error", "exit_code", "signal", "cpu_time", "real_time", "memory")
                                      if type(result.get(key)) is int}}), file=sys.stderr, flush=True)
         if code:
-            return dict(compiler_output(work), code=code,
+            return dict(compiler_output(diagnostics), code=code,
                         exitCode=result.get("exit_code"), signal=result.get("signal"),
                         timeoutSource=timeout_source)
         return None

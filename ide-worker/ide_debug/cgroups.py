@@ -6,8 +6,10 @@ fallback. A freezer timeout never counts as a frozen instance.
 """
 
 import os
+import ctypes
 from pathlib import Path
 import pwd
+import re
 import signal
 import stat
 import struct
@@ -25,7 +27,16 @@ def process_uids(pid):
     raise RuntimeError("Cannot verify sandbox process identities")
 
 
-def kill_member(pid, paths):
+def namespace_init(pid, service_uid, subuid=None):
+    status = dict(line.split(":", 1) for line in Path(f"/proc/{pid}/status").read_text().splitlines() if ":" in line)
+    chain = [int(n) for n in status.get("NSpid", "").split()]
+    mappings = [tuple(int(n) for n in row.split())
+                for row in Path(f"/proc/{pid}/uid_map").read_text().splitlines()]
+    return (len(chain) > 1 and chain[-1] == 1 and (0, service_uid, 1) in mappings and
+            (subuid is None or (65534, subuid, 1) in mappings))
+
+
+def kill_member(pid, paths, *, subuid=None):
     # Bind the signal to a process identity, then confirm group membership.
     # A rapidly exiting/forking target must not turn a stale PID into a signal
     # for an unrelated service after the kernel recycles the numeric PID.
@@ -39,7 +50,8 @@ def kill_member(pid, paths):
             # alive until teardown. Killing that precise PID1 makes the kernel
             # terminate all subordinate-UID descendants in its PID namespace.
             # The non-root guardian cannot signal those descendants itself.
-            if process_uids(pid) != (os.getuid(),) * 4:
+            if (process_uids(pid) != (os.getuid(),) * 4 or
+                    not namespace_init(pid, os.getuid(), subuid)):
                 return False
             try:
                 send_pidfd(descriptor, signal.SIGKILL)
@@ -164,6 +176,143 @@ class Cgroups:
         self.kill()
         for path in set(self.paths.values()):
             path.rmdir()
+
+
+def owned_cgroup(path):
+    """Verify the actual mount type and inode, not controller-looking files."""
+    path = Path(path)
+    if not path.is_absolute() or ".." in path.parts or path.resolve() != path:
+        raise RuntimeError("Canonical owned cgroup path required")
+    fd = os.open(path, os.O_RDONLY | os.O_DIRECTORY | os.O_NOFOLLOW | os.O_CLOEXEC)
+    try:
+        info = os.fstat(fd)
+        if info.st_uid != os.getuid() or info.st_mode & 0o022:
+            raise RuntimeError("Unowned cgroup directory")
+        if os.uname().sysname != "Linux":
+            raise RuntimeError("cgroup2 requires Linux")
+        buffer = ctypes.create_string_buffer(256)
+        library = ctypes.CDLL(None, use_errno=True)
+        if library.fstatfs(fd, buffer) != 0:
+            raise OSError(ctypes.get_errno(), "Cannot inspect cgroup filesystem")
+        if ctypes.c_long.from_buffer(buffer).value != 0x63677270:
+            raise RuntimeError("Actual cgroup2 filesystem required")
+        return info.st_dev, info.st_ino
+    finally:
+        os.close(fd)
+
+
+class SessionDomain(Cgroups):
+    """Single v2 accounting domain across compile, handoff and runtime.
+
+    Empty process lists at the domain root do not prove cleanup: native leaves
+    and populated flags are checked recursively. Only mapped namespace PID1
+    members are signalled here. A guardian separately owns exact launcher
+    pidfds from its stopped fork handshake.
+    """
+    def __init__(self, paths, version=2, *, subuid=None):
+        if version != 2 or set(paths) != {"memory"}:
+            raise RuntimeError("Compile phases require one explicit cgroup-v2 domain")
+        super().__init__(paths, version)
+        self.root = self.paths["memory"]
+        self.subuid = subuid
+        self.identity = None
+
+    def create(self, memory, pids, cpu_us=100000):
+        owned_cgroup(self.root.parent)
+        super().create(memory, pids, cpu_us)
+        self.identity = owned_cgroup(self.root)
+        if (self.root / "cgroup.procs").read_text().split():
+            raise RuntimeError("Session accounting root must stay process-free")
+        controllers = (self.root / "cgroup.controllers").read_text().split()
+        if not {"cpu", "memory", "pids"} <= set(controllers):
+            raise RuntimeError("Owned cpu/memory/pids delegation required")
+        (self.root / "cgroup.subtree_control").write_text("+cpu +memory +pids")
+
+    def branch(self, name, memory, pids):
+        if name not in ("compile", "handoff", "runtime"):
+            raise RuntimeError("Unapproved session phase")
+        self._root()
+        group = Cgroups({"memory": str(self.root / name)}, 2)
+        group.create(memory, pids)
+        owned_cgroup(self.root / name)
+        if name == "compile":
+            (self.root / name / "cgroup.subtree_control").write_text("+cpu +memory +pids")
+            control = Cgroups({"memory": str(self.root / name / "control")}, 2)
+            control.create(memory, pids)
+        return group
+
+    def _root(self):
+        current = owned_cgroup(self.root)
+        if self.identity is None:
+            self.identity = current
+        if current != self.identity:
+            raise RuntimeError("Session cgroup identity changed")
+
+    def nodes(self, branch=None):
+        self._root()
+        selected = self.root if branch is None else self.root / branch
+        if branch not in (None, "compile", "handoff", "runtime"):
+            raise RuntimeError("Unapproved cleanup branch")
+        if not selected.exists():
+            return []
+        result = []
+        def walk(path, depth):
+            owned_cgroup(path)
+            if depth > 2:
+                raise RuntimeError("Unexpected cgroup hierarchy")
+            result.append(path)
+            for child in path.iterdir():
+                info = child.lstat()
+                if stat.S_ISLNK(info.st_mode):
+                    raise RuntimeError("Symlink in owned cgroup hierarchy")
+                if not stat.S_ISDIR(info.st_mode):
+                    continue
+                if path == self.root:
+                    allowed = child.name in ("compile", "handoff", "runtime")
+                elif path == self.root / "compile":
+                    allowed = child.name == "control" or re.fullmatch(r"sduoj-[1-9][0-9]*-[0-9]+", child.name)
+                else:
+                    allowed = False
+                if not allowed:
+                    raise RuntimeError("Unrecognized child in owned cgroup")
+                walk(child, depth + 1)
+        walk(selected, 0 if branch is None else 1)
+        return result
+
+    def drained(self, branch=None):
+        for path in self.nodes(branch):
+            if (path / "cgroup.procs").read_text().split():
+                return False
+            events = dict(line.split() for line in (path / "cgroup.events").read_text().splitlines())
+            if events.get("populated") != "0":
+                return False
+        return True
+
+    def remove_branch(self, branch, *, timeout=3):
+        end = time.monotonic() + timeout
+        while not self.drained(branch):
+            paths = self.nodes(branch)
+            members = {int(pid) for path in paths for pid in (path / "cgroup.procs").read_text().split()}
+            for pid in members:
+                kill_member(pid, paths, subuid=self.subuid)
+            self.freeze(False)
+            if time.monotonic() >= end:
+                raise RuntimeError("Hierarchical phase cleanup unconfirmed")
+            time.sleep(0.02)
+        for path in reversed(self.nodes(branch)):
+            if not self.drained(branch):
+                raise RuntimeError("Cgroup repopulated during cleanup")
+            path.rmdir()
+
+    def remove(self):
+        if not self.root.exists():
+            return
+        self._root()
+        for name in ("compile", "handoff", "runtime"):
+            self.remove_branch(name)
+        if not self.drained():
+            raise RuntimeError("Session domain is not drained")
+        self.root.rmdir()
 
 
 def delegated_paths(policy, session_id):

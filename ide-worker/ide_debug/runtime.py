@@ -10,7 +10,7 @@ import time
 from weakref import WeakValueDictionary
 from .config import Policy, PAGE_SIZE, host_available
 from .launcher import Sandbox
-from .profiles import DebugError, Profile, digest
+from .profiles import DebugError, Profile, digest, validate_phase_budget
 from .authorization import specification_hash
 from .judge_compile import COMPILE_CODES
 
@@ -309,6 +309,7 @@ class Runtime:
 
     async def open_session(self, lock, user, body, template, prefix, parameters, actor=None):
         profile = Profile.resolve(self.manifest, template, body.language, parameters)
+        validate_phase_budget(profile, self.policy)
         source = digest(
             {
                 "code": prefix + body.code,

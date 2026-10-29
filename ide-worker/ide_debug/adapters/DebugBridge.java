@@ -18,6 +18,9 @@ public final class DebugBridge {
     private ThreadReference stopped;
     private final java.util.concurrent.BlockingQueue<byte[]> input = new java.util.concurrent.ArrayBlockingQueue<>(16);
     private final java.util.concurrent.atomic.AtomicInteger pendingInput = new java.util.concurrent.atomic.AtomicInteger();
+    private final java.util.concurrent.atomic.AtomicBoolean terminated = new java.util.concurrent.atomic.AtomicBoolean();
+    private final Thread targetOut;
+    private final Thread targetErr;
 
     private DebugBridge(String[] args) throws Exception {
         main = args[1];
@@ -42,8 +45,8 @@ public final class DebugBridge {
             } catch (Exception ignored) { }
         }, "target-stdin");
         writer.setDaemon(true); writer.start();
-        output(vm.process().getInputStream(), "stdout");
-        output(vm.process().getErrorStream(), "stderr");
+        targetOut = output(vm.process().getInputStream(), "stdout");
+        targetErr = output(vm.process().getErrorStream(), "stderr");
         ClassPrepareRequest prepare = vm.eventRequestManager().createClassPrepareRequest();
         prepare.addClassFilter(main + "*");
         prepare.setSuspendPolicy(EventRequest.SUSPEND_ALL);
@@ -74,13 +77,14 @@ public final class DebugBridge {
                             }
                             stop = true;
                         } else if (event instanceof VMDeathEvent || event instanceof VMDisconnectEvent) {
-                            send(map("event", "terminated", "body", map()));
+                            try { set.resume(); } catch (VMDisconnectedException ignored) { }
+                            finish();
                             return;
                         }
                     }
                     if (!stop) set.resume();
                 }
-            } catch (Exception e) { send(map("event", "terminated", "body", map())); }
+            } catch (Exception e) { finish(); }
         }, "jdi-events");
         events.setDaemon(true);
         events.start();
@@ -211,15 +215,27 @@ public final class DebugBridge {
         if (!raw.isEmpty()) for (String one : raw.split(";")) out.add(Integer.parseInt(one));
         return out;
     }
-    private static void output(InputStream stream, String category) {
+    private void finish() {
+        if (!terminated.compareAndSet(false, true)) return;
+        long end = System.nanoTime() + 1000000000L;
+        for (Thread thread : new Thread[]{targetOut, targetErr}) {
+            long remaining = end - System.nanoTime();
+            if (remaining <= 0) break;
+            try { thread.join(Math.max(1L, remaining / 1000000L)); }
+            catch (InterruptedException e) { Thread.currentThread().interrupt(); break; }
+        }
+        send(map("event", "terminated", "body", map()));
+    }
+    private static Thread output(InputStream stream, String category) {
         Thread t = new Thread(() -> {
-            byte[] buf = new byte[4096]; int n;
-            try {
-                while ((n=stream.read(buf))>=0) send(map("event", "output", "body", map("category", category,
-                        "output", new String(buf,0,n,StandardCharsets.UTF_8))));
+            char[] buf = new char[2048]; int n;
+            try (Reader reader = new InputStreamReader(stream, StandardCharsets.UTF_8)) {
+                while ((n=reader.read(buf))>=0) send(map("event", "output", "body", map("category", category,
+                        "output", new String(buf,0,n))));
             } catch (IOException ignored) { }
         });
         t.setDaemon(true); t.start();
+        return t;
     }
     private static Map<String,Object> map(Object... fields) {
         Map<String,Object> out = new LinkedHashMap<>();

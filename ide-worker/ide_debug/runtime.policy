@@ -1,0 +1,89 @@
+// CANDIDATE ONLY. Not verified and not selected by any deployment profile.
+// AARCH64 native syscall ABI ONLY; compile using the pinned ARM64 NsJail/Kafel.
+// This is a DEFAULT ALLOW denylist, not a complete syscall allowlist.
+// Primary boundaries remain private namespaces, read-only rootfs, Cap=0/NNP=1
+// for the adapter/target, bounded cgroups, and the external guardian.
+// NsJail: 079d70dda4aa1edd9512cfd25ff1e47e316dc355
+// Kafel:  1af0975af45ca4404f357b9a4e1636f53a01bfd3
+// Syscall numbers: Linux asm-generic/unistd.h (v5.4, extended through v6.12).
+
+// CLONE_NEWNS | NEWCGROUP | NEWUTS | NEWIPC | NEWUSER | NEWPID | NEWNET.
+// Legacy clone's low byte is CSIGNAL, not CLONE_NEWTIME. unshare and clone3
+// are separately blocked, including the time-namespace entry paths.
+#define SDUOJ_NEW_NAMESPACES 0x7e020000
+
+POLICY sduoj_debug_arm64_v1 {
+    // clone3 passes a pointer to flags. Classic seccomp BPF cannot dereference
+    // it. ENOSYS deliberately permits libc to fall back to legacy clone.
+    ERRNO(38) { SYSCALL[435] },
+    ERRNO(1) {
+        SYSCALL[39],   // umount2
+        SYSCALL[40],   // mount
+        SYSCALL[41],   // pivot_root
+        SYSCALL[51],   // chroot
+        SYSCALL[60],   // quotactl
+        SYSCALL[89],   // acct
+        SYSCALL[97],   // unshare
+        SYSCALL[104],  // kexec_load
+        SYSCALL[105],  // init_module
+        SYSCALL[106],  // delete_module
+        SYSCALL[112],  // clock_settime
+        SYSCALL[116],  // syslog
+        SYSCALL[142],  // reboot
+        SYSCALL[161],  // sethostname
+        SYSCALL[162],  // setdomainname
+        SYSCALL[170],  // settimeofday
+        SYSCALL[171],  // adjtimex
+        SYSCALL[217],  // add_key
+        SYSCALL[218],  // request_key
+        SYSCALL[219],  // keyctl
+        SYSCALL[224],  // swapon
+        SYSCALL[225],  // swapoff
+        SYSCALL[241],  // perf_event_open
+        SYSCALL[262],  // fanotify_init
+        SYSCALL[263],  // fanotify_mark
+        SYSCALL[264],  // name_to_handle_at
+        SYSCALL[265],  // open_by_handle_at
+        SYSCALL[266],  // clock_adjtime
+        SYSCALL[268],  // setns
+        SYSCALL[273],  // finit_module
+        SYSCALL[277],  // seccomp; cannot add a second filter/user-notification layer
+        SYSCALL[280],  // bpf
+        SYSCALL[282],  // userfaultfd
+        SYSCALL[294],  // kexec_file_load
+        SYSCALL[425],  // io_uring_setup
+        SYSCALL[426],  // io_uring_enter
+        SYSCALL[427],  // io_uring_register
+        SYSCALL[428],  // open_tree
+        SYSCALL[429],  // move_mount
+        SYSCALL[430],  // fsopen
+        SYSCALL[431],  // fsconfig
+        SYSCALL[432],  // fsmount
+        SYSCALL[433],  // fspick
+        SYSCALL[438],  // pidfd_getfd
+        SYSCALL[440],  // process_madvise
+        SYSCALL[442],  // mount_setattr
+        SYSCALL[443],  // quotactl_fd
+        SYSCALL[447],  // memfd_secret
+        SYSCALL[448],  // process_mrelease
+        SYSCALL[457],  // statmount
+        SYSCALL[458],  // listmount
+        // Do not block ordinary clone: compilers, JVM, GDB, and Python need
+        // process/thread creation. Test every namespace flag and mixed flags.
+        SYSCALL[220](flags) { (flags & SDUOJ_NEW_NAMESPACES) != 0 },
+        // prctl(PR_SET_SECCOMP). Other prctl operations needed by runtimes,
+        // NNP queries and capability-drop checks remain available.
+        SYSCALL[167](operation) { (operation & 0xffffffff) == 22 },
+        // No packet, Bluetooth, kernel-crypto, or host-vsock transport. Keep
+        // UNIX(1), INET(2), INET6(10), NETLINK(16) for runtime compatibility.
+        // Network address confinement is provided by the private network ns;
+        // seccomp cannot dereference the sockaddr passed to connect/bind.
+        SYSCALL[198](family) {
+            (family & 0xffffffff) == 17 ||
+            (family & 0xffffffff) == 31 ||
+            (family & 0xffffffff) == 38 ||
+            (family & 0xffffffff) == 40
+        }
+    }
+}
+USE sduoj_debug_arm64_v1 DEFAULT ALLOW

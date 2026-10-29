@@ -26,3 +26,5 @@ data/
 workspace/
 # Generated full Linux JUnit dependency packet, never release source.
 /linux-test-packet*/
+__pycache__/
+.pytest_cache/
