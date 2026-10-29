@@ -1,4 +1,11 @@
 ARG UBUNTU_VERSION=18.04
+ARG IDE_TOOLS_IMAGE
+ARG IDE_DEBUG_TOOLS_IMAGE
+
+# Upstream SDK images are build inputs only. The published worker remains this
+# original Ubuntu/Java17 image; no separate IDE image is published.
+FROM ${IDE_TOOLS_IMAGE} AS ide-tools
+FROM ${IDE_DEBUG_TOOLS_IMAGE} AS ide-debug-tools
 FROM ubuntu:${UBUNTU_VERSION} as basic
 # metadata
 LABEL maintainer="SDUOJ-Team"
@@ -64,6 +71,48 @@ RUN mkdir -p /sduoj \
  && ln -s /opt/sduoj-sandbox/bin/sandbox /usr/bin/sandbox \
  && ln -s /opt/python/3.11/bin/python    /usr/bin/python3
 
+
+# Freeze the original formal judge/runtime contents before adding application
+# jars and the optional IDE worker. The IDE rootfs is an explicit /opt
+# toolchain whitelist; it never copies the final image recursively.
+FROM basic AS judge-runtime
+FROM judge-runtime AS final
+COPY --from=judge-runtime /opt /opt/judge-rootfs/opt
+
+# Relocatable upstream SDK payloads. Node and clangd carry private loaders;
+# Python wheels are unpacked into the existing Judger Python 3.11 runtime
+# target rather than replacing the image's management/runtime libc.
+COPY --from=ide-tools /opt/node /opt/node
+COPY --from=ide-tools /opt/jdtls /opt/jdtls
+COPY --from=ide-tools /opt/ide-tools /opt/ide-tools
+COPY --from=ide-tools /opt/toolchain-provenance /opt/sduoj-ide/toolchain-provenance
+COPY --from=ide-debug-tools /artifacts/nsjail-runtime /opt/nsjail-runtime
+COPY --from=ide-debug-tools /artifacts/gdb-runtime /opt/sduoj-debug/gdb-runtime
+COPY --from=ide-debug-tools /artifacts/debugpy /opt/sduoj-debug/debugpy
+COPY --from=ide-debug-tools /opt/toolchain-provenance /opt/sduoj-debug/toolchain-provenance
+RUN mkdir -p /opt/sduoj-ide/deps /opt/ide-sdk/bin \
+ && find /opt/ide-tools/python-wheels -type f -name '*.whl' -print0 \
+    | sort -z \
+    | xargs -0 -n1 unzip -q -d /opt/sduoj-ide/deps \
+ && rm -rf /opt/ide-tools/python-wheels \
+ && ln -s /opt/node/bin/node /opt/ide-sdk/bin/node \
+ && ln -s /opt/node/bin/pyright /opt/ide-sdk/bin/pyright \
+ && ln -s /opt/node/bin/pyright-langserver /opt/ide-sdk/bin/pyright-langserver \
+ && ln -s /opt/ide-tools/bin/clangd-wrapper /opt/ide-sdk/bin/clangd \
+ && mkdir -p /opt/sduoj-debug/bridge \
+ && chmod 0555 /opt/nsjail-runtime/nsjail /opt/ide-tools/bin/clangd-wrapper
+
+# Worker source and reviewed adapters are owned by Judger. This copy does not
+# install a policy or mark profiles qualified; startup must load an
+# operator-approved manifest and fail closed otherwise.
+COPY ide-worker/ide_intelligence /opt/sduoj-ide/ide_intelligence
+COPY ide-worker/ide_debug /opt/sduoj-ide/ide_debug
+COPY ide-worker/sduoj_ide_worker /opt/sduoj-ide/sduoj_ide_worker
+COPY ide-worker/scripts /opt/sduoj-ide/scripts
+COPY ide-worker/toolchain-templates.json /opt/sduoj-ide/toolchain-templates.json
+COPY ide-worker/extraction.json /opt/sduoj-ide/extraction.json
+RUN /opt/java/openjdk17/bin/javac -d /opt/sduoj-debug/bridge /opt/sduoj-ide/ide_debug/adapters/DebugBridge.java \
+ && chmod 0555 /opt/sduoj-ide/scripts/entrypoint.py /opt/sduoj-ide/scripts/nsjail
 
 WORKDIR /app
 
