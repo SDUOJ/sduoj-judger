@@ -10,7 +10,8 @@ IDE mode must reject amd64 until it has its own SDK and runtime qualification;
 copying ARM64 files does not establish amd64 IDE support.
 
 This scaffold is not a runnable or qualified IDE release. The nested rootfs
-still needs a reviewed loader/system-file whitelist. Trusted bootstrap,
+copies the original sandbox runtime paths from the stage before application
+installation. Native loader checks remain required. Trusted bootstrap,
 identity helpers, policy and candidate profile installation remain pending.
 Official sandbox compilation requires the reviewed separate compile phase and
 an actual user-namespace/cgroup capability probe. Failure must remain closed;

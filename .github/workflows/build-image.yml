@@ -65,6 +65,8 @@ jobs:
           file: Dockerfile
           platforms: linux/amd64,linux/arm64
           push: true
+          provenance: false
+          sbom: false
           tags: registry.cn-beijing.aliyuncs.com/pre-sduoj/sduoj-judger:latest
           cache-from: type=gha
           cache-to: type=gha,mode=max

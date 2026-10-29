@@ -47,7 +47,7 @@ class UnifiedImageContract(unittest.TestCase):
         application = self.dockerfile.index('COPY sduoj-judger-service/build/libs/')
         self.assertLess(frozen, final)
         self.assertLess(final, application)
-        self.assertIn('COPY --from=judge-runtime /opt /opt/judge-rootfs/opt', self.dockerfile)
+        self.assertIn('COPY --from=debug-rootfs /prepared-debug-rootfs/ /opt/judge-rootfs/', self.dockerfile)
         self.assertNotIn('COPY --from=final', self.dockerfile)
         self.assertNotIn('fixed-sandbox', self.dockerfile)
 
@@ -63,8 +63,9 @@ class UnifiedImageContract(unittest.TestCase):
         for line in self.dockerfile.splitlines():
             if line.startswith(('COPY --from=ide-tools ', 'COPY --from=ide-debug-tools ')):
                 self.assertTrue(shlex.split(line)[-1].startswith('/opt/'), line)
-        self.assertIn('ARG IDE_TOOLS_IMAGE\n', self.dockerfile)
-        self.assertIn('ARG IDE_DEBUG_TOOLS_IMAGE\n', self.dockerfile)
+        for name in ('IDE_TOOLS_IMAGE', 'IDE_DEBUG_TOOLS_IMAGE'):
+            self.assertRegex(self.dockerfile, 'ARG ' + name +
+                             r'=ghcr\.io/sduoj/judging-containers@sha256:[a-f0-9]{64}\n')
 
     def test_arm_sdk_is_only_copied_by_other_architecture_builds(self):
         for role, arg in [('ide-tools', 'IDE_TOOLS_IMAGE'),

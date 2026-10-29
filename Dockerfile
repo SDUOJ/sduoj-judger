@@ -1,6 +1,6 @@
 ARG UBUNTU_VERSION=18.04
-ARG IDE_TOOLS_IMAGE
-ARG IDE_DEBUG_TOOLS_IMAGE
+ARG IDE_TOOLS_IMAGE=ghcr.io/sduoj/judging-containers@sha256:eec79b27d7873f5948903618863c34755515cad18ba5c223a88a96019b5c7970
+ARG IDE_DEBUG_TOOLS_IMAGE=ghcr.io/sduoj/judging-containers@sha256:6056a5982416c9283249c7af0d8eee6fb45a7c56c234be6a45a5b1abbe4ec40f
 
 # Upstream SDK images are build inputs only. The published worker remains this
 # original Ubuntu/Java17 image; no separate IDE image is published.
@@ -75,11 +75,14 @@ RUN mkdir -p /sduoj \
 
 
 # Freeze the original formal judge/runtime contents before adding application
-# jars and the optional IDE worker. The IDE rootfs is an explicit /opt
-# toolchain whitelist; it never copies the final image recursively.
+# jars and the optional IDE worker. The IDE rootfs uses the original sandbox's
+# runtime paths; it never copies the final image recursively.
 FROM basic AS judge-runtime
+FROM judge-runtime AS debug-rootfs
+RUN --mount=type=bind,source=docker/prepare-debug-rootfs.sh,target=/prepare-debug-rootfs.sh \
+    sh /prepare-debug-rootfs.sh
 FROM judge-runtime AS final
-COPY --from=judge-runtime /opt /opt/judge-rootfs/opt
+COPY --from=debug-rootfs /prepared-debug-rootfs/ /opt/judge-rootfs/
 
 # Relocatable upstream SDK payloads. Node and clangd carry private loaders;
 # Python wheels are unpacked into the existing Judger Python 3.11 runtime
